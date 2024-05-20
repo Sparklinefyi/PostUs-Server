@@ -4,6 +4,6 @@ fun getAnalytics(){
 
 }
 
-fun postVideo(){
+fun postVideo(userId : Long){
 
 }
