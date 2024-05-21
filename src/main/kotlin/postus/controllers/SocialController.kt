@@ -23,7 +23,7 @@ data class ListResponse(
 )
 
 class SocialController {
-    fun uploadImage(userId: String, image : ByteArray) : HttpStatusCode {
+    fun uploadImage(userId: String, image : ByteArray) : String {
         val bucketName = "postus-user-media"
         val region = Region.US_EAST_1  // Replace with your bucket's region
 
@@ -49,12 +49,8 @@ class SocialController {
         val presignedRequest = presigner.presignPutObject(presignRequest)
         val presignedUrl = presignedRequest.url()
 
-        val isSuccess = uploadImageToS3(presignedUrl.toString(), image)
-        if (isSuccess) {
-            return HttpStatusCode.OK
-        } else {
-            return HttpStatusCode.InternalServerError
-        }
+        val videoUrl = uploadImageToS3(presignedUrl.toString(), image)
+        return videoUrl
     }
 
     fun getImageList(userId: String) : ListResponse {
@@ -77,7 +73,7 @@ class SocialController {
 }
 
 
-fun uploadImageToS3(presignedUrl: String, imageByteArray: ByteArray): Boolean {
+fun uploadImageToS3(presignedUrl: String, imageByteArray: ByteArray): String {
     val client = OkHttpClient()
     val requestBody = imageByteArray.toRequestBody("image/jpeg".toMediaTypeOrNull())
     val request = Request.Builder()
@@ -87,7 +83,9 @@ fun uploadImageToS3(presignedUrl: String, imageByteArray: ByteArray): Boolean {
 
     client.newCall(request).execute().use { response ->
         if (!response.isSuccessful) throw IOException("Unexpected code $response")
-        return response.isSuccessful
+        val uncutURL = response.networkResponse?.request?.url.toString()
+        val videoUrl = uncutURL.removeRange(uncutURL.indexOf("?"), uncutURL.length)
+        return videoUrl
     }
 }
 
