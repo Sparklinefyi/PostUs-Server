@@ -20,6 +20,7 @@ import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest
 import java.io.IOException
 import java.time.Duration
@@ -61,6 +62,26 @@ class SocialController {
         return videoUrl
     }
 
+    fun getPresignedImageUrl(imageKey: String): String {
+        val bucketName = "postus-user-media"
+        val region = Region.US_EAST_1
+
+        val presigner = S3Presigner.builder()
+            .region(region)
+            .credentialsProvider(DefaultCredentialsProvider.create())
+            .build()
+
+        val getObjectRequest = GetObjectPresignRequest.builder()
+            .getObjectRequest { builder ->
+                builder.bucket(bucketName).key(imageKey)
+            }
+            .signatureDuration(Duration.ofMinutes(10))
+            .build()
+
+        val presignedRequest = presigner.presignGetObject(getObjectRequest)
+        return presignedRequest.url().toString()
+    }
+
     fun getImageList(userId: String) : ListResponse {
         val bucketName = "postus-user-media"
 
@@ -77,6 +98,24 @@ class SocialController {
         val listResponse = s3Client.listObjectsV2(listRequest)
         val videoKeys = listResponse.contents().map { it.key() }
         return ListResponse(videoKeys)
+    }
+
+    fun getFirstImage(userId: String) : String {
+        val bucketName = "postus-user-media"
+
+        val s3Client = S3Client.builder()
+            .region(Region.US_EAST_1)
+            .credentialsProvider(DefaultCredentialsProvider.create())
+            .build()
+
+        val listRequest = ListObjectsV2Request.builder()
+            .bucket(bucketName)
+            .prefix("$userId/")
+            .build()
+
+        val listResponse = s3Client.listObjectsV2(listRequest)
+        val videoKey = listResponse.contents().map { it.key() }[0]
+        return getPresignedImageUrl(videoKey)
     }
 }
 
@@ -142,7 +181,7 @@ fun publishImageToInstagram(userId : String, videoUrl : String, caption : String
     println("Publish Response Body: ${publishResponse.body?.string()}")
 }
 
-fun uploadYoutubeShort(uploadRequest: YoutubeUploadRequest, accessToken: String, videoUrl: String): UploadResponse {
+fun uploadYoutubeShort(uploadRequest: YoutubeUploadRequest, accessToken: String, videoUrl: String): String {
     val client = OkHttpClient()
 
     val json = Json { encodeDefaults = true }

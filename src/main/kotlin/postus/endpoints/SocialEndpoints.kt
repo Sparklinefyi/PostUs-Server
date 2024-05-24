@@ -25,7 +25,7 @@ fun Application.configureSocialRouting() {
 
             get("/list") {
                 val userId = call.parameters["userId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing userId")
-                val response = SocialController.getImageList(userId)
+                val response = SocialController.getFirstImage(userId)
                 call.respond(response)
             }
 
