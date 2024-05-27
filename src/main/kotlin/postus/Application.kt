@@ -17,5 +17,6 @@ fun Application.module() {
         json()
     }
     configureAuthRouting()
-    configureSocialRouting()
+    configureMediaRouting()
+    configureSocialsRouting()
 }
