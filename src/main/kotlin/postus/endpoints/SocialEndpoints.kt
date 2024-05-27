@@ -16,11 +16,28 @@ val SocialController = SocialController()
 fun Application.configureSocialRouting() {
     routing {
         route("/socials") {
-            post("/upload") {
-                val userId = call.parameters["userId"] ?: return@post call.respond(HttpStatusCode.BadRequest, "Missing userId")
-                val imageByteArray = call.receive<ByteArray>()
-                val response = SocialController.uploadImage(userId, imageByteArray)
-                call.respond(response)
+
+            route("/upload") {
+
+                post("image") {
+                    val userId = call.parameters["userId"] ?: return@post call.respond(
+                        HttpStatusCode.BadRequest,
+                        "Missing userId"
+                    )
+                    val imageByteArray = call.receive<ByteArray>()
+                    val response = SocialController.uploadImage(userId, imageByteArray)
+                    call.respond(response)
+                }
+
+                post("video"){
+                    val userId = call.parameters["userId"] ?: return@post call.respond(
+                        HttpStatusCode.BadRequest,
+                        "Missing userId"
+                    )
+                    val videoByteArray = call.receive<ByteArray>()
+                    val response = SocialController.uploadVideo(userId, videoByteArray)
+                    call.respond(response)
+                }
             }
 
             get("/list") {

@@ -1,8 +1,6 @@
 package postus.controllers
 
-import io.ktor.http.*
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -12,6 +10,7 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import postus.models.YoutubeUploadRequest
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider
@@ -22,6 +21,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest
+import java.io.File
 import java.io.IOException
 import java.time.Duration
 import java.util.*
@@ -58,11 +58,41 @@ class SocialController {
         val presignedRequest = presigner.presignPutObject(presignRequest)
         val presignedUrl = presignedRequest.url()
 
-        val videoUrl = uploadImageToS3(presignedUrl.toString(), image)
+        val imageUrl = uploadFileToS3(presignedUrl.toString(), image, "image/jpeg")
+        return imageUrl
+    }
+
+    fun uploadVideo(userId: String, video: ByteArray): String {
+        val bucketName = "postus-user-media"
+        val region = Region.US_EAST_1
+
+        val presigner = S3Presigner.builder()
+            .region(region)
+            .credentialsProvider(DefaultCredentialsProvider.create())
+            .build()
+
+        val fileName = generateFileName() + ".mp4"
+
+        val objectKey = "$userId/$fileName"
+
+        val request = PutObjectRequest.builder()
+            .bucket(bucketName)
+            .key(objectKey)
+            .build()
+
+        val presignRequest = PutObjectPresignRequest.builder()
+            .putObjectRequest(request)
+            .signatureDuration(Duration.ofMinutes(10))
+            .build()
+
+        val presignedRequest = presigner.presignPutObject(presignRequest)
+        val presignedUrl = presignedRequest.url()
+
+        val videoUrl = uploadFileToS3(presignedUrl.toString(), video, "video/mp4")
         return videoUrl
     }
 
-    fun getPresignedImageUrl(imageKey: String): String {
+    fun getPresignedUrl(key: String): String {
         val bucketName = "postus-user-media"
         val region = Region.US_EAST_1
 
@@ -73,7 +103,7 @@ class SocialController {
 
         val getObjectRequest = GetObjectPresignRequest.builder()
             .getObjectRequest { builder ->
-                builder.bucket(bucketName).key(imageKey)
+                builder.bucket(bucketName).key(key)
             }
             .signatureDuration(Duration.ofMinutes(10))
             .build()
@@ -96,7 +126,7 @@ class SocialController {
             .build()
 
         val listResponse = s3Client.listObjectsV2(listRequest)
-        val videoKeys = listResponse.contents().map { it.key() }
+        val videoKeys = listResponse.contents().map { getPresignedUrl(it.key()) }
         return ListResponse(videoKeys)
     }
 
@@ -115,14 +145,14 @@ class SocialController {
 
         val listResponse = s3Client.listObjectsV2(listRequest)
         val videoKey = listResponse.contents().map { it.key() }[0]
-        return getPresignedImageUrl(videoKey)
+        return getPresignedUrl(videoKey)
     }
 }
 
 
-fun uploadImageToS3(presignedUrl: String, imageByteArray: ByteArray): String {
+fun uploadFileToS3(presignedUrl: String, fileByteArray: ByteArray, mediaType: String): String {
     val client = OkHttpClient()
-    val requestBody = imageByteArray.toRequestBody("image/jpeg".toMediaTypeOrNull())
+    val requestBody = fileByteArray.toRequestBody(mediaType.toMediaTypeOrNull())
     val request = Request.Builder()
         .url(presignedUrl)
         .put(requestBody)
@@ -131,8 +161,8 @@ fun uploadImageToS3(presignedUrl: String, imageByteArray: ByteArray): String {
     client.newCall(request).execute().use { response ->
         if (!response.isSuccessful) throw IOException("Unexpected code $response")
         val uncutURL = response.networkResponse?.request?.url.toString()
-        val videoUrl = uncutURL.removeRange(uncutURL.indexOf("?"), uncutURL.length)
-        return videoUrl
+        val fileUrl = uncutURL.removeRange(uncutURL.indexOf("?"), uncutURL.length)
+        return fileUrl
     }
 }
 
@@ -184,6 +214,8 @@ fun publishImageToInstagram(userId : String, videoUrl : String, caption : String
 fun uploadYoutubeShort(uploadRequest: YoutubeUploadRequest, accessToken: String, videoUrl: String): String {
     val client = OkHttpClient()
 
+    val videoFile = downloadVideo(videoUrl)
+
     val json = Json { encodeDefaults = true }
     val snippetJson = json.encodeToString(uploadRequest.snippet)
     val statusJson = json.encodeToString(uploadRequest.status)
@@ -192,12 +224,11 @@ fun uploadYoutubeShort(uploadRequest: YoutubeUploadRequest, accessToken: String,
 
     val url = "https://www.googleapis.com/upload/youtube/v3/videos?part=snippet,status"
 
-
     val requestBody = MultipartBody.Builder()
         .setType(MultipartBody.FORM)
         .addFormDataPart("snippet", null, snippetJson.toRequestBody("application/json".toMediaTypeOrNull()))
         .addFormDataPart("status", null, statusJson.toRequestBody("application/json".toMediaTypeOrNull()))
-        //.addFormDataPart("video",  videoFile.name, videoFile.asRequestBody(mediaType))
+        .addFormDataPart("video", videoFile.name, videoFile.asRequestBody(mediaType))
         .build()
 
     val request = Request.Builder()
@@ -210,10 +241,26 @@ fun uploadYoutubeShort(uploadRequest: YoutubeUploadRequest, accessToken: String,
     if (!response.isSuccessful) throw IOException("Unexpected code $response")
 
     val responseBody = response.body?.string()
-    return ""//Json.decodeFromString(responseBody ?: "")
+    return responseBody ?: ""
 }
 
 fun generateFileName(): String {
     val uuid = UUID.randomUUID()
     return uuid.toString().replace("-", "")
+}
+
+fun downloadVideo(videoUrl: String): File {
+    val client = OkHttpClient()
+    val request = Request.Builder().url(videoUrl).build()
+
+    client.newCall(request).execute().use { response ->
+        if (!response.isSuccessful) throw IOException("Failed to download video: $response")
+
+        val tempFile = File.createTempFile("video", ".mp4")
+        tempFile.outputStream().use { fileOut ->
+            response.body?.byteStream()?.copyTo(fileOut)
+        }
+
+        return tempFile
+    }
 }
