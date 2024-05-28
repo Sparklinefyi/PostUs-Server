@@ -1,0 +1,13 @@
+database {
+    url = "jdbc:postgresql://<url>:5432/postgres"
+    user = ""
+    password = ""
+    driver = "org.postgresql.Driver"
+    maximumPoolSize = 10
+},
+
+google {
+    clientID = ""
+    clientSecret = ""
+    redirectUri = ""
+}
