@@ -68,17 +68,15 @@ class SocialsController{
         val videoFile = MediaController.downloadVideo(videoUrl)
 
         val json = Json { encodeDefaults = true }
-        val snippetJson = json.encodeToString(uploadRequest.snippet)
-        val statusJson = json.encodeToString(uploadRequest.status)
+        val metadataJson = json.encodeToString(uploadRequest)
 
         val mediaType = "video/*".toMediaTypeOrNull()
 
-        val url = "https://www.googleapis.com/upload/youtube/v3/videos?part=snippet,status"
+        val url = "https://www.googleapis.com/upload/youtube/v3/videos?uploadType=multipart&part=snippet,status"
 
         val requestBody = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
-            .addFormDataPart("snippet", null, snippetJson.toRequestBody("application/json".toMediaTypeOrNull()))
-            .addFormDataPart("status", null, statusJson.toRequestBody("application/json".toMediaTypeOrNull()))
+            .addFormDataPart("metadata", null, metadataJson.toRequestBody("application/json".toMediaTypeOrNull()))
             .addFormDataPart("video", videoFile.name, videoFile.asRequestBody(mediaType))
             .build()
 
@@ -89,7 +87,6 @@ class SocialsController{
             .build()
 
         val response = client.newCall(request).execute()
-        if (!response.isSuccessful) throw IOException("Unexpected code $response")
 
         val responseBody = response.body?.string()
         return responseBody ?: ""
