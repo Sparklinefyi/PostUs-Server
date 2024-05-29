@@ -2,6 +2,7 @@ package postus.controllers
 
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.*
@@ -14,9 +15,10 @@ import postus.models.YoutubeUploadRequest
 
 class SocialsController{
 
-    fun uploadVideoToInstagram(videoUrl: String, caption: String? = "", pageAccessToken: String, instagramAccountId: String) : String {
-        val client = OkHttpClient()
+    private val client = OkHttpClient()
 
+
+    fun uploadVideoToInstagram(videoUrl: String, caption: String? = "", pageAccessToken: String, instagramAccountId: String) : String {
         val containerUrl = "https://graph.facebook.com/v11.0/$instagramAccountId/media".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("media_type", "REELS")
             .addQueryParameter("video_url", videoUrl)
@@ -98,8 +100,6 @@ class SocialsController{
     }
 
     fun uploadPictureToInstagram(imageUrl: String, caption: String? = "", pageAccessToken: String, instagramAccountId: String) : String {
-        val client = OkHttpClient()
-
         val containerUrl = "https://graph.facebook.com/v11.0/$instagramAccountId/media".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("image_url", imageUrl)
             .addQueryParameter("caption", caption)
@@ -144,10 +144,7 @@ class SocialsController{
         return "Publish Response Body: ${publishResponse.body?.string()}"
     }
 
-
     fun uploadYoutubeShort(uploadRequest: YoutubeUploadRequest, accessToken: String, videoUrl: String): String {
-        val client = OkHttpClient()
-
         val videoFile = MediaController.downloadVideo(videoUrl)
 
         val json = Json { encodeDefaults = true }
@@ -173,5 +170,98 @@ class SocialsController{
 
         val responseBody = response.body?.string()
         return responseBody ?: ""
+    }
+
+    fun exchangeCodeForAccessToken(clientId: String, clientSecret: String, redirectUri: String, code: String): String? {
+        val url = "https://graph.facebook.com/v11.0/oauth/access_token".toHttpUrlOrNull()!!.newBuilder()
+            .addQueryParameter("client_id", clientId)
+            .addQueryParameter("redirect_uri", redirectUri)
+            .addQueryParameter("client_secret", clientSecret)
+            .addQueryParameter("code", code)
+            .build()
+            .toString()
+
+        val request = Request.Builder()
+            .url(url)
+            .get()
+            .build()
+
+        val response = client.newCall(request).execute()
+        if (!response.isSuccessful) return null
+
+        val responseBody = response.body?.string() ?: return null
+        val jsonElement = Json.parseToJsonElement(responseBody)
+        return jsonElement.jsonObject["access_token"]?.jsonPrimitive?.content
+    }
+
+    fun exchangeShortLivedTokenForLongLivedToken(clientId: String, clientSecret: String, shortLivedToken: String): String? {
+        val url = "https://graph.facebook.com/v11.0/oauth/access_token".toHttpUrlOrNull()!!.newBuilder()
+            .addQueryParameter("grant_type", "fb_exchange_token")
+            .addQueryParameter("client_id", clientId)
+            .addQueryParameter("client_secret", clientSecret)
+            .addQueryParameter("fb_exchange_token", shortLivedToken)
+            .build()
+            .toString()
+
+        val request = Request.Builder()
+            .url(url)
+            .get()
+            .build()
+
+        val response = client.newCall(request).execute()
+        if (!response.isSuccessful) return null
+
+        val responseBody = response.body?.string() ?: return null
+        val jsonElement = Json.parseToJsonElement(responseBody)
+        return jsonElement.jsonObject["access_token"]?.jsonPrimitive?.content
+    }
+
+    fun getUserPages(accessToken: String): String? {
+        val url = "https://graph.facebook.com/v11.0/me/accounts".toHttpUrlOrNull()!!.newBuilder()
+            .addQueryParameter("access_token", accessToken)
+            .build()
+            .toString()
+
+        val request = Request.Builder()
+            .url(url)
+            .get()
+            .build()
+
+        val response = client.newCall(request).execute()
+        if (!response.isSuccessful) return null
+
+        return response.body?.string()
+    }
+
+    fun getInstagramBusinessAccountId(pageId: String, accessToken: String): String? {
+        val url = "https://graph.facebook.com/v11.0/$pageId".toHttpUrlOrNull()!!.newBuilder()
+            .addQueryParameter("fields", "instagram_business_account")
+            .addQueryParameter("access_token", accessToken)
+            .build()
+            .toString()
+
+        val request = Request.Builder()
+            .url(url)
+            .get()
+            .build()
+
+        val response = client.newCall(request).execute()
+        if (!response.isSuccessful) return null
+
+        val responseBody = response.body?.string() ?: return null
+        val jsonElement = Json.parseToJsonElement(responseBody)
+        return jsonElement.jsonObject["instagram_business_account"]?.jsonObject?.get("id")?.jsonPrimitive?.content
+    }
+
+    fun getLongLivedAccessTokenAndInstagramBusinessAccountId(clientId: String, clientSecret: String, redirectUri: String, code: String): Pair<String?, String?> {
+        val shortLivedToken = exchangeCodeForAccessToken(clientId, clientSecret, redirectUri, code) ?: return null to null
+        val longLivedToken = exchangeShortLivedTokenForLongLivedToken(clientId, clientSecret, shortLivedToken) ?: return null to null
+        val pages = getUserPages(longLivedToken) ?: return null to null
+
+        val jsonElement = Json.parseToJsonElement(pages)
+        val pageId = jsonElement.jsonObject["data"]?.jsonArray?.firstOrNull()?.jsonObject?.get("id")?.jsonPrimitive?.content ?: return longLivedToken to null
+
+        val instagramBusinessAccountId = getInstagramBusinessAccountId(pageId, longLivedToken)
+        return longLivedToken to instagramBusinessAccountId
     }
 }

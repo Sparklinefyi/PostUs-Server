@@ -87,6 +87,22 @@ fun Application.configureSocialsRouting() {
                     }
                 }
             }
+            route("auth"){
+                get("instagram"){
+                    val clientId = "486594670554364"
+                    val clientSecret = "c4953d7d0d6771d0bace9d4d715647f2"
+                    val redirectUri = "https://sparkline.fyi/login"
+                    val code = call.parameters["code"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing code parameter")
+
+                    val (longLivedToken, instagramBusinessAccountId) = SocialsController.getLongLivedAccessTokenAndInstagramBusinessAccountId(clientId, clientSecret, redirectUri, code)
+
+                    if (longLivedToken == null || instagramBusinessAccountId == null) {
+                        call.respond(HttpStatusCode.InternalServerError, "Failed to retrieve tokens or Instagram Business Account ID")
+                    } else {
+                        call.respond(mapOf("long_lived_access_token" to longLivedToken, "instagram_business_account_id" to instagramBusinessAccountId))
+                    }
+                }
+            }
         }
     }
 }
