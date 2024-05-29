@@ -5,7 +5,8 @@ import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.server.plugins.contentnegotiation.*
 import postus.endpoints.*
-import postus.controllers.UserController
+import postus.repositories.*
+import postus.controllers.*
 
 fun main() {
     embeddedServer(Netty, port = 8080, host="localhost", module = Application::module)
@@ -17,10 +18,15 @@ fun Application.module() {
         json()
     }
 
-    val userController = UserController()
-    userController.getAllUsers()
+    // Create instances of repositories
+    val userRepository = UserRepository()
+    val linkedAccountRepository = LinkedAccountRepository()
 
-    configureAuthRouting()
+    // Create an instance of UserService
+    val userService = UserController(userRepository, linkedAccountRepository)
+
+    // Pass userService to configureAuthRouting
+    configureAuthRouting(userService)
     configureMediaRouting()
     configureSocialsRouting()
 }

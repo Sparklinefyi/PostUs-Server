@@ -25,25 +25,28 @@ repositories {
 }
 
 dependencies {
+    implementation("org.mindrot:jbcrypt:0.4")
     implementation("org.jetbrains.exposed:exposed-core:0.50.1")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation("org.postgresql:postgresql:42.7.3")
     implementation("com.zaxxer:HikariCP:4.0.3")
+    implementation("io.ktor:ktor-server-auth")
+    implementation("io.ktor:ktor-server-auth-jwt")
     implementation("io.ktor:ktor-server-core-jvm")
     implementation("io.ktor:ktor-server-netty-jvm")
+    testImplementation("io.ktor:ktor-server-tests-jvm")
     implementation("io.ktor:ktor-server-host-common:2.0.0")
+    implementation("io.ktor:ktor-server-content-negotiation:$ktor_version")
     implementation("com.google.code.gson:gson:2.11.0")
     implementation("io.ktor:ktor-client-core:$ktor_version")
     implementation("io.ktor:ktor-client-serialization:$ktor_version")
     implementation("io.ktor:ktor-client-cio:$ktor_version")
     implementation("io.ktor:ktor-client-json:$ktor_version")
     implementation("io.ktor:ktor-serialization-kotlinx-json:$ktor_version")
-    implementation("io.ktor:ktor-server-content-negotiation:$ktor_version")
     implementation("software.amazon.awssdk:s3:2.20.17")
     implementation("software.amazon.awssdk:auth:2.20.17")
     implementation("com.squareup.okhttp3:okhttp:4.9.3")
     implementation("ch.qos.logback:logback-classic:$logback_version")
-    testImplementation("io.ktor:ktor-server-tests-jvm")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
 
 }

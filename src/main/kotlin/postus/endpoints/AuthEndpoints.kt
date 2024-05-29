@@ -15,65 +15,44 @@ import io.ktor.client.request.forms.FormDataContent
 import io.ktor.util.*
 import com.google.gson.JsonParser
 import com.google.gson.JsonObject
+import io.ktor.server.request.*
 import java.util.*
 import java.sql.Date
 import postus.utils.EncryptionUtil
 
-fun Application.configureAuthRouting() {
+
+import postus.dto.*
+
+fun Application.configureAuthRouting(userService: UserController) {
     routing {
-        route("auth") {
-            get("/") {
-                call.respondText("Hello World!")
+        route("/auth") {
+            post("/register") {
+                val request = call.receive<RegistrationRequest>()
+                println(request)
+                val user = userService.registerUser(request)
+                println(user)
+
+                call.respond(HttpStatusCode.Created, user)
             }
 
-            get("/google/callback") {
-                val code = call.request.queryParameters["code"]
-                if (code == null) {
-                    call.respondText("Authorization code is missing", status = HttpStatusCode.BadRequest)
+            post("/link-account") {
+                val request = call.receive<LinkAccountRequest>()
+                val userId = call.request.queryParameters["userId"]?.toInt() ?: throw IllegalArgumentException("User ID required")
+                userService.linkAccount(userId, userService.verifyOAuthToken(request.oauthToken, request.provider))
+                call.respond(HttpStatusCode.OK, "Account linked")
+            }
+
+            post("/signin") {
+                val request = call.receive<SignInRequest>()
+                val user = if (request.provider != null) {
+                    userService.authenticateWithOAuth(request)
                 } else {
-                    val tokens = exchangeCodeForToken(code)
-                    if (tokens == null) {
-                        call.respondText("Failed to exchange code for tokens", status = HttpStatusCode.BadRequest)
-                        return@get
-                    }
-
-                    val accessToken = tokens["access_token"] ?: return@get
-                    val refreshToken = tokens["refresh_token"] ?: return@get
-
-                    val userInfo = fetchGoogleUser(accessToken)
-                    if (userInfo == null) {
-                        call.respondText("Failed to fetch user information", status = HttpStatusCode.BadRequest)
-                        return@get
-                    }
-
-                    val id = userInfo["sub"].asString
-                    val email = userInfo["email"].asString
-                    val first = userInfo["given_name"].asString
-                    val last = userInfo["family_name"].asString
-                    val picture = userInfo["picture"].asString
-                    val subExpire = Date(Date().time - 1 * 24 * 60 * 60 * 1000) // expired yesterday
-
-                    // Encrypt refresh token before setting it in cookie
-                    val encryptedRefreshToken = EncryptionUtil.encrypt(refreshToken)
-
-                    val userController = UserController()
-                    userController.addUser(id, email, first, last, picture, encryptedRefreshToken, subExpire)
-
-                    // Set secure cookie with encrypted refresh token
-                    call.response.cookies.append(
-                        Cookie(
-                            name = "refresh_token",
-                            value = encryptedRefreshToken,
-                            httpOnly = true,
-                            secure = true,
-                            path = "/",
-                            maxAge = 60 * 60 * 24 * 30 // 30 days
-                        )
-                    )
-
-                    val state = call.request.queryParameters["state"]
-                    val frontendOrigin = call.request.queryParameters["frontend_origin"] ?: "http://localhost:3000"
-                    call.respondRedirect("$frontendOrigin$state")
+                    userService.authenticateWithEmailPassword(request.email, request.password)
+                }
+                if (user != null) {
+                    call.respond(HttpStatusCode.OK, user)
+                } else {
+                    call.respond(HttpStatusCode.Unauthorized, "Invalid credentials")
                 }
             }
         }

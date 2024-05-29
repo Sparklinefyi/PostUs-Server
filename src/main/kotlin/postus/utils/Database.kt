@@ -1,4 +1,4 @@
-package postus
+package postus.utils
 
 import com.typesafe.config.ConfigFactory
 import com.zaxxer.hikari.HikariConfig
