@@ -9,7 +9,7 @@ import postus.repositories.*
 import postus.controllers.*
 
 fun main() {
-    embeddedServer(Netty, port = 8080, host="localhost", module = Application::module)
+    embeddedServer(Netty, port = 8080, module = Application::module)
         .start(wait = true)
 }
 
