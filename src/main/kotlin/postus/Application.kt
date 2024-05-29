@@ -8,7 +8,7 @@ import postus.endpoints.*
 import postus.controllers.UserController
 
 fun main() {
-    embeddedServer(Netty, port = 8080, host="localhost", module = Application::module)
+    embeddedServer(Netty, port = 8080, module = Application::module)
         .start(wait = true)
 }
 

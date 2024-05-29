@@ -4,45 +4,75 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import okhttp3.*
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.OkHttpClient
-import okhttp3.Request
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import postus.endpoints.MediaController
 import postus.models.YoutubeUploadRequest
-import java.io.IOException
 
 class SocialsController{
 
-    fun publishImageToInstagram(userId : String, videoUrl : String, caption : String){
+    fun uploadVideoToInstagram(videoUrl: String, caption: String? = "", pageAccessToken: String, instagramAccountId: String) : String {
         val client = OkHttpClient()
 
-        val pageAccessToken = "YOUR_PAGE_ACCESS_TOKEN"
-        val instagramAccountId = "YOUR_INSTAGRAM_ACCOUNT_ID"
-
-        val containerUrl = "https://graph.facebook.com/v11.0/$instagramAccountId/media?image_url=$videoUrl&caption=$caption".toHttpUrlOrNull()!!.newBuilder()
+        val containerUrl = "https://graph.facebook.com/v11.0/$instagramAccountId/media".toHttpUrlOrNull()!!.newBuilder()
+            .addQueryParameter("media_type", "REELS")
+            .addQueryParameter("video_url", videoUrl)
+            .addQueryParameter("caption", caption)
+            .addQueryParameter("access_token", pageAccessToken)
             .build()
             .toString()
 
         val containerRequest = Request.Builder()
             .url(containerUrl)
-            .post(okhttp3.internal.EMPTY_REQUEST)
-            .addHeader("Authorization", "Bearer $pageAccessToken")
+            .post(RequestBody.create(null, ByteArray(0)))
             .build()
 
         val containerResponse = client.newCall(containerRequest).execute()
-        if (!containerResponse.isSuccessful) throw IOException("Unexpected code $containerResponse")
+        if (!containerResponse.isSuccessful) {
+            return "Container Response Body: ${containerResponse.body?.string()}"
+        }
 
         val responseBody = containerResponse.body?.string()
-        println("Container Response Body: $responseBody")
 
         val containerId = Json.parseToJsonElement(responseBody ?: "").jsonObject["id"]?.jsonPrimitive?.content
-            ?: throw IOException("Container ID not found in response")
 
-        println("Container ID: $containerId")
+        if (containerId == null) {
+            return "Failed to get container ID"
+        }
+
+        val maxRetries = 10
+        val retryDelayMillis = 3000L
+        var mediaReady = false
+        var retries = 0
+
+        while (!mediaReady && retries < maxRetries) {
+            Thread.sleep(retryDelayMillis)
+            val statusUrl = "https://graph.facebook.com/v11.0/$containerId".toHttpUrlOrNull()!!.newBuilder()
+                .addQueryParameter("fields", "status_code")
+                .addQueryParameter("access_token", pageAccessToken)
+                .build()
+                .toString()
+
+            val statusRequest = Request.Builder()
+                .url(statusUrl)
+                .get()
+                .build()
+
+            val statusResponse = client.newCall(statusRequest).execute()
+
+            val statusBody = statusResponse.body?.string()
+
+            val statusCode = Json.parseToJsonElement(statusBody ?: "").jsonObject["status_code"]?.jsonPrimitive?.content
+
+            if (statusCode == "FINISHED") {
+                mediaReady = true
+            } else {
+                retries++
+            }
+        }
 
         val publishUrl = "https://graph.facebook.com/v11.0/$instagramAccountId/media_publish".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("creation_id", containerId)
@@ -52,15 +82,68 @@ class SocialsController{
 
         val publishRequest = Request.Builder()
             .url(publishUrl)
-            .post(okhttp3.internal.EMPTY_REQUEST)
+            .post(RequestBody.create(null, ByteArray(0)))
+            .build()
+
+        val publishResponse = try {
+            client.newCall(publishRequest).execute()
+        } catch (e: Exception) {
+            return "Publish Request Exception: ${e.message}"
+        }
+        if (!publishResponse.isSuccessful) {
+            return publishResponse.body?.toString() ?: "Publish Request Failed"
+        }
+
+        return "Publish Response Body: ${publishResponse.body?.string()}"
+    }
+
+    fun uploadPictureToInstagram(imageUrl: String, caption: String? = "", pageAccessToken: String, instagramAccountId: String) : String {
+        val client = OkHttpClient()
+
+        val containerUrl = "https://graph.facebook.com/v11.0/$instagramAccountId/media".toHttpUrlOrNull()!!.newBuilder()
+            .addQueryParameter("image_url", imageUrl)
+            .addQueryParameter("caption", caption)
+            .addQueryParameter("access_token", pageAccessToken)
+            .build()
+            .toString()
+
+        val containerRequest = Request.Builder()
+            .url(containerUrl)
+            .post(RequestBody.create(null, ByteArray(0)))
+            .build()
+
+        val containerResponse = client.newCall(containerRequest).execute()
+        if (!containerResponse.isSuccessful) {
+            return "Container Response Body: ${containerResponse.body?.string()}"
+        }
+
+        val responseBody = containerResponse.body?.string()
+
+        val containerId = Json.parseToJsonElement(responseBody ?: "").jsonObject["id"]?.jsonPrimitive?.content
+
+        if (containerId == null) {
+            return "Failed to get container ID"
+        }
+
+        val publishUrl = "https://graph.facebook.com/v11.0/$instagramAccountId/media_publish".toHttpUrlOrNull()!!.newBuilder()
+            .addQueryParameter("creation_id", containerId)
+            .addQueryParameter("access_token", pageAccessToken)
+            .build()
+            .toString()
+
+        val publishRequest = Request.Builder()
+            .url(publishUrl)
+            .post(RequestBody.create(null, ByteArray(0)))
             .build()
 
         val publishResponse = client.newCall(publishRequest).execute()
-        if (!publishResponse.isSuccessful) throw IOException("Unexpected code $publishResponse")
+        if (!publishResponse.isSuccessful) {
+            return "Publish Response Body: ${publishResponse.body?.string()}"
+        }
 
-        println("Publish Response Status: ${publishResponse.code}")
-        println("Publish Response Body: ${publishResponse.body?.string()}")
+        return "Publish Response Body: ${publishResponse.body?.string()}"
     }
+
 
     fun uploadYoutubeShort(uploadRequest: YoutubeUploadRequest, accessToken: String, videoUrl: String): String {
         val client = OkHttpClient()
