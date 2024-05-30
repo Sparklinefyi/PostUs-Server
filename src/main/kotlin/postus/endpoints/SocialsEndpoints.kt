@@ -87,6 +87,56 @@ fun Application.configureSocialsRouting() {
                     }
                 }
             }
+            route("analytics"){
+                route("page"){
+                    get("youtube"){
+                        val apiKey = call.parameters["apiKey"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing apiKey parameter")
+                        val channelId = call.parameters["channelId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing channelId parameter")
+
+                        val analytics = SocialsController.getYouTubeChannelAnalytics(apiKey, channelId)
+                        if (analytics == null) {
+                            call.respond(HttpStatusCode.InternalServerError, "Failed to retrieve YouTube Channel Analytics")
+                        } else {
+                            call.respond(analytics)
+                        }
+                    }
+                    get("instagram"){
+                        val accessToken = call.parameters["accessToken"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing accessToken parameter")
+                        val instagramBusinessAccountId = call.parameters["accountId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing instagramBusinessAccountId parameter")
+
+                        val analytics = SocialsController.getInstagramPageAnalytics(accessToken, instagramBusinessAccountId)
+                        if (analytics == null) {
+                            call.respond(HttpStatusCode.InternalServerError, "Failed to retrieve Instagram Page Analytics")
+                        } else {
+                            call.respond(analytics)
+                        }
+                    }
+                }
+                route("post"){
+                    get("youtube"){
+                        val apiKey = call.parameters["apiKey"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing apiKey parameter")
+                        val videoId = call.parameters["videoId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing videoId parameter")
+
+                        val analytics = SocialsController.getYouTubeVideoAnalytics(apiKey, videoId)
+                        if (analytics == null) {
+                            call.respond(HttpStatusCode.InternalServerError, "Failed to retrieve YouTube Video Analytics")
+                        } else {
+                            call.respond(analytics)
+                        }
+                    }
+                    get("instagram"){
+                        val accessToken = call.parameters["accessToken"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing accessToken parameter")
+                        val postId = call.parameters["postId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing postId parameter")
+
+                        val analytics = SocialsController.getInstagramPostAnalytics(accessToken, postId)
+                        if (analytics == null) {
+                            call.respond(HttpStatusCode.InternalServerError, "Failed to retrieve Instagram Post Analytics")
+                        } else {
+                            call.respond(analytics)
+                        }
+                    }
+                }
+            }
             route("auth"){
                 get("instagram"){
                     val clientId = "486594670554364"
@@ -102,6 +152,14 @@ fun Application.configureSocialsRouting() {
                         call.respond(mapOf("long_lived_access_token" to longLivedToken, "instagram_business_account_id" to instagramBusinessAccountId))
                     }
                 }
+            }
+            get("/verify/access_token") {
+                val accessToken = call.parameters["accessToken"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing accessToken parameter")
+                val appId = call.parameters["appId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing appId parameter")
+                val appSecret = call.parameters["appSecret"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing appSecret parameter")
+
+                val permissions = SocialsController.verifyAccessTokenPermissions(accessToken, appId, appSecret)
+                call.respond(permissions)
             }
         }
     }

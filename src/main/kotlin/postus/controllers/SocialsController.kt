@@ -264,4 +264,142 @@ class SocialsController{
         val instagramBusinessAccountId = getInstagramBusinessAccountId(pageId, longLivedToken)
         return longLivedToken to instagramBusinessAccountId
     }
+
+    fun getYouTubeChannelAnalytics(apiKey: String, channelId: String): String? {
+        val url = "https://www.googleapis.com/youtube/v3/channels".toHttpUrlOrNull()!!.newBuilder()
+            .addQueryParameter("part", "statistics")
+            .addQueryParameter("id", channelId)
+            .addQueryParameter("key", apiKey)
+            .build()
+            .toString()
+
+        val request = Request.Builder()
+            .url(url)
+            .get()
+            .build()
+
+        val response = client.newCall(request).execute()
+        if (!response.isSuccessful) return null
+
+        return response.body?.string()
+    }
+
+    fun getYouTubeVideoAnalytics(apiKey: String, videoId: String): String? {
+        val url = "https://www.googleapis.com/youtube/v3/videos".toHttpUrlOrNull()!!.newBuilder()
+            .addQueryParameter("part", "statistics")
+            .addQueryParameter("id", videoId)
+            .addQueryParameter("key", apiKey)
+            .build()
+            .toString()
+
+        val request = Request.Builder()
+            .url(url)
+            .get()
+            .build()
+
+        val response = client.newCall(request).execute()
+        if (!response.isSuccessful) return null
+
+        return response.body?.string()
+    }
+
+    fun getInstagramPageAnalytics(accessToken: String, instagramBusinessAccountId: String): String? {
+        //periods allowed [day, week, days_28, month, lifetime]
+        //metrics allowed [impressions, reach, profile_views, follower_count, website_clicks, email_contacts, get_directions_clicks]
+        val url = "https://graph.facebook.com/v11.0/$instagramBusinessAccountId/insights".toHttpUrlOrNull()!!.newBuilder()
+            .addQueryParameter("metric", "impressions,reach,profile_views,follower_count")
+            .addQueryParameter("period", "day")
+            .addQueryParameter("access_token", accessToken)
+            .build()
+            .toString()
+
+        val request = Request.Builder()
+            .url(url)
+            .get()
+            .build()
+
+        val response = client.newCall(request).execute()
+        val responseBody = response.body?.string()
+
+        if (!response.isSuccessful) {
+            println("Error: ${response.code}")
+            println("Response Body: $responseBody")
+            return null
+        }
+        getInstagramMediaIds(accessToken, instagramBusinessAccountId)
+
+        return responseBody
+    }
+
+    fun getInstagramPostAnalytics(accessToken: String, postId: String): String? {
+        // metrics allowed for media [impressions, reach, engagement, saved, video_views, comments, likes]
+        //metrics allowed for shorts [plays, comments, likes, saves, shares, total_interactions, reach]
+        val url = "https://graph.facebook.com/v11.0/$postId/insights".toHttpUrlOrNull()!!.newBuilder()
+            .addQueryParameter("metric", "impressions,reach,engagement")
+            .addQueryParameter("period", "lifetime")
+            .addQueryParameter("access_token", accessToken)
+            .build()
+            .toString()
+
+        val request = Request.Builder()
+            .url(url)
+            .get()
+            .build()
+
+        val response = client.newCall(request).execute()
+        if (!response.isSuccessful) return null
+
+        return response.body?.string()
+    }
+
+    fun getInstagramMediaIds(accessToken: String, instagramBusinessAccountId: String): String? {
+        val url = "https://graph.facebook.com/v11.0/$instagramBusinessAccountId/media".toHttpUrlOrNull()!!.newBuilder()
+            .addQueryParameter("access_token", accessToken)
+            .build()
+            .toString()
+
+        val request = Request.Builder()
+            .url(url)
+            .get()
+            .build()
+
+        val response = client.newCall(request).execute()
+        val responseBody = response.body?.string()
+
+        if (!response.isSuccessful) {
+            println("Error: ${response.code}")
+            println("Response Body: $responseBody")
+            return null
+        }
+        println(responseBody)
+        return null
+    }
+
+    fun verifyAccessTokenPermissions(accessToken: String, appId: String, appSecret: String): List<String> {
+        val debugTokenUrl = "https://graph.facebook.com/debug_token".toHttpUrlOrNull()!!.newBuilder()
+            .addQueryParameter("input_token", accessToken)
+            .addQueryParameter("access_token", "$appId|$appSecret")
+            .build()
+            .toString()
+
+        val request = Request.Builder()
+            .url(debugTokenUrl)
+            .get()
+            .build()
+
+        val response = client.newCall(request).execute()
+        val responseBody = response.body?.string()
+
+        if (!response.isSuccessful) {
+            println("Error: ${response.code}")
+            println("Response Body: $responseBody")
+            return listOf("")
+        }
+
+        val jsonElement = Json.parseToJsonElement(responseBody ?: "").jsonObject
+        val data = jsonElement["data"]?.jsonObject
+        val scopes = data?.get("scopes")?.jsonArray?.map { it.jsonPrimitive.content } ?: emptyList()
+
+        return scopes
+    }
 }
