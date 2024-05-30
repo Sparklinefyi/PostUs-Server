@@ -20,7 +20,6 @@ import java.lang.IllegalArgumentException
 
 class UserController(
     private val userRepository: UserRepository,
-    private val linkedAccountRepository: LinkedAccountRepository
 ) {
 
     fun registerUser(request: RegistrationRequest): User {
@@ -54,8 +53,14 @@ class UserController(
 
     fun authenticateWithEmailPassword(email: String, password: String, call: ApplicationCall): User? {
         val user = userRepository.findByEmail(email)
-        if (user != null && BCrypt.checkpw(password, user.passwordHash)) {
-            call.sessions.set(postus.MySession(user.id)) // Store user ID in session
+        println(user)
+        println("Password: $password")
+        println("Stored Hash: ${user!!.passwordHash}")
+        val passwordMatches = BCrypt.checkpw(password, user.passwordHash)
+        println("Password Matches: $passwordMatches")
+
+        if (passwordMatches) {
+            println("User: $user")
             return user
         }
         return null

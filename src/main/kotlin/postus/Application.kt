@@ -1,5 +1,4 @@
 package postus
-import io.ktor.network.sockets.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
@@ -11,17 +10,11 @@ import postus.repositories.*
 import postus.controllers.*
 import postus.utils.Database
 import io.ktor.http.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
-import io.ktor.server.html.*
-import io.ktor.server.http.content.*
+import io.ktor.server.auth.*
+import io.ktor.server.auth.jwt.*
 import io.ktor.server.plugins.cors.routing.*
-import io.ktor.server.request.*
 import io.ktor.server.sessions.*
-import kotlinx.html.*
-import kotlinx.serialization.json.*
-import java.io.*
-import kotlinx.serialization.*
+import postus.utils.JwtHandler
 
 fun main() {
     embeddedServer(Netty, port = 8080, host="localhost", module = Application::module)
@@ -44,7 +37,11 @@ fun Application.module() {
     install(Sessions) {
         cookie<MySession>("SESSION") {
             // Configure the session cookie settings
-            cookie.extensions["SameSite"] = "Lax"
+            cookie.path = "/" // Applies to the entire application
+            cookie.maxAgeInSeconds = 1 * 24 * 60 * 60 // One week
+            cookie.httpOnly = true // Mitigates XSS attacks
+            cookie.secure = false // Use secure cookies in production
+            cookie.extensions["SameSite"] = "None" // Helps mitigate CSRF attacks
         }
     }
 
@@ -56,15 +53,28 @@ fun Application.module() {
         })
     }
 
+    install(Authentication) {
+        jwt("jwt") {
+            val issuer = "your_issuer_here"
+            verifier(JwtHandler().makeJwtVerifier(issuer))
+            validate { credential ->
+                if (credential.payload.audience.contains(issuer)) {
+                    JWTPrincipal(credential.payload)
+                } else {
+                    null
+                }
+            }
+        }
+    }
+
     // Initialize the database
     Database
 
     // Create instances of repositories
     val userRepository = UserRepository()
-    val linkedAccountRepository = LinkedAccountRepository()
 
     // Create an instance of UserService
-    val userService = UserController(userRepository, linkedAccountRepository)
+    val userService = UserController(userRepository)
 
     // Pass userService to configureAuthRouting
     configureAuthRouting(userService)
@@ -72,5 +82,5 @@ fun Application.module() {
     configureSocialsRouting()
 }
 
-data class MySession(val userId: Int)
+data class MySession(val token: String) : Principal
 
