@@ -172,6 +172,68 @@ class SocialsController{
         return responseBody ?: ""
     }
 
+    fun testYoutube(accessToken: String, apiKey: String, query: String): Unit{
+        println(getAuthenticatedUserChannelId(accessToken))
+        println(getYouTubeVideoId(apiKey, query))
+    }
+
+    fun getAuthenticatedUserChannelId(accessToken: String): String? {
+        val url = "https://www.googleapis.com/youtube/v3/channels".toHttpUrlOrNull()!!.newBuilder()
+            .addQueryParameter("part", "id")
+            .addQueryParameter("mine", "true")
+            .build()
+            .toString()
+
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("Authorization", "Bearer $accessToken")
+            .get()
+            .build()
+
+        val response = client.newCall(request).execute()
+        val responseBody = response.body?.string()
+
+        if (!response.isSuccessful) {
+            println("Error: ${response.code}")
+            println("Response Body: $responseBody")
+            return null
+        }
+
+        val jsonElement = Json.parseToJsonElement(responseBody ?: "")
+        val channelId = jsonElement.jsonObject["items"]?.jsonArray?.firstOrNull()?.jsonObject?.get("id")?.jsonPrimitive?.content
+
+        return channelId
+    }
+
+    fun getYouTubeVideoId(apiKey: String, query: String): String? {
+        val url = "https://www.googleapis.com/youtube/v3/search".toHttpUrlOrNull()!!.newBuilder()
+            .addQueryParameter("part", "id")
+            .addQueryParameter("q", query)
+            .addQueryParameter("type", "video")
+            .addQueryParameter("key", apiKey)
+            .build()
+            .toString()
+
+        val request = Request.Builder()
+            .url(url)
+            .get()
+            .build()
+
+        val response = client.newCall(request).execute()
+        val responseBody = response.body?.string()
+
+        if (!response.isSuccessful) {
+            println("Error: ${response.code}")
+            println("Response Body: $responseBody")
+            return null
+        }
+
+        val jsonElement = Json.parseToJsonElement(responseBody ?: "")
+        val videoId = jsonElement.jsonObject["items"]?.jsonArray?.firstOrNull()?.jsonObject?.get("id")?.jsonObject?.get("videoId")?.jsonPrimitive?.content
+
+        return videoId
+    }
+
     fun exchangeCodeForAccessToken(clientId: String, clientSecret: String, redirectUri: String, code: String): String? {
         val url = "https://graph.facebook.com/v11.0/oauth/access_token".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("client_id", clientId)
@@ -334,8 +396,9 @@ class SocialsController{
     fun getInstagramPostAnalytics(accessToken: String, postId: String): String? {
         // metrics allowed for media [impressions, reach, engagement, saved, video_views, comments, likes]
         //metrics allowed for shorts [plays, comments, likes, saves, shares, total_interactions, reach]
+        //
         val url = "https://graph.facebook.com/v11.0/$postId/insights".toHttpUrlOrNull()!!.newBuilder()
-            .addQueryParameter("metric", "impressions,reach,engagement")
+            .addQueryParameter("metric", "plays, comments, likes, reach")
             .addQueryParameter("period", "lifetime")
             .addQueryParameter("access_token", accessToken)
             .build()
@@ -354,6 +417,7 @@ class SocialsController{
 
     fun getInstagramMediaIds(accessToken: String, instagramBusinessAccountId: String): String? {
         val url = "https://graph.facebook.com/v11.0/$instagramBusinessAccountId/media".toHttpUrlOrNull()!!.newBuilder()
+            .addQueryParameter("fields", "id,media_type")
             .addQueryParameter("access_token", accessToken)
             .build()
             .toString()
@@ -372,18 +436,21 @@ class SocialsController{
             return null
         }
         println(responseBody)
+        //VIDEO TYPE is REELS, IMAGE and CAROUSEL_ALBUM are other 2 types
         return null
     }
 
-    fun verifyAccessTokenPermissions(accessToken: String, appId: String, appSecret: String): List<String> {
-        val debugTokenUrl = "https://graph.facebook.com/debug_token".toHttpUrlOrNull()!!.newBuilder()
-            .addQueryParameter("input_token", accessToken)
-            .addQueryParameter("access_token", "$appId|$appSecret")
+    fun getInstagramMediaDetails(accessToken: String, postId: String): String {
+        val client = OkHttpClient()
+
+        val url = "https://graph.facebook.com/v11.0/$postId".toHttpUrlOrNull()!!.newBuilder()
+            .addQueryParameter("fields", "id,media_type,media_url,thumbnail_url")
+            .addQueryParameter("access_token", accessToken)
             .build()
             .toString()
 
         val request = Request.Builder()
-            .url(debugTokenUrl)
+            .url(url)
             .get()
             .build()
 
@@ -393,13 +460,11 @@ class SocialsController{
         if (!response.isSuccessful) {
             println("Error: ${response.code}")
             println("Response Body: $responseBody")
-            return listOf("")
+            return ""
         }
 
-        val jsonElement = Json.parseToJsonElement(responseBody ?: "").jsonObject
-        val data = jsonElement["data"]?.jsonObject
-        val scopes = data?.get("scopes")?.jsonArray?.map { it.jsonPrimitive.content } ?: emptyList()
-
-        return scopes
+        println("Response Body: $responseBody")
+        val jsonResponse = Json.parseToJsonElement(responseBody ?: "").jsonObject
+        return jsonResponse["media_url"]?.jsonPrimitive?.content ?: ""
     }
 }
