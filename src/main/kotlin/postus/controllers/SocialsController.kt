@@ -12,6 +12,7 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import postus.endpoints.MediaController
+import postus.models.SchedulePostRequest
 import postus.models.YoutubeUploadRequest
 
 
@@ -562,5 +563,20 @@ class SocialsController{
         if (!response.isSuccessful) return null
 
         return response.body?.string()
+    }
+
+    fun schedulePost(userId: String, postTime: String, mediaUrl: ByteArray, schedulePostRequest: SchedulePostRequest): Boolean {
+        val mediaType = schedulePostRequest.mediaType
+        val s3Path: String
+        when (mediaType) {
+            "IMAGE" -> s3Path = MediaController.uploadImage(userId, mediaUrl)
+            "VIDEO" -> s3Path = MediaController.uploadVideo(userId, mediaUrl)
+            else -> {
+                throw Exception("Not a supported media type (VIDEO or IMAGE)")
+            }
+        }
+        //val scheduled = ScheduleRepository.addSchedule(userId, s3Path, postTime, mediaType, schedulePostRequest, false)
+        //return scheduled
+        return true
     }
 }

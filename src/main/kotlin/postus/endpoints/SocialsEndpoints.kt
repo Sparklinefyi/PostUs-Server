@@ -6,6 +6,7 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import postus.controllers.SocialsController
+import postus.models.SchedulePostRequest
 import postus.models.YoutubeUploadRequest
 
 val SocialsController = SocialsController()
@@ -167,6 +168,18 @@ fun Application.configureSocialsRouting() {
                 val query = call.parameters["query"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing accessToken parameter")
                 SocialsController.testYoutube(accessToken, apiKey, query)
                 call.respond(200)
+            }
+            post("schedule"){
+                val userId = call.parameters["userId"] ?: return@post call.respond(HttpStatusCode.BadRequest, "Missing accessToken parameter")
+                val postTime = call.parameters["postTime"] ?: return@post call.respond(HttpStatusCode.BadRequest, "Missing accessToken parameter")
+                val schedulePostRequest = call.receive<SchedulePostRequest>()
+                val mediaByteArray = call.receive<ByteArray>()
+                val posted = SocialsController.schedulePost(userId, postTime, mediaByteArray, schedulePostRequest)
+                if (posted) {
+                    call.respond(HttpStatusCode.OK, posted)
+                } else {
+                    call.respond(HttpStatusCode.InternalServerError, "Post could not be scheduled")
+                }
             }
         }
     }
