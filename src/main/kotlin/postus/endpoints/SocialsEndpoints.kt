@@ -87,7 +87,7 @@ fun Application.configureSocialsRouting() {
                     }
                 }
             }
-            route("analytics"){
+            route("analyze"){
                 route("page"){
                     get("youtube"){
                         val apiKey = call.parameters["apiKey"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing apiKey parameter")
