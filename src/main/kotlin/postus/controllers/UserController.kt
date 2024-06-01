@@ -27,10 +27,18 @@ class UserController(
             email = request.email,
             name = request.name,
             passwordHash = hashedPassword,
-            googleRefresh = "",
-            facebookRefresh = "",
-            twitterRefresh = "",
-            instagramRefresh = ""
+            googleAccountId = null,
+            googleAccessToken = null,
+            googleRefresh = null,
+            facebookAccountId = null,
+            facebookAccessToken = null,
+            facebookRefresh = null,
+            twitterAccountId = null,
+            twitterAccessToken = null,
+            twitterRefresh = null,
+            instagramAccountId = null,
+            instagramAccessToken = null,
+            instagramRefresh = null
         )
         return userRepository.save(user)
     }
@@ -39,10 +47,10 @@ class UserController(
         val user = userRepository.findById(userId) ?: throw IllegalArgumentException("User not found")
 
         val updatedUser = when (provider) {
-            "google" -> user.copy(googleRefresh = refreshToken)
-            "facebook" -> user.copy(facebookRefresh = refreshToken)
-            "twitter" -> user.copy(twitterRefresh = refreshToken)
-            "instagram" -> user.copy(instagramRefresh = refreshToken)
+            "GOOGLE" -> user.copy(googleRefresh = refreshToken)
+            "FACEBOOK" -> user.copy(facebookRefresh = refreshToken)
+            "TWITTER" -> user.copy(twitterRefresh = refreshToken)
+            "INSTAGRAM" -> user.copy(instagramRefresh = refreshToken)
             else -> throw IllegalArgumentException("Unsupported provider")
         }
 
@@ -66,14 +74,22 @@ class UserController(
 
     fun authenticateWithOAuth(request: SignInRequest): User? {
     val newUser = User(
-                id = -20,
-                email = "",
-                name = "",
-                passwordHash = "",
-                googleRefresh = "",
-                facebookRefresh = "",
-                twitterRefresh = "",
-                instagramRefresh = "",
+            id = 0,
+            email = "",
+            name = "",
+            passwordHash = "",
+            googleAccountId = null,
+            googleAccessToken = null,
+            googleRefresh = null,
+            facebookAccountId = null,
+            facebookAccessToken = null,
+            facebookRefresh = null,
+            twitterAccountId = null,
+            twitterAccessToken = null,
+            twitterRefresh = null,
+            instagramAccountId = null,
+            instagramAccessToken = null,
+            instagramRefresh = null
             )
             return newUser
     }

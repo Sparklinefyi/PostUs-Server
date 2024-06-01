@@ -24,22 +24,50 @@ class PostWorker(private val scheduledPost: ScheduledPost) {
     private fun post() {
         val userId = scheduledPost.userId
         val S3Url = scheduledPost.s3Path
+        val mediaType = scheduledPost.mediaType
         val user = UserRepository().findById(userId.toInt())
-        var mediaUrl : String
-        if(scheduledPost.mediaType == "IMAGE") {
-            mediaUrl = MediaController.getImage(userId, S3Url)
+        val mediaUrl = if(mediaType == "IMAGE") {
+            MediaController.getImage(userId, S3Url)
         } else {
-            mediaUrl = MediaController.getVideo(userId, S3Url)
+            MediaController.getVideo(userId, S3Url)
         }
-        for (provider in scheduledPost.providers) {
+        for (provider in scheduledPost.schedulePostRequest.providers) {
             println("Posting to $provider with media at ${scheduledPost.s3Path}")
             when (provider) {
                 "YOUTUBE" -> {
                     val accessToken = user.youtubeAccessToken
-                    SocialsController.uploadYoutubeShort(scheduledPost.schedulePostRequest.youtubePostRequest!!, accessToken, mediaUrl)
+                    try {
+                        SocialsController.uploadYoutubeShort(
+                            scheduledPost.schedulePostRequest.youtubePostRequest!!,
+                            accessToken,
+                            mediaUrl
+                        )
+                    } catch (e: Exception) {
+                        println("Failed  to post youtube video:  $e")
+                    }
                 }
                 "INSTAGRAM" -> {
-
+                    val accessToken = user.instagramAccessToken
+                    val accountId = user.instagramAccountId
+                    try {
+                        if (mediaType == "IMAGE") {
+                            SocialsController.uploadPictureToInstagram(
+                                mediaUrl,
+                                scheduledPost.schedulePostRequest.instagramPostRequest.caption,
+                                accessToken,
+                                accountId
+                            )
+                        } else {
+                            SocialsController.uploadVideoToInstagram(
+                                mediaUrl,
+                                scheduledPost.schedulePostRequest.instagramPostRequest.caption,
+                                accessToken,
+                                accountId
+                            )
+                        }
+                    } catch (e: Exception) {
+                        println("Failed to post to instagram:  $e")
+                    }
                 }
             }
         }

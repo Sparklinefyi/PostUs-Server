@@ -2,7 +2,6 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import postus.models.SchedulePostRequest
 import postus.models.ScheduledPost
 import postus.models.Schedules
@@ -10,7 +9,7 @@ import java.time.LocalDateTime
 
 object ScheduleRepository {
 
-    val jsonFormat = Json { encodeDefaults = true }
+    private val jsonFormat = Json { encodeDefaults = true }
 
     private fun toScheduledPost(row: ResultRow): ScheduledPost {
         return ScheduledPost(
@@ -19,7 +18,6 @@ object ScheduleRepository {
             s3Path = row[Schedules.s3Path],
             postTime = row[Schedules.postTime],
             mediaType = row[Schedules.mediaType],
-            providers = row[Schedules.providers].split(","),
             schedulePostRequest = jsonFormat.decodeFromString(row[Schedules.schedulePostRequest]),
             posted = row[Schedules.posted]
         )
@@ -30,7 +28,6 @@ object ScheduleRepository {
         s3Path: String,
         postTime: String,
         mediaType: String,
-        providers: List<String>,
         schedulePostRequest: SchedulePostRequest
     ): Boolean {
         return transaction {
@@ -39,7 +36,6 @@ object ScheduleRepository {
                 it[Schedules.s3Path] = s3Path
                 it[Schedules.postTime] = postTime
                 it[Schedules.mediaType] = mediaType
-                it[Schedules.providers] = providers.joinToString(",")
                 it[Schedules.schedulePostRequest] = jsonFormat.encodeToString(schedulePostRequest)
                 it[posted] = false
             }
