@@ -10,9 +10,7 @@ import io.ktor.client.request.headers
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.application.*
-import io.ktor.server.sessions.*
 import kotlinx.coroutines.runBlocking
-import org.jetbrains.exposed.exceptions.ExposedSQLException
 import postus.dto.*
 import postus.repositories.*
 import org.mindrot.jbcrypt.BCrypt

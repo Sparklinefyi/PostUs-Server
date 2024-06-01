@@ -15,10 +15,12 @@ import io.ktor.server.auth.jwt.*
 import io.ktor.server.plugins.cors.routing.*
 import io.ktor.server.sessions.*
 import postus.utils.JwtHandler
+import postus.workers.startScheduledPostsChecker
 
 fun main() {
     embeddedServer(Netty, port = 8080, module = Application::module)
         .start(wait = true)
+    startScheduledPostsChecker()
 }
 
 fun Application.module() {

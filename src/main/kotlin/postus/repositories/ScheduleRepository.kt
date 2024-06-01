@@ -1,11 +1,16 @@
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import postus.models.SchedulePostRequest
 import postus.models.ScheduledPost
 import postus.models.Schedules
 import java.time.LocalDateTime
 
 object ScheduleRepository {
+
+    val jsonFormat = Json { encodeDefaults = true }
 
     private fun toScheduledPost(row: ResultRow): ScheduledPost {
         return ScheduledPost(
@@ -14,7 +19,9 @@ object ScheduleRepository {
             s3Path = row[Schedules.s3Path],
             postTime = row[Schedules.postTime],
             mediaType = row[Schedules.mediaType],
-            providers = row[Schedules.providers].split(",")
+            providers = row[Schedules.providers].split(","),
+            schedulePostRequest = jsonFormat.decodeFromString(row[Schedules.schedulePostRequest]),
+            posted = row[Schedules.posted]
         )
     }
 
@@ -23,7 +30,8 @@ object ScheduleRepository {
         s3Path: String,
         postTime: String,
         mediaType: String,
-        providers: List<String>
+        providers: List<String>,
+        schedulePostRequest: SchedulePostRequest
     ): Boolean {
         return transaction {
             Schedules.insert {
@@ -32,6 +40,8 @@ object ScheduleRepository {
                 it[Schedules.postTime] = postTime
                 it[Schedules.mediaType] = mediaType
                 it[Schedules.providers] = providers.joinToString(",")
+                it[Schedules.schedulePostRequest] = jsonFormat.encodeToString(schedulePostRequest)
+                it[posted] = false
             }
             true
         }
@@ -39,7 +49,7 @@ object ScheduleRepository {
 
     fun findById(id: Int): ScheduledPost? {
         return transaction {
-            Schedules.select { Schedules.id eq id }
+            Schedules.selectAll().where { Schedules.id eq id }
                 .mapNotNull { toScheduledPost(it) }
                 .singleOrNull()
         }
@@ -48,16 +58,19 @@ object ScheduleRepository {
     fun getPostsScheduledWithinNextHours(hours: Long): List<ScheduledPost> {
         val now = LocalDateTime.now()
         return transaction {
-            Schedules.select {
-                Schedules.postTime.greater(now) and
+            Schedules.selectAll().where {
+                not(Schedules.posted) and
                         Schedules.postTime.less(now.plusHours(hours))
             }.map { toScheduledPost(it) }
         }
     }
 
     fun removePost(id: Int): Boolean {
-        return transaction {
-            Schedules.deleteWhere { Schedules.id eq id } > 0
+        transaction {
+            Schedules.update({ Schedules.id eq id }) {
+                it[posted] = true
+            }
         }
+        return true
     }
 }

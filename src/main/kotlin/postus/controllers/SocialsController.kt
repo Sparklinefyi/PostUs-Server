@@ -575,8 +575,7 @@ class SocialsController{
                 throw Exception("Not a supported media type (VIDEO or IMAGE)")
             }
         }
-        //val scheduled = ScheduleRepository.addSchedule(userId, s3Path, postTime, mediaType, schedulePostRequest, false)
-        //return scheduled
+        val scheduled = ScheduleRepository.addSchedule(userId, s3Path, postTime, mediaType, schedulePostRequest)
         return true
     }
 }
