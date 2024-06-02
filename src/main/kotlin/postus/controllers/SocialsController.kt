@@ -14,10 +14,16 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import postus.endpoints.MediaController
 import postus.models.SchedulePostRequest
+import postus.models.ScheduledPost
 import postus.models.YoutubeOAuthResponse
 import postus.models.YoutubeUploadRequest
 import postus.repositories.User
 import postus.repositories.UserRepository
+import postus.workers.PostWorker
+import java.time.Duration
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 
 
 @Serializable
@@ -646,6 +652,21 @@ class SocialsController{
             else -> {
                 throw Exception("Not a supported media type (VIDEO or IMAGE)")
             }
+        }
+        val postTimeInstant: Instant = LocalDateTime.parse(postTime).toInstant(ZoneOffset.UTC)
+        val delay = Duration.between(LocalDateTime.now().toInstant(ZoneOffset.UTC), postTimeInstant).toHours()
+        if (delay < 12){
+            val post = ScheduledPost(
+                0,
+                userId,
+                s3Path,
+                postTime,
+                mediaType,
+                schedulePostRequest,
+                false
+            )
+            PostWorker(post).schedule()
+            return true
         }
         val scheduled = ScheduleRepository.addSchedule(userId, s3Path, postTime, mediaType, schedulePostRequest)
         return scheduled
