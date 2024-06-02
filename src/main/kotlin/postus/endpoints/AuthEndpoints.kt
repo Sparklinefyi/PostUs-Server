@@ -65,6 +65,18 @@ fun Application.configureAuthRouting(userService: UserController) {
                 call.respond(HttpStatusCode.OK, "Account linked")
             }
 
+            post("/signin") {
+                // parse request for json data
+                val request = call.receive<Login>()
+                val user = userService.authenticateWithEmailPassword(request.email, request.password)
+                if (user != null) {
+                    val token = JwtHandler().makeToken(user.id.toString())
+                    val userInfo = UserInfo(user.id, user.email, user.name, user.role, user.description);
+                    call.respond(HttpStatusCode.OK, LoginResponse(userInfo.id, userInfo.email, userInfo.name, userInfo.role, userInfo.description))
+                }
+                 else
+                    call.respond(HttpStatusCode.Unauthorized, "Invalid credentials")
+            }
         }
     }
 }
