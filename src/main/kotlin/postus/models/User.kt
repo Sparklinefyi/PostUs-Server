@@ -1,6 +1,9 @@
 package postus.models
 
 import org.jetbrains.exposed.dao.id.IntIdTable
+import org.jetbrains.exposed.sql.Column
+import org.jetbrains.exposed.sql.javatime.datetime
+import java.time.LocalDateTime.now
 
 object Users : IntIdTable() {
 
@@ -19,4 +22,8 @@ object Users : IntIdTable() {
     val instagramAccountId = varchar("instagram_account_id", 255).nullable()
     val instagramAccessToken = varchar("instagram_access_token", 255).nullable()
     val instagramRefresh = varchar("instagram_refresh", 255).nullable()
+    val timeCreated = datetime("time_created").default(now())
+    val timeUpdated = datetime("time_updated").default(now())
+    val role: Column<String> = varchar("role", 255).default("inactive")
+    val description: Column<String> = text("description").default("")
 }

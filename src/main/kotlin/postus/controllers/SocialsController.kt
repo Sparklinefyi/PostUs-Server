@@ -595,10 +595,8 @@ class SocialsController{
         return channelId
     }
 
-    fun getYouTubeChannelAnalytics(userId: String): String? {
+    fun getYouTubeChannelAnalytics(userId: String, channelId: String): String? {
         val apiKey = youtubeConfig.getString("apiKey")
-        val user = userRepository.findById(userId.toInt())
-        val channelId = user?.googleAccountId ?: throw Exception("Youtube ChannelId not found")
         val url = "https://www.googleapis.com/youtube/v3/channels".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("part", "statistics")
             .addQueryParameter("id", channelId)

@@ -19,7 +19,7 @@ class JwtHandler {
         return JWT.create()
             .withSubject(userId)
             .withIssuer("your_issuer_here")
-            .withExpiresAt(Date(System.currentTimeMillis() + 3600000)) // 1 hour
+            .withExpiresAt(Date(System.currentTimeMillis() + 1 * 1000 * 60 * 60 * 72)) // 3 days
             .sign(algorithm)
     }
 

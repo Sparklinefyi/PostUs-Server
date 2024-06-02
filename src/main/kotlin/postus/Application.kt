@@ -17,8 +17,12 @@ import io.ktor.server.sessions.*
 import postus.utils.JwtHandler
 import postus.workers.startScheduledPostsChecker
 
+import io.github.cdimascio.dotenv.Dotenv
+import java.io.File
+import java.util.*
+
 fun main() {
-    embeddedServer(Netty, port = 8080, module = Application::module)
+    embeddedServer(Netty, port = 8080, host="localhost", module = Application::module)
         .start(wait = true)
     startScheduledPostsChecker()
 }
@@ -67,6 +71,25 @@ fun Application.module() {
                 }
             }
         }
+    }
+
+    // print directory
+    println(System.getProperty("user.dir"))
+    val envFile = File(".env")
+    val envProperties = Properties()
+
+    // Load environment variables from .env file
+    if (envFile.exists()) {
+        envFile.bufferedReader().use { reader ->
+            envProperties.load(reader)
+        }
+    }
+
+    // Set the environment variables
+    for ((key, value) in envProperties) {
+        val envKey = key.toString()
+        val envValue = value.toString()
+        System.setProperty(envKey, envValue)
     }
 
     // Initialize the database

@@ -171,10 +171,7 @@ fun Application.configureSocialsRouting() {
                 }
             }
             get("test"){
-                val userId = call.parameters["userId"] ?: return@get call.respond(
-                    HttpStatusCode.BadRequest,
-                    "Missing userId"
-                )
+                val userId = call.parameters["userId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing userId parameter")
                 SocialsController.testYoutube(userId)
                 call.respond(200)
             }

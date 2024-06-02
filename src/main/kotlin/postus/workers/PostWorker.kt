@@ -72,7 +72,6 @@ class PostWorker(private val scheduledPost: ScheduledPost) {
                 }
             }
         }
-        // Remove from the repository after posting
         ScheduleRepository.removePost(scheduledPost.id)
     }
 
