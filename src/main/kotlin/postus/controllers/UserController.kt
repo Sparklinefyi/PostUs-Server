@@ -2,7 +2,7 @@ package postus.controllers
 
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
-import com.typesafe.config.ConfigFactory
+import io.github.cdimascio.dotenv.Dotenv
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
@@ -97,26 +97,23 @@ class UserController(
             refreshToken = refreshToken!!
         )
     }
-
     private suspend fun exchangeCodeForToken(code: String, provider: String): Map<String, String>? {
-        val config = ConfigFactory.load().getConfig(provider)
-
         val params = listOf(
             "code" to code,
-            "client_id" to config.getString("clientID"),
-            "client_secret" to config.getString("clientSecret"),
-            "redirect_uri" to config.getString("redirectUri"),
+            "client_id" to System.getProperty("GOOGLE_CLIENT_ID"),
+            "client_secret" to System.getProperty("GOOGLE_CLIENT_SECRET"),
+            "redirect_uri" to System.getProperty("GOOGLE_REDIRECT_URI"),
             "grant_type" to "authorization_code"
         )
 
         val client = HttpClient()
-        val tokenResponse = client.post(Url(config.getString("tokenUrl"))) {
+        val tokenResponse = client.post(Url(System.getProperty("GOOGLE_TOKEN_URL")!!)) {
             headers {
                 append(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
             }
             setBody(FormDataContent(Parameters.build {
                 params.forEach { (key, value) ->
-                    append(key, value)
+                    append(key, value!!)
                 }
             }))
         }
@@ -133,11 +130,11 @@ class UserController(
     }
 
     private suspend fun fetchOAuthUser(accessToken: String, provider: String): JsonObject? {
-        val config = ConfigFactory.load().getConfig(provider)
-        val userInfoUrl = config.getString("userInfoUrl")
+        val dotenv = Dotenv.configure().ignoreIfMissing().load()
+        val userInfoUrl = dotenv["GOOGLE_USER_INFO_URL"]
 
         val client = HttpClient()
-        val userInfoResponse = client.get(Url(userInfoUrl)) {
+        val userInfoResponse = client.get(Url(userInfoUrl!!)) {
             headers {
                 append(HttpHeaders.Authorization, "Bearer $accessToken")
             }

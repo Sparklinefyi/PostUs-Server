@@ -25,6 +25,18 @@ repositories {
     maven { url = uri("https://maven.pkg.jetbrains.space/public/p/ktor/eap") }
 }
 
+tasks {
+    // Your existing tasks...
+    register<Copy>("copyToLib") {
+        into("${layout.buildDirectory}/libs")
+        from(configurations.getByName("runtimeClasspath"))
+    }
+
+    val stage by creating(Task::class) {
+        dependsOn("build", "clean", "copyToLib")
+        finalizedBy("clean")
+    }
+}
 dependencies {
     implementation("org.mindrot:jbcrypt:0.4")
     implementation("org.jetbrains.exposed:exposed-jdbc:0.50.1")
@@ -70,4 +82,5 @@ dependencies {
     testImplementation("io.ktor:ktor-server-test-host:$ktor_version")
     testImplementation("io.ktor:ktor-client-content-negotiation:$ktor_version")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
+    implementation("io.github.cdimascio:java-dotenv:5.2.2")
 }
