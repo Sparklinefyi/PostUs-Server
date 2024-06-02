@@ -39,14 +39,21 @@ fun Application.configureAuthRouting(userService: UserController) {
             }
 
             post("/userinfo") {
-                println(call.request.headers)
-                val token = call.request.headers["Authorization"]?.removePrefix("Bearer ")
-                    ?: throw IllegalArgumentException("Missing or invalid Authorization header")
-
-                val userInfo = userService.fetchUserDataByToken(token)
+                val request = call.receive<UserInfoRequest>()
+                val userInfo = userService.fetchUserDataByToken(request.token)
                     ?: throw IllegalArgumentException("Invalid token")
 
-                call.respond(HttpStatusCode.OK, userInfo)
+                call.respond(HttpStatusCode.OK, LoginResponse(userInfo.id, userInfo.email, userInfo.name, userInfo.role, userInfo.description, request.token))
+            }
+
+            post("/update-user") {
+                val request = call.receive<UpdateUserRequest>()
+                val userInfo = userService.fetchUserDataByToken(request.token)
+                    ?: throw IllegalArgumentException("Invalid token")
+
+                // Update the user information
+                userService.updateUser(userInfo.id, request.description)
+                call.respond(HttpStatusCode.OK, LoginResponse(userInfo.id, userInfo.email, userInfo.name, userInfo.role, userInfo.description, request.token))
             }
 
             post("/link-account") {
@@ -54,18 +61,16 @@ fun Application.configureAuthRouting(userService: UserController) {
                     ?: throw IllegalArgumentException("Missing or invalid Authorization header")
 
                 // Validate the token and retrieve the user ID
-                val userId = JwtHandler().validateTokenAndGetUserId(token)
-                    ?: throw IllegalArgumentException("Invalid token")
+                //val userId = JwtHandler().validateTokenAndGetUserId(token)
+                //    ?: throw IllegalArgumentException("Invalid token")
 
                 // Extract code and provider from the request body
-                val request = call.receive<String>()
-                val matchResult = Regex("""\"code\":\"(.*?)\",\"provider\":\"(.*?)\"""").find(request)
-                val code = matchResult?.groupValues?.get(1) ?: throw IllegalArgumentException("Invalid request format")
-                val provider = matchResult.groupValues[2]
-                val tokenInfo = userService.verifyOAuthToken(code, provider)
+                val request = call.receive<GoogleResponse>()
+
+                val tokenInfo = userService.verifyOAuthToken(request.code, request.provider)
 
                 // Link the account
-                userService.linkAccount(userId.toInt(), provider, tokenInfo.refreshToken)
+                userService.linkAccount(16, request.provider, tokenInfo.refreshToken)
                 call.respond(HttpStatusCode.OK, "Account linked")
             }
 

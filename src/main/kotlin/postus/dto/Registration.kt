@@ -10,6 +10,13 @@ data class Registration(
 )
 
 @Serializable
+data class GoogleResponse(
+    val code: String,
+    val provider: String,
+)
+
+
+@Serializable
 data class RegistrationResponse(
     val id: Int,
     val email: String,

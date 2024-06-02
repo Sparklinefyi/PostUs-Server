@@ -9,7 +9,6 @@ import io.ktor.client.request.forms.*
 import io.ktor.client.request.headers
 import io.ktor.client.statement.*
 import io.ktor.http.*
-import io.ktor.server.application.*
 import kotlinx.coroutines.runBlocking
 import postus.dto.*
 import postus.repositories.*
@@ -18,10 +17,13 @@ import postus.repositories.UserInfo
 import postus.utils.JwtHandler
 import java.lang.IllegalArgumentException
 
+import org.jetbrains.exposed.sql.javatime.datetime
+import java.time.LocalDateTime.now
+
 class UserController(
     private val userRepository: UserRepository,
 ) {
-    fun registerUser(request: Registration): UserInfo {
+    fun registerUser(request: Registration) {
         val hashedPassword = BCrypt.hashpw(request.password, BCrypt.gensalt())
         val user = User(
             id = 0,
@@ -29,8 +31,8 @@ class UserController(
             name = request.name,
             role = "inactive",
             description = "",
-            createdAt = "",
-            updatedAt = "",
+            createdAt = now().toString(),
+            updatedAt = now().toString(),
             passwordHash = hashedPassword,
             googleAccountId = null,
             googleAccessToken = null,
@@ -45,25 +47,25 @@ class UserController(
             instagramAccessToken = null,
             instagramRefresh = null
         )
-        return userRepository.save(user)
+        userRepository.save(user)
     }
 
-    fun authenticateWithEmailPassword(email: String, password: String): UserInfo? {
-        val user = userRepository.findByEmail(email) ?: return null
-        val passwordMatches = BCrypt.checkpw(password, user.passwordHash)
-
-        if (passwordMatches) {
-            val userInfo = UserInfo(user.id, user.email, user.name, user.role, user.description)
-            println(userInfo)
-            return userInfo
-        }
-        return null
+    suspend fun updateUser(userId: Int, description: String) {
+        // Update the user information in the database
+        userRepository.updateUserDescription(userId, description)
     }
-
     fun fetchUserDataByToken(token: String): UserInfo? {
         val userId = JwtHandler().validateTokenAndGetUserId(token) ?: return null
         return userRepository.findById(userId.toInt())
             ?.let { UserInfo(it.id, it.email, it.name, it.role, it.description) }
+    }
+
+    fun authenticateWithEmailPassword(email: String, password: String): UserInfo? {
+        val user = userRepository.findByEmail(email) ?: return null
+        if (!BCrypt.checkpw(password, user.passwordHash))
+            return null
+
+        return UserInfo(user.id, user.email, user.name, user.role, user.description)
     }
 
     fun linkAccount(userId: Int, provider: String, refreshToken: String) {
@@ -80,102 +82,35 @@ class UserController(
         userRepository.update(updatedUser)
     }
 
-    fun authenticateWithEmailPassword(email: String, password: String, call: ApplicationCall): User? {
-        val user = userRepository.findByEmail(email)
-        println(user)
-        println("Password: $password")
-        println("Stored Hash: ${user!!.passwordHash}")
-        val passwordMatches = BCrypt.checkpw(password, user.passwordHash)
-        println("Password Matches: $passwordMatches")
-
-        if (passwordMatches) {
-            println("User: $user")
-            return user
-        }
-        return null
-    }
-
-    fun authenticateWithOAuth(request: Login): User? {
-    val newUser = User(
-            id = 0,
-            email = "",
-            name = "",
-            passwordHash = "",
-            role = "",
-            description = "",
-            createdAt = "",
-            updatedAt = "",
-            googleAccountId = null,
-            googleAccessToken = null,
-            googleRefresh = null,
-            facebookAccountId = null,
-            facebookAccessToken = null,
-            facebookRefresh = null,
-            twitterAccountId = null,
-            twitterAccessToken = null,
-            twitterRefresh = null,
-            instagramAccountId = null,
-            instagramAccessToken = null,
-            instagramRefresh = null,
-            )
-            return newUser
-    }
-
     fun verifyOAuthToken(code: String?, provider: String): TokenResponse {
         val tokenMap = runBlocking {
             exchangeCodeForToken(code?: "", provider)
         } ?: throw IllegalArgumentException("Failed to exchange code for token")
 
-        val accessToken = tokenMap["access_token"]
-            ?: throw IllegalArgumentException("Access token not found in token response")
-
         val idToken = tokenMap["id_token"]
-            ?: throw IllegalArgumentException("ID token not found in token response")
-
+        val accessToken = tokenMap["access_token"]
         val refreshToken = tokenMap["refresh_token"]
-
-        val userInfoJson = runBlocking {
-            fetchOAuthUser(accessToken, provider)
-        }
-            ?: throw IllegalArgumentException("Failed to fetch user info")
+        val userInfoJson = runBlocking {fetchOAuthUser(accessToken!!, provider) }
 
         return TokenResponse(
-            accessToken = accessToken,
-            refreshToken = refreshToken ?: ""
+            accessToken = accessToken!!,
+            refreshToken = refreshToken!!
         )
-    }
-
-    private suspend fun fetchOAuthUser(accessToken: String, provider: String): JsonObject? {
-        val config = ConfigFactory.load().getConfig(provider)
-        val userInfoUrl = config.getString("userInfoUrl")
-
-        val client = HttpClient()
-        val userInfoResponse = client.get(Url(userInfoUrl)) {
-            headers {
-                append(HttpHeaders.Authorization, "Bearer $accessToken")
-            }
-        }
-
-        val userInfoResponseJson = userInfoResponse.readBytes().decodeToString()
-        return JsonParser.parseString(userInfoResponseJson).asJsonObject
     }
 
     private suspend fun exchangeCodeForToken(code: String, provider: String): Map<String, String>? {
         val config = ConfigFactory.load().getConfig(provider)
-        val clientID = config.getString("clientID")
-        val clientSecret = config.getString("clientSecret")
-        val redirectUri = config.getString("redirectUri")
 
         val params = listOf(
             "code" to code,
-            "client_id" to clientID,
-            "client_secret" to clientSecret,
-            "redirect_uri" to redirectUri,
+            "client_id" to config.getString("clientID"),
+            "client_secret" to config.getString("clientSecret"),
+            "redirect_uri" to config.getString("redirectUri"),
             "grant_type" to "authorization_code"
         )
 
         val client = HttpClient()
-        val tokenResponse = client.post(Url(getTokenUrl(provider))) {
+        val tokenResponse = client.post(Url(config.getString("tokenUrl"))) {
             headers {
                 append(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
             }
@@ -197,10 +132,19 @@ class UserController(
         return tokenJsonObject.entrySet().associate { it.key to it.value.asString }
     }
 
-    private fun getTokenUrl(provider: String): String {
+    private suspend fun fetchOAuthUser(accessToken: String, provider: String): JsonObject? {
         val config = ConfigFactory.load().getConfig(provider)
-        return config.getString("tokenUrl")
-    }
-}
+        val userInfoUrl = config.getString("userInfoUrl")
 
-class RegistrationException(message: String) : RuntimeException(message)
+        val client = HttpClient()
+        val userInfoResponse = client.get(Url(userInfoUrl)) {
+            headers {
+                append(HttpHeaders.Authorization, "Bearer $accessToken")
+            }
+        }
+
+        val userInfoResponseJson = userInfoResponse.readBytes().decodeToString()
+        return JsonParser.parseString(userInfoResponseJson).asJsonObject
+    }
+
+}
