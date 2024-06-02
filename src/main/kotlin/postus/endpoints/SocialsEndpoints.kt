@@ -108,10 +108,9 @@ fun Application.configureSocialsRouting() {
                 }
                 route("post"){
                     get("youtube"){
-                        val apiKey = call.parameters["apiKey"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing apiKey parameter")
                         val videoId = call.parameters["videoId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing videoId parameter")
 
-                        val analytics = SocialsController.getYouTubeVideoAnalytics(apiKey, videoId)
+                        val analytics = SocialsController.getYouTubeVideoAnalytics(videoId)
                         if (analytics == null) {
                             call.respond(HttpStatusCode.InternalServerError, "Failed to retrieve YouTube Video Analytics")
                         } else {
@@ -158,10 +157,8 @@ fun Application.configureSocialsRouting() {
                 }
             }
             get("test"){
-                val accessToken = call.parameters["accessToken"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing accessToken parameter")
-                val apiKey = call.parameters["key"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing postId parameter")
-                val query = call.parameters["query"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing accessToken parameter")
-                SocialsController.testYoutube(accessToken, apiKey, query)
+                val userId = call.parameters["userId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing userId parameter")
+                SocialsController.testYoutube(userId)
                 call.respond(200)
             }
             post("schedule"){

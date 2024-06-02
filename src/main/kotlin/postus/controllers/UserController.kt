@@ -14,6 +14,7 @@ import kotlinx.coroutines.runBlocking
 import postus.dto.*
 import postus.repositories.*
 import org.mindrot.jbcrypt.BCrypt
+import postus.repositories.UserInfo
 import postus.utils.JwtHandler
 import java.lang.IllegalArgumentException
 
@@ -94,12 +95,16 @@ class UserController(
         return null
     }
 
-    fun authenticateWithOAuth(request: SignInRequest): User? {
+    fun authenticateWithOAuth(request: Login): User? {
     val newUser = User(
             id = 0,
             email = "",
             name = "",
             passwordHash = "",
+            role = "",
+            description = "",
+            createdAt = "",
+            updatedAt = "",
             googleAccountId = null,
             googleAccessToken = null,
             googleRefresh = null,
@@ -111,7 +116,7 @@ class UserController(
             twitterRefresh = null,
             instagramAccountId = null,
             instagramAccessToken = null,
-            instagramRefresh = null
+            instagramRefresh = null,
             )
             return newUser
     }

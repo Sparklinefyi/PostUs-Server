@@ -7,6 +7,15 @@ import java.time.LocalDateTime
 import postus.models.Users.nullable
 import postus.models.Users.varchar
 
+@Serializable
+data class UserInfo(
+    val id: Int,
+    val email: String,
+    val name: String,
+    val role: String = "inactive",
+    val description: String = "",
+    val token: String = ""
+)
 
 @Serializable
 data class User(
@@ -32,15 +41,6 @@ data class User(
     val description: String
 )
 
-@Serializable
-data class UserInfo(
-    val id: Int,
-    val email: String,
-    val name: String,
-    val role: String = "inactive",
-    val description: String = "",
-    val token: String = ""
-)
 
 class UserRepository {
     fun findByEmail(email: String): User? {

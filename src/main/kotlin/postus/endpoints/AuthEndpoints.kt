@@ -76,7 +76,7 @@ fun Application.configureAuthRouting(userService: UserController) {
                 if (user != null) {
                     val token = JwtHandler().makeToken(user.id.toString())
                     val userInfo = UserInfo(user.id, user.email, user.name, user.role, user.description);
-                    call.respond(HttpStatusCode.OK, LoginResponse(userInfo.id, userInfo.email, userInfo.name, userInfo.role, userInfo.description))
+                    call.respond(HttpStatusCode.OK, LoginResponse(userInfo.id, userInfo.email, userInfo.name, userInfo.role, userInfo.description, token))
                 }
                  else
                     call.respond(HttpStatusCode.Unauthorized, "Invalid credentials")

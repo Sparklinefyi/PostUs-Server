@@ -54,19 +54,21 @@ class PostWorker(private val scheduledPost: ScheduledPost) {
                     val accountId = user.instagramAccountId!!
                     try {
                         if (mediaType == "IMAGE") {
-                            SocialsController.uploadPictureToInstagram(
-                                mediaUrl,
-                                scheduledPost.schedulePostRequest.instagramPostRequest?.caption,
-                                accessToken,
-                                accountId
-                            )
+                            scheduledPost.schedulePostRequest.instagramPostRequest?.caption?.let {
+                                SocialsController.uploadPictureToInstagram(
+                                    mediaUrl,
+                                    it,
+                                    accessToken,
+                                )
+                            }
                         } else {
-                            SocialsController.uploadVideoToInstagram(
-                                mediaUrl,
-                                scheduledPost.schedulePostRequest.instagramPostRequest?.caption,
-                                accessToken,
-                                accountId
-                            )
+                            scheduledPost.schedulePostRequest.instagramPostRequest?.caption?.let {
+                                SocialsController.uploadVideoToInstagram(
+                                    mediaUrl,
+                                    it,
+                                    accessToken,
+                                )
+                            }
                         }
                     } catch (e: Exception) {
                         println("Failed to post to instagram:  $e")
