@@ -1,1 +1,1 @@
-web: java -jar build/libs/your-app.jar
+web: java -jar build/libs/sparkline.jar

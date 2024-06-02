@@ -11,6 +11,10 @@ plugins {
 group = "postus"
 version = "0.0.1"
 
+tasks.jar {
+    archiveBaseName.set("sparkline")
+}
+
 application {
     mainClass.set("postus.ApplicationKt")
 
