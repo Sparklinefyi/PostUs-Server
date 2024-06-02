@@ -1,9 +1,8 @@
 package postus.models
 
-import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.dao.id.IntIdTable
 
-object Schedules : Table() {
-    val id = integer("id").autoIncrement()
+object Schedules : IntIdTable() {
     val userId = varchar("user_id", 50)
     val s3Path = varchar("s3_path", 255)
     val postTime = varchar("post_time", 255)

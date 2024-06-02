@@ -79,14 +79,14 @@ class UserRepository {
                 it[googleAccountId] = user.googleAccountId
                 it[googleAccessToken] = user.googleAccessToken
                 it[googleRefresh] = user.googleRefresh
-                it[googleAccountId] = user.googleAccountId
-                it[googleAccessToken] = user.googleAccessToken
+                it[facebookAccountId] = user.facebookAccountId
+                it[facebookAccessToken] = user.facebookAccessToken
                 it[facebookRefresh] = user.facebookRefresh
-                it[googleAccountId] = user.googleAccountId
-                it[googleAccessToken] = user.googleAccessToken
+                it[twitterAccountId] = user.twitterAccountId
+                it[twitterAccessToken] = user.twitterAccessToken
                 it[twitterRefresh] = user.twitterRefresh
-                it[googleAccountId] = user.googleAccountId
-                it[googleAccessToken] = user.googleAccessToken
+                it[instagramAccountId] = user.instagramAccountId
+                it[instagramAccessToken] = user.instagramAccessToken
                 it[instagramRefresh] = user.instagramRefresh
             }
         }
