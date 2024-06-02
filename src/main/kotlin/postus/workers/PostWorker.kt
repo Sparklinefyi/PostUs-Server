@@ -5,7 +5,9 @@ import postus.endpoints.SocialsController
 import postus.models.ScheduledPost
 import postus.repositories.UserRepository
 import java.time.Duration
+import java.time.Instant
 import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
@@ -15,7 +17,8 @@ class PostWorker(private val scheduledPost: ScheduledPost) {
     private var future: ScheduledFuture<*>? = null
 
     fun schedule() {
-        val delay = Duration.between(LocalDateTime.now(), scheduledPost.postTime).toMillis()
+        val postTime: Instant = LocalDateTime.parse(scheduledPost.postTime).toInstant(ZoneOffset.UTC)
+        val delay = Duration.between(LocalDateTime.now().toInstant(ZoneOffset.UTC), postTime).toMillis()
         future = scheduler.schedule({
             post()
         }, delay, TimeUnit.MILLISECONDS)
@@ -25,7 +28,7 @@ class PostWorker(private val scheduledPost: ScheduledPost) {
         val userId = scheduledPost.userId
         val S3Url = scheduledPost.s3Path
         val mediaType = scheduledPost.mediaType
-        val user = UserRepository().findById(userId.toInt())
+        val user = UserRepository().findById(userId.toInt()) ?: throw Exception("User not found while trying to upload scheduled post")
         val mediaUrl = if(mediaType == "IMAGE") {
             MediaController.getImage(userId, S3Url)
         } else {
@@ -35,7 +38,7 @@ class PostWorker(private val scheduledPost: ScheduledPost) {
             println("Posting to $provider with media at ${scheduledPost.s3Path}")
             when (provider) {
                 "YOUTUBE" -> {
-                    val accessToken = user.youtubeAccessToken
+                    val accessToken = user.googleAccessToken!!
                     try {
                         SocialsController.uploadYoutubeShort(
                             scheduledPost.schedulePostRequest.youtubePostRequest!!,
@@ -47,20 +50,20 @@ class PostWorker(private val scheduledPost: ScheduledPost) {
                     }
                 }
                 "INSTAGRAM" -> {
-                    val accessToken = user.instagramAccessToken
-                    val accountId = user.instagramAccountId
+                    val accessToken = user.instagramAccessToken!!
+                    val accountId = user.instagramAccountId!!
                     try {
                         if (mediaType == "IMAGE") {
                             SocialsController.uploadPictureToInstagram(
                                 mediaUrl,
-                                scheduledPost.schedulePostRequest.instagramPostRequest.caption,
+                                scheduledPost.schedulePostRequest.instagramPostRequest?.caption,
                                 accessToken,
                                 accountId
                             )
                         } else {
                             SocialsController.uploadVideoToInstagram(
                                 mediaUrl,
-                                scheduledPost.schedulePostRequest.instagramPostRequest.caption,
+                                scheduledPost.schedulePostRequest.instagramPostRequest?.caption,
                                 accessToken,
                                 accountId
                             )
