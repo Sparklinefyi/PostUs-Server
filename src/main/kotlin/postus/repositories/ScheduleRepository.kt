@@ -13,7 +13,7 @@ object ScheduleRepository {
 
     private fun toScheduledPost(row: ResultRow): ScheduledPost {
         return ScheduledPost(
-            id = row[Schedules.id],
+            id = row[Schedules.id].value,
             userId = row[Schedules.userId],
             s3Path = row[Schedules.s3Path],
             postTime = row[Schedules.postTime],
