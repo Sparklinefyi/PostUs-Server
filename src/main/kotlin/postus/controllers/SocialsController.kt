@@ -81,7 +81,7 @@ class SocialsController{
 
     private val client = OkHttpClient()
     private val userRepository = UserRepository()
-    private val youtubeConfig = ConfigFactory.load().getConfig("youtube")
+    private val youtubeConfig = ConfigFactory.load().getConfig("google")
     private val instagramConfig = ConfigFactory.load().getConfig("instagram")
 
 
