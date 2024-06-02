@@ -28,7 +28,8 @@ data class UserInfo(
     val email: String,
     val name: String,
     val role: String = "inactive",
-    val description: String = ""
+    val description: String = "",
+    val token: String = ""
 )
 
 class UserRepository {
@@ -95,6 +96,7 @@ class UserRepository {
             passwordHash = row[Users.passwordHash],
             createdAt = row[Users.timeCreated].toString(),
             updatedAt = row[Users.timeUpdated].toString(),
+
             googleRefresh = row[Users.googleRefresh],
             facebookRefresh = row[Users.facebookRefresh],
             twitterRefresh = row[Users.twitterRefresh],
