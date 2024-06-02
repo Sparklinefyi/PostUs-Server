@@ -15,6 +15,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import postus.endpoints.MediaController
 import postus.models.SchedulePostRequest
 import postus.models.YoutubeUploadRequest
+import postus.repositories.User
 import postus.repositories.UserRepository
 
 
@@ -81,6 +82,7 @@ class SocialsController{
 
     private val client = OkHttpClient()
     private val userRepository = UserRepository()
+    private val userController = UserController(userRepository)
     private val youtubeConfig = ConfigFactory.load().getConfig("google")
     private val instagramConfig = ConfigFactory.load().getConfig("instagram")
 
@@ -300,7 +302,7 @@ class SocialsController{
         return jsonElement.jsonObject["instagram_business_account"]?.jsonObject?.get("id")?.jsonPrimitive?.content
     }
 
-    fun getLongLivedAccessTokenAndInstagramBusinessAccountId(code: String): Pair<String?, String?> {
+    fun getLongLivedAccessTokenAndInstagramBusinessAccountId(userId: String, code: String): Pair<String?, String?> {
         val clientId = instagramConfig.getString("clientID")
         val clientSecret = instagramConfig.getString("clientSecret")
         val redirectUri = instagramConfig.getString("redirectUri")
@@ -312,6 +314,7 @@ class SocialsController{
         val pageId = jsonElement.jsonObject["data"]?.jsonArray?.firstOrNull()?.jsonObject?.get("id")?.jsonPrimitive?.content ?: return longLivedToken to null
 
         val instagramBusinessAccountId = getInstagramBusinessAccountId(pageId, longLivedToken)
+        userController.linkAccount(userId.toInt(), "INSTAGRAM", instagramBusinessAccountId, longLivedToken, longLivedToken )
         return longLivedToken to instagramBusinessAccountId
     }
 

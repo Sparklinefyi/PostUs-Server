@@ -147,8 +147,12 @@ fun Application.configureSocialsRouting() {
             }
             route("auth"){
                 get("instagram"){
+                    val userId = call.parameters["userId"] ?: return@get call.respond(
+                        HttpStatusCode.BadRequest,
+                        "Missing userId"
+                    )
                     val code = call.parameters["code"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing code parameter")
-                    val (longLivedToken, instagramBusinessAccountId) = SocialsController.getLongLivedAccessTokenAndInstagramBusinessAccountId(code)
+                    val (longLivedToken, instagramBusinessAccountId) = SocialsController.getLongLivedAccessTokenAndInstagramBusinessAccountId(userId, code)
 
                     if (longLivedToken == null || instagramBusinessAccountId == null) {
                         call.respond(HttpStatusCode.InternalServerError, "Failed to retrieve tokens or Instagram Business Account ID")
@@ -158,10 +162,11 @@ fun Application.configureSocialsRouting() {
                 }
             }
             get("test"){
-                val accessToken = call.parameters["accessToken"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing accessToken parameter")
-                val apiKey = call.parameters["key"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing postId parameter")
-                val query = call.parameters["query"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing accessToken parameter")
-                SocialsController.testYoutube(accessToken, apiKey, query)
+                val userId = call.parameters["userId"] ?: return@get call.respond(
+                    HttpStatusCode.BadRequest,
+                    "Missing userId"
+                )
+                SocialsController.testYoutube(userId)
                 call.respond(200)
             }
             post("schedule"){
