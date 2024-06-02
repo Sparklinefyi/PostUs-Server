@@ -10,7 +10,6 @@ import io.ktor.client.request.headers
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.application.*
-import io.ktor.server.sessions.*
 import kotlinx.coroutines.runBlocking
 import postus.dto.*
 import postus.repositories.*
@@ -32,10 +31,18 @@ class UserController(
             createdAt = "",
             updatedAt = "",
             passwordHash = hashedPassword,
-            googleRefresh = "",
-            facebookRefresh = "",
-            twitterRefresh = "",
-            instagramRefresh = "",
+            googleAccountId = null,
+            googleAccessToken = null,
+            googleRefresh = null,
+            facebookAccountId = null,
+            facebookAccessToken = null,
+            facebookRefresh = null,
+            twitterAccountId = null,
+            twitterAccessToken = null,
+            twitterRefresh = null,
+            instagramAccountId = null,
+            instagramAccessToken = null,
+            instagramRefresh = null
         )
         return userRepository.save(user)
     }
@@ -62,14 +69,51 @@ class UserController(
         val user = userRepository.findById(userId) ?: throw IllegalArgumentException("User not found")
 
         val updatedUser = when (provider) {
-            "google" -> user.copy(googleRefresh = refreshToken)
-            "facebook" -> user.copy(facebookRefresh = refreshToken)
-            "twitter" -> user.copy(twitterRefresh = refreshToken)
-            "instagram" -> user.copy(instagramRefresh = refreshToken)
+            "GOOGLE" -> user.copy(googleRefresh = refreshToken)
+            "FACEBOOK" -> user.copy(facebookRefresh = refreshToken)
+            "TWITTER" -> user.copy(twitterRefresh = refreshToken)
+            "INSTAGRAM" -> user.copy(instagramRefresh = refreshToken)
             else -> throw IllegalArgumentException("Unsupported provider")
         }
 
         userRepository.update(updatedUser)
+    }
+
+    fun authenticateWithEmailPassword(email: String, password: String, call: ApplicationCall): User? {
+        val user = userRepository.findByEmail(email)
+        println(user)
+        println("Password: $password")
+        println("Stored Hash: ${user!!.passwordHash}")
+        val passwordMatches = BCrypt.checkpw(password, user.passwordHash)
+        println("Password Matches: $passwordMatches")
+
+        if (passwordMatches) {
+            println("User: $user")
+            return user
+        }
+        return null
+    }
+
+    fun authenticateWithOAuth(request: SignInRequest): User? {
+    val newUser = User(
+            id = 0,
+            email = "",
+            name = "",
+            passwordHash = "",
+            googleAccountId = null,
+            googleAccessToken = null,
+            googleRefresh = null,
+            facebookAccountId = null,
+            facebookAccessToken = null,
+            facebookRefresh = null,
+            twitterAccountId = null,
+            twitterAccessToken = null,
+            twitterRefresh = null,
+            instagramAccountId = null,
+            instagramAccessToken = null,
+            instagramRefresh = null
+            )
+            return newUser
     }
 
     fun verifyOAuthToken(code: String?, provider: String): TokenResponse {
