@@ -13,21 +13,6 @@ plugins {
 group = "postus"
 version = "0.0.1"
 
-tasks.jar {
-    archiveBaseName.set("sparkline")
-}
-
-// repositories, dependencies, etc...
-val compileKotlin: KotlinCompile by tasks
-val compileTestKotlin: KotlinCompile by tasks
-
-compileKotlin.kotlinOptions {
-    jvmTarget = "21"
-}
-compileTestKotlin.kotlinOptions {
-    jvmTarget = "21"
-}
-
 application {
     mainClass.set("postus.ApplicationKt")
 
@@ -40,18 +25,6 @@ repositories {
     mavenCentral()
     maven { url = uri("https://jitpack.io") }
     maven { url = uri("https://maven.pkg.jetbrains.space/public/p/ktor/eap") }
-}
-
-
-tasks {
-    val stage by creating(Task::class) {
-        dependsOn("build", "clean", "copyToLib")
-    }
-
-    register<Copy>("copyToLib") {
-        into("${layout.buildDirectory}/libs")
-        from(configurations.getByName("runtimeClasspath"))
-    }
 }
 
 dependencies {

@@ -1,1 +1,1 @@
-web: java -jar build/libs/sparkline-0.0.1.jar
+web: java -jar "build/libs/PostUs Server-all.jar"
