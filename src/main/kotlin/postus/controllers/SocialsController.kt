@@ -1,5 +1,6 @@
 package postus.controllers
 
+import com.typesafe.config.ConfigFactory
 import kotlinx.serialization.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -12,7 +13,9 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import postus.endpoints.MediaController
+import postus.models.SchedulePostRequest
 import postus.models.YoutubeUploadRequest
+import postus.repositories.UserRepository
 
 
 @Serializable
@@ -77,14 +80,21 @@ data class PageInfo(
 class SocialsController{
 
     private val client = OkHttpClient()
+    private val userRepository = UserRepository()
+    private val youtubeConfig = ConfigFactory.load().getConfig("google")
+    private val instagramConfig = ConfigFactory.load().getConfig("instagram")
 
 
-    fun uploadVideoToInstagram(videoUrl: String, caption: String? = "", pageAccessToken: String, instagramAccountId: String) : String {
+    fun uploadVideoToInstagram(userId: String, videoUrl: String, caption: String? = "") : String {
+        val user = userRepository.findById(userId.toInt())
+        val accessToken = user?.instagramAccessToken ?: throw Exception("User not found")
+        val instagramAccountId = user.instagramAccountId ?: throw Exception("Instagram access token or accountId not found")
+
         val containerUrl = "https://graph.facebook.com/v11.0/$instagramAccountId/media".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("media_type", "REELS")
             .addQueryParameter("video_url", videoUrl)
             .addQueryParameter("caption", caption)
-            .addQueryParameter("access_token", pageAccessToken)
+            .addQueryParameter("access_token", accessToken)
             .build()
             .toString()
 
@@ -115,7 +125,7 @@ class SocialsController{
             Thread.sleep(retryDelayMillis)
             val statusUrl = "https://graph.facebook.com/v11.0/$containerId".toHttpUrlOrNull()!!.newBuilder()
                 .addQueryParameter("fields", "status_code")
-                .addQueryParameter("access_token", pageAccessToken)
+                .addQueryParameter("access_token", accessToken)
                 .build()
                 .toString()
 
@@ -139,7 +149,7 @@ class SocialsController{
 
         val publishUrl = "https://graph.facebook.com/v11.0/$instagramAccountId/media_publish".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("creation_id", containerId)
-            .addQueryParameter("access_token", pageAccessToken)
+            .addQueryParameter("access_token", accessToken)
             .build()
             .toString()
 
@@ -160,11 +170,15 @@ class SocialsController{
         return "Publish Response Body: ${publishResponse.body?.string()}"
     }
 
-    fun uploadPictureToInstagram(imageUrl: String, caption: String? = "", pageAccessToken: String, instagramAccountId: String) : String {
+    fun uploadPictureToInstagram(userId: String, imageUrl: String, caption: String? = "") : String {
+        val user = userRepository.findById(userId.toInt())
+        val accessToken = user?.instagramAccessToken ?: throw Exception("User not found")
+        val instagramAccountId = user.instagramAccountId ?: throw Exception("Instagram access token or accountId not found")
+
         val containerUrl = "https://graph.facebook.com/v11.0/$instagramAccountId/media".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("image_url", imageUrl)
             .addQueryParameter("caption", caption)
-            .addQueryParameter("access_token", pageAccessToken)
+            .addQueryParameter("access_token", accessToken)
             .build()
             .toString()
 
@@ -188,7 +202,7 @@ class SocialsController{
 
         val publishUrl = "https://graph.facebook.com/v11.0/$instagramAccountId/media_publish".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("creation_id", containerId)
-            .addQueryParameter("access_token", pageAccessToken)
+            .addQueryParameter("access_token", accessToken)
             .build()
             .toString()
 
@@ -286,7 +300,10 @@ class SocialsController{
         return jsonElement.jsonObject["instagram_business_account"]?.jsonObject?.get("id")?.jsonPrimitive?.content
     }
 
-    fun getLongLivedAccessTokenAndInstagramBusinessAccountId(clientId: String, clientSecret: String, redirectUri: String, code: String): Pair<String?, String?> {
+    fun getLongLivedAccessTokenAndInstagramBusinessAccountId(code: String): Pair<String?, String?> {
+        val clientId = instagramConfig.getString("clientID")
+        val clientSecret = instagramConfig.getString("clientSecret")
+        val redirectUri = instagramConfig.getString("redirectUri")
         val shortLivedToken = exchangeCodeForAccessToken(clientId, clientSecret, redirectUri, code) ?: return null to null
         val longLivedToken = exchangeShortLivedTokenForLongLivedToken(clientId, clientSecret, shortLivedToken) ?: return null to null
         val pages = getUserPages(longLivedToken) ?: return null to null
@@ -298,10 +315,14 @@ class SocialsController{
         return longLivedToken to instagramBusinessAccountId
     }
 
-    fun getInstagramPageAnalytics(accessToken: String, instagramBusinessAccountId: String): String? {
+    fun getInstagramPageAnalytics(userId: String): String? {
         //periods allowed [day, week, days_28, month, lifetime]
         //metrics allowed [impressions, reach, profile_views, follower_count, website_clicks, email_contacts, get_directions_clicks]
-        val url = "https://graph.facebook.com/v11.0/$instagramBusinessAccountId/insights".toHttpUrlOrNull()!!.newBuilder()
+        val user = userRepository.findById(userId.toInt())
+        val accessToken = user?.instagramAccessToken ?: throw Exception("User not found")
+        val instagramAccountId = user.instagramAccountId ?: throw Exception("Instagram access token or accountId not found")
+
+        val url = "https://graph.facebook.com/v11.0/$instagramAccountId/insights".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("metric", "impressions,reach,profile_views,follower_count")
             .addQueryParameter("period", "day")
             .addQueryParameter("access_token", accessToken)
@@ -321,15 +342,17 @@ class SocialsController{
             println("Response Body: $responseBody")
             return null
         }
-        getInstagramMediaIds(accessToken, instagramBusinessAccountId)
+        getInstagramMediaIds(userId)
 
         return responseBody
     }
 
-    fun getInstagramPostAnalytics(accessToken: String, postId: String): String? {
+    fun getInstagramPostAnalytics(userId: String, postId: String): String? {
         // metrics allowed for media [impressions, reach, engagement, saved, video_views, comments, likes]
         //metrics allowed for shorts [plays, comments, likes, saves, shares, total_interactions, reach]
         //
+        val user = userRepository.findById(userId.toInt())
+        val accessToken = user?.instagramAccessToken ?: throw Exception("User not found")
         val url = "https://graph.facebook.com/v11.0/$postId/insights".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("metric", "plays, comments, likes, reach")
             .addQueryParameter("period", "lifetime")
@@ -348,8 +371,11 @@ class SocialsController{
         return response.body?.string()
     }
 
-    fun getInstagramMediaIds(accessToken: String, instagramBusinessAccountId: String): String? {
-        val url = "https://graph.facebook.com/v11.0/$instagramBusinessAccountId/media".toHttpUrlOrNull()!!.newBuilder()
+    fun getInstagramMediaIds(userId: String): String? {
+        val user = userRepository.findById(userId.toInt())
+        val accessToken = user?.instagramAccessToken ?: throw Exception("User not found")
+        val instagramAccountId = user.instagramAccountId ?: throw Exception("Instagram access token or accountId not found")
+        val url = "https://graph.facebook.com/v11.0/$instagramAccountId/media".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("fields", "id,media_type")
             .addQueryParameter("access_token", accessToken)
             .build()
@@ -373,8 +399,10 @@ class SocialsController{
         return null
     }
 
-    fun getInstagramMediaDetails(accessToken: String, postId: String): String {
+    fun getInstagramMediaDetails(userId: String, postId: String): String {
         val client = OkHttpClient()
+        val user = userRepository.findById(userId.toInt())
+        val accessToken = user?.instagramAccessToken ?: throw Exception("User not found")
 
         val url = "https://graph.facebook.com/v11.0/$postId".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("fields", "id,media_type,media_url,thumbnail_url")
@@ -401,8 +429,10 @@ class SocialsController{
         return jsonResponse["media_url"]?.jsonPrimitive?.content ?: ""
     }
 
-    fun uploadYoutubeShort(uploadRequest: YoutubeUploadRequest, accessToken: String, videoUrl: String): String {
+    fun uploadYoutubeShort(uploadRequest: YoutubeUploadRequest, userId: String, videoUrl: String): String {
         val videoFile = MediaController.downloadVideo(videoUrl)
+        val user = userRepository.findById(userId.toInt())
+        val accessToken = user?.googleAccessToken ?: throw Exception("User not found")
 
         val json = Json { encodeDefaults = true }
         val metadataJson = json.encodeToString(uploadRequest)
@@ -429,13 +459,18 @@ class SocialsController{
         return responseBody ?: ""
     }
 
-    fun testYoutube(accessToken: String, apiKey: String, query: String): Unit {
+    fun testYoutube(userId: String): Unit {
+        val user = userRepository.findById(userId.toInt())
+        val accessToken = user?.googleAccessToken ?: throw Exception("User not found")
         val channelId = getAuthenticatedUserChannelId(accessToken)!!
-        val videoId = getLast10YouTubeVideos(apiKey, channelId)?.get(0)!!
-        println(getYouTubeVideoAnalytics(apiKey, videoId))
+        val videoId = getLast10YouTubeVideos(channelId)?.get(0)!!
+        println(getYouTubeVideoAnalytics(videoId))
     }
 
-    fun getYouTubeUploadsPlaylistId(apiKey: String, channelId: String): String? {
+    fun getYouTubeUploadsPlaylistId(userId: String): String? {
+        val apiKey = youtubeConfig.getString("apiKey")
+        val user = userRepository.findById(userId.toInt())
+        val channelId = user?.googleAccountId ?: throw Exception("Youtube ChannelId not found")
         val url = "https://www.googleapis.com/youtube/v3/channels".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("part", "contentDetails")
             .addQueryParameter("id", channelId)
@@ -466,8 +501,11 @@ class SocialsController{
         return uploadsPlaylistId
     }
 
-    fun getLast10YouTubeVideos(apiKey: String, channelId: String): List<String>? {
-        val uploadsPlaylistId = getYouTubeUploadsPlaylistId(apiKey, channelId) ?: return null
+    fun getLast10YouTubeVideos(userId: String): List<String>? {
+        val user = userRepository.findById(userId.toInt())
+        val channelId = user?.googleAccountId ?: throw Exception("Youtube ChannelId not found")
+        val apiKey = youtubeConfig.getString("apiKey")
+        val uploadsPlaylistId = getYouTubeUploadsPlaylistId(channelId) ?: return null
 
         val url = "https://www.googleapis.com/youtube/v3/playlistItems".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("part", "snippet")
@@ -498,7 +536,9 @@ class SocialsController{
     }
 
     //Testing function
-    fun getAuthenticatedUserChannelId(accessToken: String): String? {
+    fun getAuthenticatedUserChannelId(userId: String): String? {
+        val user = userRepository.findById(userId.toInt())
+        val accessToken = user?.googleAccessToken ?: throw Exception("User not found")
         val url = "https://www.googleapis.com/youtube/v3/channels".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("part", "id")
             .addQueryParameter("mine", "true")
@@ -526,7 +566,10 @@ class SocialsController{
         return channelId
     }
 
-    fun getYouTubeChannelAnalytics(apiKey: String, channelId: String): String? {
+    fun getYouTubeChannelAnalytics(userId: String): String? {
+        val apiKey = youtubeConfig.getString("apiKey")
+        val user = userRepository.findById(userId.toInt())
+        val channelId = user?.googleAccountId ?: throw Exception("Youtube ChannelId not found")
         val url = "https://www.googleapis.com/youtube/v3/channels".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("part", "statistics")
             .addQueryParameter("id", channelId)
@@ -545,7 +588,8 @@ class SocialsController{
         return response.body?.string()
     }
 
-    fun getYouTubeVideoAnalytics(apiKey: String, videoId: String): String? {
+    fun getYouTubeVideoAnalytics(videoId: String): String? {
+        val apiKey = youtubeConfig.getString("apiKey")
         val url = "https://www.googleapis.com/youtube/v3/videos".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("part", "statistics")
             .addQueryParameter("id", videoId)
@@ -562,5 +606,19 @@ class SocialsController{
         if (!response.isSuccessful) return null
 
         return response.body?.string()
+    }
+
+    fun schedulePost(userId: String, postTime: String, mediaUrl: ByteArray, schedulePostRequest: SchedulePostRequest): Boolean {
+        val mediaType = schedulePostRequest.mediaType
+        val s3Path: String
+        when (mediaType) {
+            "IMAGE" -> s3Path = MediaController.uploadImage(userId, mediaUrl)
+            "VIDEO" -> s3Path = MediaController.uploadVideo(userId, mediaUrl)
+            else -> {
+                throw Exception("Not a supported media type (VIDEO or IMAGE)")
+            }
+        }
+        val scheduled = ScheduleRepository.addSchedule(userId, s3Path, postTime, mediaType, schedulePostRequest)
+        return scheduled
     }
 }

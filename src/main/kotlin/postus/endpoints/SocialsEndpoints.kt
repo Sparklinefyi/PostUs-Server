@@ -6,6 +6,7 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import postus.controllers.SocialsController
+import postus.models.SchedulePostRequest
 import postus.models.YoutubeUploadRequest
 
 val SocialsController = SocialsController()
@@ -19,21 +20,17 @@ fun Application.configureSocialsRouting() {
 
                     }
                     post("instagram"){
-                        val accessToken = call.parameters["accessToken"] ?: return@post call.respond(
+                        val userId = call.parameters["userId"] ?: return@post call.respond(
                             HttpStatusCode.BadRequest,
-                            "Missing accessToken"
+                            "Missing userId"
                         )
-                        val videoUrl = call.parameters["videoUrl"] ?: return@post call.respond(
+                        val imageUrl = call.parameters["imageUrl"] ?: return@post call.respond(
                             HttpStatusCode.BadRequest,
-                            "Missing video"
-                        )
-                        val instagramAccountId = call.parameters["accountId"] ?: return@post call.respond(
-                            HttpStatusCode.BadRequest,
-                            "Missing video"
+                            "Missing image"
                         )
                         val caption = call.parameters["caption"]
                         try{
-                            val result = SocialsController.uploadPictureToInstagram(videoUrl, caption, accessToken, instagramAccountId)
+                            val result = SocialsController.uploadPictureToInstagram(userId, imageUrl, caption)
                             call.respond(HttpStatusCode.OK, result)
                         } catch (e : Exception){
                             call.respond(e)
@@ -48,21 +45,17 @@ fun Application.configureSocialsRouting() {
 
                     }
                     post("instagram"){
-                        val accessToken = call.parameters["accessToken"] ?: return@post call.respond(
+                        val userId = call.parameters["userId"] ?: return@post call.respond(
                             HttpStatusCode.BadRequest,
-                            "Missing accessToken"
+                            "Missing userId"
                         )
                         val videoUrl = call.parameters["videoUrl"] ?: return@post call.respond(
                             HttpStatusCode.BadRequest,
                             "Missing video"
                         )
-                        val instagramAccountId = call.parameters["accountId"] ?: return@post call.respond(
-                            HttpStatusCode.BadRequest,
-                            "Missing video"
-                        )
                         val caption = call.parameters["caption"]
                         try{
-                            val result = SocialsController.uploadVideoToInstagram(videoUrl, caption, accessToken, instagramAccountId)
+                            val result = SocialsController.uploadVideoToInstagram(userId, videoUrl, caption)
                             call.respond(HttpStatusCode.OK, result)
                         } catch (e : Exception){
                             call.respond(e)
@@ -101,10 +94,11 @@ fun Application.configureSocialsRouting() {
                         }
                     }
                     get("instagram"){
-                        val accessToken = call.parameters["accessToken"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing accessToken parameter")
-                        val instagramBusinessAccountId = call.parameters["accountId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing instagramBusinessAccountId parameter")
-
-                        val analytics = SocialsController.getInstagramPageAnalytics(accessToken, instagramBusinessAccountId)
+                        val userId = call.parameters["userId"] ?: return@get call.respond(
+                            HttpStatusCode.BadRequest,
+                            "Missing userId"
+                        )
+                        val analytics = SocialsController.getInstagramPageAnalytics(userId)
                         if (analytics == null) {
                             call.respond(HttpStatusCode.InternalServerError, "Failed to retrieve Instagram Page Analytics")
                         } else {
@@ -125,10 +119,13 @@ fun Application.configureSocialsRouting() {
                         }
                     }
                     get("instagram"){
-                        val accessToken = call.parameters["accessToken"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing accessToken parameter")
+                        val userId = call.parameters["userId"] ?: return@get call.respond(
+                            HttpStatusCode.BadRequest,
+                            "Missing userId"
+                        )
                         val postId = call.parameters["postId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing postId parameter")
 
-                        val analytics = SocialsController.getInstagramPostAnalytics(accessToken, postId)
+                        val analytics = SocialsController.getInstagramPostAnalytics(userId, postId)
                         if (analytics == null) {
                             call.respond(HttpStatusCode.InternalServerError, "Failed to retrieve Instagram Post Analytics")
                         } else {
@@ -139,20 +136,19 @@ fun Application.configureSocialsRouting() {
             }
             route("retrieve"){
                 get("instagram"){
-                    val accessToken = call.parameters["accessToken"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing accessToken parameter")
+                    val userId = call.parameters["userId"] ?: return@get call.respond(
+                        HttpStatusCode.BadRequest,
+                        "Missing userId"
+                    )
                     val postId = call.parameters["postId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing postId parameter")
-                    val url = SocialsController.getInstagramMediaDetails(accessToken, postId)
+                    val url = SocialsController.getInstagramMediaDetails(userId, postId)
                     call.respond(url)
                 }
             }
             route("auth"){
                 get("instagram"){
-                    val clientId = "486594670554364"
-                    val clientSecret = "c4953d7d0d6771d0bace9d4d715647f2"
-                    val redirectUri = "https://sparkline.fyi/login"
                     val code = call.parameters["code"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing code parameter")
-
-                    val (longLivedToken, instagramBusinessAccountId) = SocialsController.getLongLivedAccessTokenAndInstagramBusinessAccountId(clientId, clientSecret, redirectUri, code)
+                    val (longLivedToken, instagramBusinessAccountId) = SocialsController.getLongLivedAccessTokenAndInstagramBusinessAccountId(code)
 
                     if (longLivedToken == null || instagramBusinessAccountId == null) {
                         call.respond(HttpStatusCode.InternalServerError, "Failed to retrieve tokens or Instagram Business Account ID")
@@ -167,6 +163,18 @@ fun Application.configureSocialsRouting() {
                 val query = call.parameters["query"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing accessToken parameter")
                 SocialsController.testYoutube(accessToken, apiKey, query)
                 call.respond(200)
+            }
+            post("schedule"){
+                val userId = call.parameters["userId"] ?: return@post call.respond(HttpStatusCode.BadRequest, "Missing accessToken parameter")
+                val postTime = call.parameters["postTime"] ?: return@post call.respond(HttpStatusCode.BadRequest, "Missing accessToken parameter")
+                val schedulePostRequest = call.receive<SchedulePostRequest>()
+                val mediaByteArray = call.receive<ByteArray>()
+                val posted = SocialsController.schedulePost(userId, postTime, mediaByteArray, schedulePostRequest)
+                if (posted) {
+                    call.respond(HttpStatusCode.OK, posted)
+                } else {
+                    call.respond(HttpStatusCode.InternalServerError, "Post could not be scheduled")
+                }
             }
         }
     }
