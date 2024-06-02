@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 val ktor_version: String by project
 val kotlin_version: String by project
 val logback_version: String by project
@@ -13,6 +15,17 @@ version = "0.0.1"
 
 tasks.jar {
     archiveBaseName.set("sparkline")
+}
+
+// repositories, dependencies, etc...
+val compileKotlin: KotlinCompile by tasks
+val compileTestKotlin: KotlinCompile by tasks
+
+compileKotlin.kotlinOptions {
+    jvmTarget = "21"
+}
+compileTestKotlin.kotlinOptions {
+    jvmTarget = "21"
 }
 
 application {
