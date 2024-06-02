@@ -34,6 +34,10 @@ fun Application.configureAuthRouting(userService: UserController) {
                     call.respond(HttpStatusCode.Unauthorized, "Invalid credentials")
             }
 
+            post("/signout") {
+                call.respond(HttpStatusCode.OK, "Signed out")
+            }
+
             post("/userinfo") {
                 println(call.request.headers)
                 val token = call.request.headers["Authorization"]?.removePrefix("Bearer ")
