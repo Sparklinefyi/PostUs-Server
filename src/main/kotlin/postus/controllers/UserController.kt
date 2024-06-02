@@ -14,18 +14,22 @@ import kotlinx.coroutines.runBlocking
 import postus.dto.*
 import postus.repositories.*
 import org.mindrot.jbcrypt.BCrypt
+import postus.utils.JwtHandler
 import java.lang.IllegalArgumentException
 
 class UserController(
     private val userRepository: UserRepository,
 ) {
-
-    fun registerUser(request: RegistrationRequest): User {
+    fun registerUser(request: Registration): UserInfo {
         val hashedPassword = BCrypt.hashpw(request.password, BCrypt.gensalt())
         val user = User(
             id = 0,
             email = request.email,
             name = request.name,
+            role = "inactive",
+            description = "",
+            createdAt = "",
+            updatedAt = "",
             passwordHash = hashedPassword,
             googleAccountId = null,
             googleAccessToken = null,
@@ -41,6 +45,24 @@ class UserController(
             instagramRefresh = null
         )
         return userRepository.save(user)
+    }
+
+    fun authenticateWithEmailPassword(email: String, password: String): UserInfo? {
+        val user = userRepository.findByEmail(email) ?: return null
+        val passwordMatches = BCrypt.checkpw(password, user.passwordHash)
+
+        if (passwordMatches) {
+            val userInfo = UserInfo(user.id, user.email, user.name, user.role, user.description)
+            println(userInfo)
+            return userInfo
+        }
+        return null
+    }
+
+    fun fetchUserDataByToken(token: String): UserInfo? {
+        val userId = JwtHandler().validateTokenAndGetUserId(token) ?: return null
+        return userRepository.findById(userId.toInt())
+            ?.let { UserInfo(it.id, it.email, it.name, it.role, it.description) }
     }
 
     fun linkAccount(userId: Int, provider: String, refreshToken: String) {
@@ -94,7 +116,7 @@ class UserController(
             return newUser
     }
 
-    fun verifyOAuthToken(code: String?, provider: String): UserInfo {
+    fun verifyOAuthToken(code: String?, provider: String): TokenResponse {
         val tokenMap = runBlocking {
             exchangeCodeForToken(code?: "", provider)
         } ?: throw IllegalArgumentException("Failed to exchange code for token")
@@ -112,12 +134,7 @@ class UserController(
         }
             ?: throw IllegalArgumentException("Failed to fetch user info")
 
-        return UserInfo(
-            id = -10,
-            provider = provider,
-            providerUserId = idToken,
-            email = userInfoJson["email"].asString,
-            name = userInfoJson["name"].asString,
+        return TokenResponse(
             accessToken = accessToken,
             refreshToken = refreshToken ?: ""
         )

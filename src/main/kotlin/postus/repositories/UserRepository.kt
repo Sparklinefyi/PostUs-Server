@@ -1,10 +1,14 @@
 package postus.repositories
+import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.sql.*
 import postus.models.Users
 import org.jetbrains.exposed.sql.transactions.transaction
+import java.time.LocalDateTime
 import postus.models.Users.nullable
 import postus.models.Users.varchar
 
+
+@Serializable
 data class User(
     val id: Int,
     val email: String,
@@ -21,7 +25,20 @@ data class User(
     val twitterRefresh: String?,
     val instagramAccountId: String?,
     val instagramAccessToken: String?,
-    val instagramRefresh: String?
+    val instagramRefresh: String?,
+    val createdAt: String,
+    val updatedAt: String,
+    val role: String,
+    val description: String
+)
+
+@Serializable
+data class UserInfo(
+    val id: Int,
+    val email: String,
+    val name: String,
+    val role: String = "inactive",
+    val description: String = ""
 )
 
 class UserRepository {
@@ -42,8 +59,8 @@ class UserRepository {
     }
 
 
-    fun save(user: User): User {
-        return transaction {
+    fun save(user: User): UserInfo {
+        val savedUser = transaction {
             val existingUser = Users.selectAll().where { Users.email eq user.email }.singleOrNull()
             if (existingUser != null) {
                 throw IllegalArgumentException("User with email ${user.email} already exists")
@@ -68,6 +85,8 @@ class UserRepository {
             }
             user.copy(id = id.value)
         }
+
+        return UserInfo(savedUser.id, savedUser.email, savedUser.name, savedUser.role, savedUser.description)
     }
 
     fun update(user: User) {
@@ -97,7 +116,11 @@ class UserRepository {
             id = row[Users.id].value,
             email = row[Users.email],
             name = row[Users.name],
+            role = row[Users.role],
+            description = row[Users.description],
             passwordHash = row[Users.passwordHash],
+            createdAt = row[Users.timeCreated].toString(),
+            updatedAt = row[Users.timeUpdated].toString(),
             googleAccountId = row[Users.googleAccountId],
             googleAccessToken = row[Users.googleAccessToken],
             googleRefresh = row[Users.googleRefresh],
@@ -109,7 +132,17 @@ class UserRepository {
             twitterRefresh = row[Users.twitterRefresh],
             instagramAccountId = row[Users.instagramAccountId],
             instagramAccessToken = row[Users.instagramAccessToken],
-            instagramRefresh = row[Users.instagramRefresh]
+            instagramRefresh = row[Users.instagramRefresh],
+        )
+    }
+
+    private fun userInfo(user: User): UserInfo {
+        return UserInfo(
+            id = user.id,
+            email = user.email,
+            name = user.name,
+            role = user.role,
+            description = user.description,
         )
     }
 }

@@ -18,7 +18,7 @@ import postus.utils.JwtHandler
 import postus.workers.startScheduledPostsChecker
 
 fun main() {
-    embeddedServer(Netty, port = 8080, module = Application::module)
+    embeddedServer(Netty, port = 8080, host="localhost", module = Application::module)
         .start(wait = true)
     startScheduledPostsChecker()
 }
