@@ -7,6 +7,7 @@ import io.ktor.server.routing.*
 import postus.controllers.UserController
 import io.ktor.server.request.*
 import postus.dto.*
+import postus.repositories.UserInfo
 import postus.utils.JwtHandler
 
 fun Application.configureAuthRouting(userService: UserController) {
@@ -14,8 +15,7 @@ fun Application.configureAuthRouting(userService: UserController) {
         route("/auth") {
             post("/register") {
                 // Convert the request payload to RegistrationRequest
-                val request = call.receive<RegistrationRequest>()
-
+                val request = call.receive<Registration>()
                 val user = userService.registerUser(request)
 
                 call.respond(HttpStatusCode.Created, user)
@@ -33,27 +33,25 @@ fun Application.configureAuthRouting(userService: UserController) {
                 val request = call.receive<String>()
                 val matchResult = Regex("""\"code\":\"(.*?)\",\"provider\":\"(.*?)\"""").find(request)
                 val code = matchResult?.groupValues?.get(1) ?: throw IllegalArgumentException("Invalid request format")
-                val provider = matchResult?.groupValues?.get(2) ?: throw IllegalArgumentException("Invalid request format")
-                val userInfo = userService.verifyOAuthToken(code, provider)
+                val provider = matchResult.groupValues[2]
+                val tokenInfo = userService.verifyOAuthToken(code, provider)
 
                 // Link the account
-                userService.linkAccount(userId.toInt(), userInfo.provider, userInfo.refreshToken!!)
+                userService.linkAccount(userId.toInt(), provider, tokenInfo.refreshToken)
                 call.respond(HttpStatusCode.OK, "Account linked")
             }
 
             post("/signin") {
                 // parse request for json data
-                val request = call.receive<SignInRequest>()
-                val user = userService.authenticateWithEmailPassword(request.email, request.password, call)
-
-                println(user)
+                val request = call.receive<Login>()
+                val user = userService.authenticateWithEmailPassword(request.email, request.password)
                 if (user != null) {
-
                     val token = JwtHandler().makeToken(user.id.toString())
-                    call.respond(HttpStatusCode.OK, mapOf("token" to token))
-                } else {
-                    call.respond(HttpStatusCode.Unauthorized, "Invalid credentials")
+                    val userInfo = UserInfo(user.id, user.email, user.name, user.role, user.description);
+                    call.respond(HttpStatusCode.OK, LoginResponse(userInfo.id, userInfo.email, userInfo.name, userInfo.role, userInfo.description))
                 }
+                 else
+                    call.respond(HttpStatusCode.Unauthorized, "Invalid credentials")
             }
         }
     }

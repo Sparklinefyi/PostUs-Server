@@ -17,7 +17,7 @@ import io.ktor.server.sessions.*
 import postus.utils.JwtHandler
 
 fun main() {
-    embeddedServer(Netty, port = 8080, module = Application::module)
+    embeddedServer(Netty, port = 8080, host="localhost", module = Application::module)
         .start(wait = true)
 }
 

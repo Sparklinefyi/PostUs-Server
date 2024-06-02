@@ -1,8 +1,12 @@
 package postus.repositories
+import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.sql.*
 import postus.models.Users
 import org.jetbrains.exposed.sql.transactions.transaction
+import java.time.LocalDateTime
 
+
+@Serializable
 data class User(
     val id: Int,
     val email: String,
@@ -11,7 +15,20 @@ data class User(
     val googleRefresh: String?,
     val facebookRefresh: String?,
     val twitterRefresh: String?,
-    val instagramRefresh: String?
+    val instagramRefresh: String?,
+    val createdAt: String,
+    val updatedAt: String,
+    val role: String,
+    val description: String
+)
+
+@Serializable
+data class UserInfo(
+    val id: Int,
+    val email: String,
+    val name: String,
+    val role: String = "inactive",
+    val description: String = ""
 )
 
 class UserRepository {
@@ -32,8 +49,8 @@ class UserRepository {
     }
 
 
-    fun save(user: User): User {
-        return transaction {
+    fun save(user: User): UserInfo {
+        val savedUser = transaction {
             val existingUser = Users.selectAll().where { Users.email eq user.email }.singleOrNull()
             if (existingUser != null) {
                 throw IllegalArgumentException("User with email ${user.email} already exists")
@@ -50,6 +67,8 @@ class UserRepository {
             }
             user.copy(id = id.value)
         }
+
+        return UserInfo(savedUser.id, savedUser.email, savedUser.name, savedUser.role, savedUser.description)
     }
 
     fun update(user: User) {
@@ -71,11 +90,25 @@ class UserRepository {
             id = row[Users.id].value,
             email = row[Users.email],
             name = row[Users.name],
+            role = row[Users.role],
+            description = row[Users.description],
             passwordHash = row[Users.passwordHash],
+            createdAt = row[Users.timeCreated].toString(),
+            updatedAt = row[Users.timeUpdated].toString(),
             googleRefresh = row[Users.googleRefresh],
             facebookRefresh = row[Users.facebookRefresh],
             twitterRefresh = row[Users.twitterRefresh],
-            instagramRefresh = row[Users.instagramRefresh]
+            instagramRefresh = row[Users.instagramRefresh],
+        )
+    }
+
+    private fun userInfo(user: User): UserInfo {
+        return UserInfo(
+            id = user.id,
+            email = user.email,
+            name = user.name,
+            role = user.role,
+            description = user.description,
         )
     }
 }

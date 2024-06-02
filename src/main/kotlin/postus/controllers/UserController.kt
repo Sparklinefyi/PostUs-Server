@@ -12,29 +12,50 @@ import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.sessions.*
 import kotlinx.coroutines.runBlocking
-import org.jetbrains.exposed.exceptions.ExposedSQLException
 import postus.dto.*
 import postus.repositories.*
 import org.mindrot.jbcrypt.BCrypt
+import postus.utils.JwtHandler
 import java.lang.IllegalArgumentException
 
 class UserController(
     private val userRepository: UserRepository,
 ) {
-
-    fun registerUser(request: RegistrationRequest): User {
+    fun registerUser(request: Registration): UserInfo {
         val hashedPassword = BCrypt.hashpw(request.password, BCrypt.gensalt())
         val user = User(
             id = 0,
             email = request.email,
             name = request.name,
+            role = "inactive",
+            description = "",
+            createdAt = "",
+            updatedAt = "",
             passwordHash = hashedPassword,
             googleRefresh = "",
             facebookRefresh = "",
             twitterRefresh = "",
-            instagramRefresh = ""
+            instagramRefresh = "",
         )
         return userRepository.save(user)
+    }
+
+    fun authenticateWithEmailPassword(email: String, password: String): UserInfo? {
+        val user = userRepository.findByEmail(email) ?: return null
+        val passwordMatches = BCrypt.checkpw(password, user.passwordHash)
+
+        if (passwordMatches) {
+            val userInfo = UserInfo(user.id, user.email, user.name, user.role, user.description)
+            println(userInfo)
+            return userInfo
+        }
+        return null
+    }
+
+    fun fetchUserDataByToken(token: String): UserInfo? {
+        val userId = JwtHandler().validateTokenAndGetUserId(token) ?: return null
+        return userRepository.findById(userId.toInt())
+            ?.let { UserInfo(it.id, it.email, it.name, it.role, it.description) }
     }
 
     fun linkAccount(userId: Int, provider: String, refreshToken: String) {
@@ -51,36 +72,7 @@ class UserController(
         userRepository.update(updatedUser)
     }
 
-    fun authenticateWithEmailPassword(email: String, password: String, call: ApplicationCall): User? {
-        val user = userRepository.findByEmail(email)
-        println(user)
-        println("Password: $password")
-        println("Stored Hash: ${user!!.passwordHash}")
-        val passwordMatches = BCrypt.checkpw(password, user.passwordHash)
-        println("Password Matches: $passwordMatches")
-
-        if (passwordMatches) {
-            println("User: $user")
-            return user
-        }
-        return null
-    }
-
-    fun authenticateWithOAuth(request: SignInRequest): User? {
-    val newUser = User(
-                id = -20,
-                email = "",
-                name = "",
-                passwordHash = "",
-                googleRefresh = "",
-                facebookRefresh = "",
-                twitterRefresh = "",
-                instagramRefresh = "",
-            )
-            return newUser
-    }
-
-    fun verifyOAuthToken(code: String?, provider: String): UserInfo {
+    fun verifyOAuthToken(code: String?, provider: String): TokenResponse {
         val tokenMap = runBlocking {
             exchangeCodeForToken(code?: "", provider)
         } ?: throw IllegalArgumentException("Failed to exchange code for token")
@@ -98,12 +90,7 @@ class UserController(
         }
             ?: throw IllegalArgumentException("Failed to fetch user info")
 
-        return UserInfo(
-            id = -10,
-            provider = provider,
-            providerUserId = idToken,
-            email = userInfoJson["email"].asString,
-            name = userInfoJson["name"].asString,
+        return TokenResponse(
             accessToken = accessToken,
             refreshToken = refreshToken ?: ""
         )
