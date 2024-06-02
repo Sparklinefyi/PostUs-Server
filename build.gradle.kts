@@ -32,7 +32,7 @@ tasks {
     }
 
     register<Copy>("copyToLib") {
-        into("$buildDir/libs")
+        into("${layout.buildDirectory}/libs")
         from(configurations.getByName("runtimeClasspath"))
     }
 }
