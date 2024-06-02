@@ -70,7 +70,7 @@ fun Application.configureAuthRouting(userService: UserController) {
                 val tokenInfo = userService.verifyOAuthToken(request.code, request.provider)
 
                 // Link the account
-                userService.linkAccount(16, request.provider, tokenInfo.refreshToken)
+                userService.linkAccount(16, request.provider, null, null, tokenInfo.refreshToken)
                 call.respond(HttpStatusCode.OK, "Account linked")
             }
 
