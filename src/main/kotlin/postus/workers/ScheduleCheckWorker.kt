@@ -5,9 +5,16 @@ import java.util.concurrent.TimeUnit
 
 class ScheduleCheckWorker : Runnable {
     override fun run() {
-        val posts = ScheduleRepository.getPostsScheduledWithinNextHours(12)
-        for (post in posts) {
-            PostWorker(post).schedule()
+        try {
+            println("Running ScheduleCheckWorker Job")
+            val posts = ScheduleRepository.getPostsScheduledWithinNextHours(12)
+            for (post in posts) {
+                PostWorker(post).schedule()
+            }
+            println("Completed ScheduleCheckWorker Job")
+        } catch (e: Exception) {
+            println("Error during ScheduleCheckWorker Job: ${e.message}")
+            e.printStackTrace()
         }
     }
 }
@@ -15,5 +22,5 @@ class ScheduleCheckWorker : Runnable {
 fun startScheduledPostsChecker() {
     val scheduler = Executors.newScheduledThreadPool(1)
     val worker = ScheduleCheckWorker()
-    scheduler.scheduleAtFixedRate(worker, 0, 12, TimeUnit.HOURS)
+    scheduler.scheduleAtFixedRate(worker, 0, 20, TimeUnit.SECONDS)
 }

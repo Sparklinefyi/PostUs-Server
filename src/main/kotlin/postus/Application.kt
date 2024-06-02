@@ -22,9 +22,10 @@ import java.io.File
 import java.util.*
 
 fun main() {
+    Database
+    startScheduledPostsChecker()
     embeddedServer(Netty, port = 8080, host="localhost", module = Application::module)
         .start(wait = true)
-    startScheduledPostsChecker()
 }
 
 fun Application.module() {

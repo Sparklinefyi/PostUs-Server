@@ -6,6 +6,7 @@ import postus.models.SchedulePostRequest
 import postus.models.ScheduledPost
 import postus.models.Schedules
 import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 object ScheduleRepository {
 
@@ -53,10 +54,11 @@ object ScheduleRepository {
 
     fun getPostsScheduledWithinNextHours(hours: Long): List<ScheduledPost> {
         val now = LocalDateTime.now()
+        val formatter = DateTimeFormatter.ISO_DATE_TIME
         return transaction {
             Schedules.selectAll().where {
                 not(Schedules.posted) and
-                        Schedules.postTime.less(now.plusHours(hours))
+                        Schedules.postTime.less(now.plusHours(hours).format(formatter))
             }.map { toScheduledPost(it) }
         }
     }
