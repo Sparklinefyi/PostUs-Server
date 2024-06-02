@@ -1,6 +1,5 @@
 package postus.utils
 
-import com.typesafe.config.ConfigFactory
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import org.jetbrains.exposed.sql.Database as ExposedDatabase
@@ -9,13 +8,12 @@ import java.sql.Connection
 
 object Database {
     private val logger = LoggerFactory.getLogger(ExposedDatabase::class.java)
-    private val config = ConfigFactory.load().getConfig("database")
     private val hikariConfig = HikariConfig().apply {
-        jdbcUrl = config.getString("url")
-        username = config.getString("user")
-        password = config.getString("password")
-        driverClassName = config.getString("driver")
-        maximumPoolSize = config.getInt("maximumPoolSize")
+        jdbcUrl = System.getProperty("DATABASE_URL")
+        username = System.getProperty("DATABASE_USER")
+        password = System.getProperty("DATABASE_PASSWORD")
+        driverClassName = System.getProperty("DATABASE_DRIVER")
+        maximumPoolSize = System.getProperty("DATABASE_POOL_SIZE")?.toInt() ?: 10
     }
 
     private val dataSource = HikariDataSource(hikariConfig)
