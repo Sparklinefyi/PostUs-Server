@@ -112,6 +112,14 @@ class UserRepository {
         }
     }
 
+    suspend fun updateUserDescription(userId: Int, description: String) {
+        transaction {
+            Users.update({ Users.id eq userId }) {
+                it[Users.description] = description
+            }
+        }
+    }
+
     private fun toUser(row: ResultRow): User {
         return User(
             id = row[Users.id].value,
