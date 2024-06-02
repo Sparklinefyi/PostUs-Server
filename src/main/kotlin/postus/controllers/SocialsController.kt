@@ -14,7 +14,9 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import postus.endpoints.MediaController
 import postus.models.SchedulePostRequest
+import postus.models.YoutubeOAuthResponse
 import postus.models.YoutubeUploadRequest
+import postus.repositories.User
 import postus.repositories.UserRepository
 
 
@@ -81,6 +83,7 @@ class SocialsController{
 
     private val client = OkHttpClient()
     private val userRepository = UserRepository()
+    private val userController = UserController(userRepository)
     private val youtubeConfig = ConfigFactory.load().getConfig("google")
     private val instagramConfig = ConfigFactory.load().getConfig("instagram")
 
@@ -234,9 +237,9 @@ class SocialsController{
             .build()
 
         val response = client.newCall(request).execute()
+        val responseBody = response.body?.string() ?: return null
         if (!response.isSuccessful) return null
 
-        val responseBody = response.body?.string() ?: return null
         val jsonElement = Json.parseToJsonElement(responseBody)
         return jsonElement.jsonObject["access_token"]?.jsonPrimitive?.content
     }
@@ -300,7 +303,7 @@ class SocialsController{
         return jsonElement.jsonObject["instagram_business_account"]?.jsonObject?.get("id")?.jsonPrimitive?.content
     }
 
-    fun getLongLivedAccessTokenAndInstagramBusinessAccountId(code: String): Pair<String?, String?> {
+    fun getLongLivedAccessTokenAndInstagramBusinessAccountId(userId: String, code: String): Pair<String?, String?> {
         val clientId = instagramConfig.getString("clientID")
         val clientSecret = instagramConfig.getString("clientSecret")
         val redirectUri = instagramConfig.getString("redirectUri")
@@ -312,6 +315,7 @@ class SocialsController{
         val pageId = jsonElement.jsonObject["data"]?.jsonArray?.firstOrNull()?.jsonObject?.get("id")?.jsonPrimitive?.content ?: return longLivedToken to null
 
         val instagramBusinessAccountId = getInstagramBusinessAccountId(pageId, longLivedToken)
+        userController.linkAccount(userId.toInt(), "INSTAGRAM", instagramBusinessAccountId, longLivedToken, longLivedToken )
         return longLivedToken to instagramBusinessAccountId
     }
 
@@ -429,6 +433,33 @@ class SocialsController{
         return jsonResponse["media_url"]?.jsonPrimitive?.content ?: ""
     }
 
+    fun fetchYouTubeAccessToken(userId: String, code: String): Boolean {
+        val clientId = youtubeConfig.getString("clientID")
+        val clientSecret = youtubeConfig.getString("clientSecret")
+        val redirectUri = youtubeConfig.getString("redirectUri")
+        val requestBody = FormBody.Builder()
+            .add("code", code)
+            .add("client_id", clientId)
+            .add("client_secret", clientSecret)
+            .add("redirect_uri", redirectUri)
+            .add("grant_type", "authorization_code")
+            .build()
+
+        val request = Request.Builder()
+            .url("https://oauth2.googleapis.com/token")
+            .post(requestBody)
+            .build()
+
+        val response = client.newCall(request).execute()
+        val responseBody = response.body?.string() ?: return false
+        if (!response.isSuccessful) return false
+
+        val youtubeTokens = Json{ ignoreUnknownKeys = true }.decodeFromString<YoutubeOAuthResponse>(responseBody)
+        val channelId = getAuthenticatedUserChannelId(youtubeTokens.access_token)
+        userController.linkAccount(userId.toInt(), "GOOGLE", channelId, youtubeTokens.access_token, youtubeTokens.refresh_token)
+        return true
+    }
+
     fun uploadYoutubeShort(uploadRequest: YoutubeUploadRequest, userId: String, videoUrl: String): String {
         val videoFile = MediaController.downloadVideo(videoUrl)
         val user = userRepository.findById(userId.toInt())
@@ -536,9 +567,7 @@ class SocialsController{
     }
 
     //Testing function
-    fun getAuthenticatedUserChannelId(userId: String): String? {
-        val user = userRepository.findById(userId.toInt())
-        val accessToken = user?.googleAccessToken ?: throw Exception("User not found")
+    fun getAuthenticatedUserChannelId(accessToken: String): String? {
         val url = "https://www.googleapis.com/youtube/v3/channels".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("part", "id")
             .addQueryParameter("mine", "true")

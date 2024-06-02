@@ -68,15 +68,25 @@ class UserController(
         return UserInfo(user.id, user.email, user.name, user.role, user.description)
     }
 
-    fun linkAccount(userId: Int, provider: String, refreshToken: String) {
+    fun linkAccount(userId: Int, provider: String, accountId: String?, accessToken: String?, refreshToken: String?) {
         val user = userRepository.findById(userId) ?: throw IllegalArgumentException("User not found")
+        val updatedUser = user.copy(
+            googleAccountId = if (provider == "GOOGLE" && accountId != null) accountId else user.googleAccountId,
+            googleAccessToken = if (provider == "GOOGLE" && accessToken != null) accessToken else user.googleAccessToken,
+            googleRefresh = if (provider == "GOOGLE" && refreshToken != null) refreshToken else user.googleRefresh,
+            facebookAccountId = if (provider == "FACEBOOK" && accountId != null) accountId else user.facebookAccountId,
+            facebookAccessToken = if (provider == "FACEBOOK" && accessToken != null) accessToken else user.facebookAccessToken,
+            facebookRefresh = if (provider == "FACEBOOK" && refreshToken != null) refreshToken else user.facebookRefresh,
+            twitterAccountId = if (provider == "TWITTER" && accountId != null) accountId else user.twitterAccountId,
+            twitterAccessToken = if (provider == "TWITTER" && accessToken != null) accessToken else user.twitterAccessToken,
+            twitterRefresh = if (provider == "TWITTER" && refreshToken != null) refreshToken else user.twitterRefresh,
+            instagramAccountId = if (provider == "INSTAGRAM" && accountId != null) accountId else user.instagramAccountId,
+            instagramAccessToken = if (provider == "INSTAGRAM" && accessToken != null) accessToken else user.instagramAccessToken,
+            instagramRefresh = if (provider == "INSTAGRAM" && refreshToken != null) refreshToken else user.instagramRefresh
+        )
 
-        val updatedUser = when (provider) {
-            "GOOGLE" -> user.copy(googleRefresh = refreshToken)
-            "FACEBOOK" -> user.copy(facebookRefresh = refreshToken)
-            "TWITTER" -> user.copy(twitterRefresh = refreshToken)
-            "INSTAGRAM" -> user.copy(instagramRefresh = refreshToken)
-            else -> throw IllegalArgumentException("Unsupported provider")
+        if (updatedUser == user) {
+            throw Exception("must update some user information")
         }
 
         userRepository.update(updatedUser)

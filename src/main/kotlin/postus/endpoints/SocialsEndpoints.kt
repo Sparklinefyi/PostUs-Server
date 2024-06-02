@@ -62,9 +62,9 @@ fun Application.configureSocialsRouting() {
                         }
                     }
                     post("youtube"){
-                        val accessToken = call.parameters["accessToken"] ?: return@post call.respond(
+                        val userId = call.parameters["userId"] ?: return@post call.respond(
                             HttpStatusCode.BadRequest,
-                            "Missing accessToken"
+                            "Missing userId"
                         )
                         val videoUrl = call.parameters["videoUrl"] ?: return@post call.respond(
                             HttpStatusCode.BadRequest,
@@ -72,7 +72,7 @@ fun Application.configureSocialsRouting() {
                         )
                         val uploadRequest = call.receive<YoutubeUploadRequest>()
                         try{
-                            val result = SocialsController.uploadYoutubeShort(uploadRequest, accessToken, videoUrl)
+                            val result = SocialsController.uploadYoutubeShort(uploadRequest, userId, videoUrl)
                             call.respond(HttpStatusCode.OK, result)
                         } catch (e : Exception){
                             call.respond(e)
@@ -83,10 +83,11 @@ fun Application.configureSocialsRouting() {
             route("analyze"){
                 route("page"){
                     get("youtube"){
-                        val apiKey = call.parameters["apiKey"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing apiKey parameter")
-                        val channelId = call.parameters["channelId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing channelId parameter")
-
-                        val analytics = SocialsController.getYouTubeChannelAnalytics(apiKey, channelId)
+                        val userId = call.parameters["userId"] ?: return@get call.respond(
+                            HttpStatusCode.BadRequest,
+                            "Missing userId"
+                        )
+                        val analytics = SocialsController.getYouTubeChannelAnalytics(userId)
                         if (analytics == null) {
                             call.respond(HttpStatusCode.InternalServerError, "Failed to retrieve YouTube Channel Analytics")
                         } else {
@@ -146,14 +147,27 @@ fun Application.configureSocialsRouting() {
             }
             route("auth"){
                 get("instagram"){
+                    val userId = call.parameters["userId"] ?: return@get call.respond(
+                        HttpStatusCode.BadRequest,
+                        "Missing userId"
+                    )
                     val code = call.parameters["code"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing code parameter")
-                    val (longLivedToken, instagramBusinessAccountId) = SocialsController.getLongLivedAccessTokenAndInstagramBusinessAccountId(code)
+                    val (longLivedToken, instagramBusinessAccountId) = SocialsController.getLongLivedAccessTokenAndInstagramBusinessAccountId(userId, code)
 
                     if (longLivedToken == null || instagramBusinessAccountId == null) {
                         call.respond(HttpStatusCode.InternalServerError, "Failed to retrieve tokens or Instagram Business Account ID")
                     } else {
                         call.respond(mapOf("long_lived_access_token" to longLivedToken, "instagram_business_account_id" to instagramBusinessAccountId))
                     }
+                }
+                get("youtube"){
+                    val userId = call.parameters["userId"] ?: return@get call.respond(
+                        HttpStatusCode.BadRequest,
+                        "Missing userId"
+                    )
+                    val code = call.parameters["code"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing code parameter")
+                    val validated = SocialsController.fetchYouTubeAccessToken(userId, code)
+                    call.respond(validated)
                 }
             }
             get("test"){

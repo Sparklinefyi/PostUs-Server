@@ -54,21 +54,17 @@ class PostWorker(private val scheduledPost: ScheduledPost) {
                     val accountId = user.instagramAccountId!!
                     try {
                         if (mediaType == "IMAGE") {
-                            scheduledPost.schedulePostRequest.instagramPostRequest?.caption?.let {
-                                SocialsController.uploadPictureToInstagram(
-                                    mediaUrl,
-                                    it,
-                                    accessToken,
-                                )
-                            }
+                            SocialsController.uploadPictureToInstagram(
+                                userId,
+                                mediaUrl,
+                                scheduledPost.schedulePostRequest.instagramPostRequest?.caption,
+                            )
                         } else {
-                            scheduledPost.schedulePostRequest.instagramPostRequest?.caption?.let {
-                                SocialsController.uploadVideoToInstagram(
-                                    mediaUrl,
-                                    it,
-                                    accessToken,
-                                )
-                            }
+                            SocialsController.uploadVideoToInstagram(
+                                userId,
+                                mediaUrl,
+                                scheduledPost.schedulePostRequest.instagramPostRequest?.caption,
+                            )
                         }
                     } catch (e: Exception) {
                         println("Failed to post to instagram:  $e")
@@ -76,7 +72,6 @@ class PostWorker(private val scheduledPost: ScheduledPost) {
                 }
             }
         }
-        // Remove from the repository after posting
         ScheduleRepository.removePost(scheduledPost.id)
     }
 
