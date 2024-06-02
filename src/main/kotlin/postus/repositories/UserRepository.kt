@@ -38,7 +38,8 @@ data class UserInfo(
     val email: String,
     val name: String,
     val role: String = "inactive",
-    val description: String = ""
+    val description: String = "",
+    val token: String = ""
 )
 
 class UserRepository {

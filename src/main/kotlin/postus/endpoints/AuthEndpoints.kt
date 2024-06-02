@@ -21,6 +21,30 @@ fun Application.configureAuthRouting(userService: UserController) {
                 call.respond(HttpStatusCode.Created, user)
             }
 
+            post("/signin") {
+                // parse request for json data
+                val request = call.receive<Login>()
+                val user = userService.authenticateWithEmailPassword(request.email, request.password)
+                if (user != null) {
+                    val token = JwtHandler().makeToken(user.id.toString())
+                    val userInfo = UserInfo(user.id, user.email, user.name, user.role, user.description);
+                    call.respond(HttpStatusCode.OK, LoginResponse(userInfo.id, userInfo.email, userInfo.name, userInfo.role, userInfo.description, token))
+                }
+                else
+                    call.respond(HttpStatusCode.Unauthorized, "Invalid credentials")
+            }
+
+            post("/userinfo") {
+                println(call.request.headers)
+                val token = call.request.headers["Authorization"]?.removePrefix("Bearer ")
+                    ?: throw IllegalArgumentException("Missing or invalid Authorization header")
+
+                val userInfo = userService.fetchUserDataByToken(token)
+                    ?: throw IllegalArgumentException("Invalid token")
+
+                call.respond(HttpStatusCode.OK, userInfo)
+            }
+
             post("/link-account") {
                 val token = call.request.headers["Authorization"]?.removePrefix("Bearer ")
                     ?: throw IllegalArgumentException("Missing or invalid Authorization header")
