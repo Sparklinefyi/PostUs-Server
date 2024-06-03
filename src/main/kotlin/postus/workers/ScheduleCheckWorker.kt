@@ -7,7 +7,7 @@ class ScheduleCheckWorker : Runnable {
     override fun run() {
         try {
             println("Running ScheduleCheckWorker Job")
-            val posts = ScheduleRepository.getPostsScheduledWithinNextHours(1)
+            val posts = ScheduleRepository.getPostsScheduledWithinNextHours(3)
             for (post in posts) {
                 PostWorker(post).schedule()
             }
@@ -22,5 +22,5 @@ class ScheduleCheckWorker : Runnable {
 fun startScheduledPostsChecker() {
     val scheduler = Executors.newScheduledThreadPool(1)
     val worker = ScheduleCheckWorker()
-    scheduler.scheduleAtFixedRate(worker, 0, 5, TimeUnit.MINUTES)
+    scheduler.scheduleAtFixedRate(worker, 0, 3, TimeUnit.HOURS)
 }

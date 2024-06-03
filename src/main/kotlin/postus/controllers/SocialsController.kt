@@ -698,8 +698,8 @@ class SocialsController{
             }
         }
         val postTimeInstant: Instant = LocalDateTime.parse(postTime).toInstant(ZoneOffset.UTC)
-        val delay = Duration.between(LocalDateTime.now().toInstant(ZoneOffset.UTC), postTimeInstant).toMinutes()
-        if (delay < 5){
+        val delay = Duration.between(LocalDateTime.now().toInstant(ZoneOffset.UTC), postTimeInstant).toHours()
+        if (delay < 3){
             val post = ScheduledPost(
                 0,
                 userId.toInt(),
