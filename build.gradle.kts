@@ -17,6 +17,11 @@ tasks {
     create("stage").dependsOn("installDist")
 }
 
+tasks.withType<Jar> {
+    archiveBaseName.set("postus")
+    archiveVersion.set("0.0.1")
+    archiveFileName.set("PostUsServer-0.0.1.jar")
+}
 application {
     mainClass.set("postus.ApplicationKt")
 
