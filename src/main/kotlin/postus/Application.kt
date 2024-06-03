@@ -22,11 +22,15 @@ import java.io.File
 import java.util.*
 
 fun main() {
-    Database
+    //Database
     //startScheduledPostsChecker()
     val port = System.getenv("PORT")?.toInt() ?: 8080
-    embeddedServer(Netty, port, host="localhost", module = Application::module)
-        .start(wait = true)
+    if (port != 8080)
+        embeddedServer(Netty, port, module = Application::module)
+            .start(wait = true)
+    else
+        embeddedServer(Netty, port, host = "localhost", module = Application::module)
+            .start()
 }
 
 fun Application.module() {

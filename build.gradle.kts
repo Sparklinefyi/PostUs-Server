@@ -13,6 +13,10 @@ plugins {
 group = "postus"
 version = "0.0.1"
 
+tasks {
+    create("stage").dependsOn("installDist")
+}
+
 application {
     mainClass.set("postus.ApplicationKt")
 
@@ -25,8 +29,6 @@ repositories {
     mavenCentral()
     maven { url = uri("https://jitpack.io") }
     maven { url = uri("https://maven.pkg.jetbrains.space/public/p/ktor/eap") }
-
-
 }
 
 dependencies {

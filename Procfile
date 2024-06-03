@@ -1,1 +1,1 @@
-web: java -jar "build/libs/PostUs Server-all.jar"
+web: "./build/install/PostUs Server/bin/PostUs Server"
