@@ -12,7 +12,8 @@ data class UserInfo(
     val id: Int,
     val email: String,
     val name: String,
-    val role: String = "inactive",
+    val role: String,
+    val createdAt: String,
     val description: String = "",
     val token: String = ""
 )
@@ -142,16 +143,6 @@ class UserRepository {
             instagramAccountId = row[Users.instagramAccountId],
             instagramAccessToken = row[Users.instagramAccessToken],
             instagramRefresh = row[Users.instagramRefresh],
-        )
-    }
-
-    private fun userInfo(user: User): UserInfo {
-        return UserInfo(
-            id = user.id,
-            email = user.email,
-            name = user.name,
-            role = user.role,
-            description = user.description,
         )
     }
 }

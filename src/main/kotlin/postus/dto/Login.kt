@@ -15,6 +15,7 @@ data class LoginResponse (
     val email: String,
     val name: String,
     val role: String,
+    val createdAt: String,
     val description: String,
     val token: String
 )
