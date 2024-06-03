@@ -22,5 +22,5 @@ class ScheduleCheckWorker : Runnable {
 fun startScheduledPostsChecker() {
     val scheduler = Executors.newScheduledThreadPool(1)
     val worker = ScheduleCheckWorker()
-    scheduler.scheduleAtFixedRate(worker, 0, 20, TimeUnit.SECONDS)
+    scheduler.scheduleAtFixedRate(worker, 0, 12, TimeUnit.HOURS)
 }

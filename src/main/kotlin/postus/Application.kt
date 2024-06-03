@@ -22,8 +22,8 @@ import java.io.File
 import java.util.*
 
 fun main() {
-    //Database
-    //startScheduledPostsChecker()
+    Database
+    startScheduledPostsChecker()
     val port = System.getenv("PORT")?.toInt() ?: 8080
     if (port != 8080)
         embeddedServer(Netty, port, module = Application::module)

@@ -22,6 +22,7 @@ tasks.withType<Jar> {
     archiveVersion.set("0.0.1")
     archiveFileName.set("PostUsServer-0.0.1.jar")
 }
+
 application {
     mainClass.set("postus.ApplicationKt")
 
