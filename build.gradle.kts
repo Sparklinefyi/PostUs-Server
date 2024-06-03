@@ -13,6 +13,16 @@ plugins {
 group = "postus"
 version = "0.0.1"
 
+tasks {
+    create("stage").dependsOn("installDist")
+}
+
+tasks.withType<Jar> {
+    archiveBaseName.set("postus")
+    archiveVersion.set("0.0.1")
+    archiveFileName.set("PostUsServer-0.0.1.jar")
+}
+
 application {
     mainClass.set("postus.ApplicationKt")
 
@@ -28,6 +38,7 @@ repositories {
 }
 
 dependencies {
+
     implementation("org.mindrot:jbcrypt:0.4")
     implementation("org.jetbrains.exposed:exposed-jdbc:0.50.1")
     implementation("org.jetbrains.exposed:exposed-core:0.50.1")

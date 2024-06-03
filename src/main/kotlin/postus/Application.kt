@@ -24,8 +24,13 @@ import java.util.*
 fun main() {
     Database
     startScheduledPostsChecker()
-    embeddedServer(Netty, port = 8080, host="localhost", module = Application::module)
-        .start(wait = true)
+    val port = System.getenv("PORT")?.toInt() ?: 8080
+    if (port != 8080)
+        embeddedServer(Netty, port, module = Application::module)
+            .start(wait = true)
+    else
+        embeddedServer(Netty, port, host = "localhost", module = Application::module)
+            .start()
 }
 
 fun Application.module() {

@@ -8,6 +8,7 @@ import postus.controllers.UserController
 import io.ktor.server.request.*
 import postus.dto.*
 import postus.repositories.UserInfo
+import postus.repositories.UserRepository
 import postus.utils.JwtHandler
 
 fun Application.configureAuthRouting(userService: UserController) {
@@ -27,8 +28,8 @@ fun Application.configureAuthRouting(userService: UserController) {
                 val user = userService.authenticateWithEmailPassword(request.email, request.password)
                 if (user != null) {
                     val token = JwtHandler().makeToken(user.id.toString())
-                    val userInfo = UserInfo(user.id, user.email, user.name, user.role, user.description);
-                    call.respond(HttpStatusCode.OK, LoginResponse(userInfo.id, userInfo.email, userInfo.name, userInfo.role, userInfo.description, token))
+                    val response = LoginResponse(user.id, user.email, user.name, user.role, user.description, user.createdAt, token);
+                    call.respond(HttpStatusCode.OK, response)
                 }
                 else
                     call.respond(HttpStatusCode.Unauthorized, "Invalid credentials")
@@ -43,7 +44,7 @@ fun Application.configureAuthRouting(userService: UserController) {
                 val userInfo = userService.fetchUserDataByToken(request.token)
                     ?: throw IllegalArgumentException("Invalid token")
 
-                call.respond(HttpStatusCode.OK, LoginResponse(userInfo.id, userInfo.email, userInfo.name, userInfo.role, userInfo.description, request.token))
+                call.respond(HttpStatusCode.OK, LoginResponse(userInfo.id, userInfo.email, userInfo.name, userInfo.role, userInfo.description, userInfo.createdAt, request.token))
             }
 
             post("/update-user") {
@@ -53,7 +54,7 @@ fun Application.configureAuthRouting(userService: UserController) {
 
                 // Update the user information
                 userService.updateUser(userInfo.id, request.description)
-                call.respond(HttpStatusCode.OK, LoginResponse(userInfo.id, userInfo.email, userInfo.name, userInfo.role, userInfo.description, request.token))
+                call.respond(HttpStatusCode.OK, LoginResponse(userInfo.id, userInfo.email, userInfo.name, userInfo.role, userInfo.description, userInfo.createdAt, request.token))
             }
 
             post("/link-account") {
@@ -72,19 +73,6 @@ fun Application.configureAuthRouting(userService: UserController) {
                 // Link the account
                 userService.linkAccount(16, request.provider, null, null, tokenInfo.refreshToken)
                 call.respond(HttpStatusCode.OK, "Account linked")
-            }
-
-            post("/signin") {
-                // parse request for json data
-                val request = call.receive<Login>()
-                val user = userService.authenticateWithEmailPassword(request.email, request.password)
-                if (user != null) {
-                    val token = JwtHandler().makeToken(user.id.toString())
-                    val userInfo = UserInfo(user.id, user.email, user.name, user.role, user.description);
-                    call.respond(HttpStatusCode.OK, LoginResponse(userInfo.id, userInfo.email, userInfo.name, userInfo.role, userInfo.description, token))
-                }
-                 else
-                    call.respond(HttpStatusCode.Unauthorized, "Invalid credentials")
             }
         }
     }

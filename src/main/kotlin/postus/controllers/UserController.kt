@@ -57,7 +57,7 @@ class UserController(
     fun fetchUserDataByToken(token: String): UserInfo? {
         val userId = JwtHandler().validateTokenAndGetUserId(token) ?: return null
         return userRepository.findById(userId.toInt())
-            ?.let { UserInfo(it.id, it.email, it.name, it.role, it.description) }
+            ?.let { UserInfo(it.id, it.email, it.name, it.role, it.description, it.createdAt) }
     }
 
     fun authenticateWithEmailPassword(email: String, password: String): UserInfo? {
@@ -65,7 +65,7 @@ class UserController(
         if (!BCrypt.checkpw(password, user.passwordHash))
             return null
 
-        return UserInfo(user.id, user.email, user.name, user.role, user.description)
+        return UserInfo(user.id, user.email, user.name, user.role, user.description, user.createdAt, user.updatedAt)
     }
 
     fun linkAccount(userId: Int, provider: String, accountId: String?, accessToken: String?, refreshToken: String?) {
@@ -154,4 +154,14 @@ class UserController(
         return JsonParser.parseString(userInfoResponseJson).asJsonObject
     }
 
+    fun userInfo(user: User): UserInfo {
+        return UserInfo(
+            id = user.id,
+            email = user.email,
+            name = user.name,
+            role = user.role,
+            createdAt = user.createdAt,
+            description = user.description,
+        )
+    }
 }
