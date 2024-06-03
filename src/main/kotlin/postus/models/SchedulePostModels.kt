@@ -7,6 +7,7 @@ import kotlinx.serialization.Serializable
  we offer, it will all be nullable though as users
  can schedule a post for just 1
 */
+
 @Serializable
 data class SchedulePostRequest(
     val providers: List<String>,

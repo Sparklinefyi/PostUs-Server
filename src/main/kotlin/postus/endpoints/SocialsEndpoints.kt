@@ -1,6 +1,8 @@
 package postus.endpoints
 
+import com.google.gson.Gson
 import io.ktor.http.*
+import io.ktor.http.content.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
@@ -176,16 +178,40 @@ fun Application.configureSocialsRouting() {
                 call.respond(200)
             }
             post("schedule"){
+                val multipart = call.receiveMultipart()
+                var json: String? = null
+                var fileBytes: ByteArray? = null
+
+                multipart.forEachPart { part ->
+                    when (part) {
+                        is PartData.FormItem -> {
+                            if (part.name == "json") {
+                                json = part.value
+                            }
+                        }
+                        is PartData.FileItem -> {
+                            if (part.name == "file") {
+                                fileBytes = part.streamProvider().readBytes()
+                            }
+                        }
+                        else -> Unit
+                    }
+                    part.dispose()
+                }
+                if (json == null || fileBytes == null){
+                    return@post call.respond(HttpStatusCode.BadRequest, "Missing scheduledetails or media")
+                }
                 val userId = call.parameters["userId"] ?: return@post call.respond(HttpStatusCode.BadRequest, "Missing accessToken parameter")
                 val postTime = call.parameters["postTime"] ?: return@post call.respond(HttpStatusCode.BadRequest, "Missing accessToken parameter")
-                val schedulePostRequest = call.receive<SchedulePostRequest>()
-                val mediaByteArray = call.receive<ByteArray>()
+                val schedulePostRequest = Gson().fromJson(json, SchedulePostRequest::class.java)
+                val mediaByteArray = fileBytes!!
                 val posted = SocialsController.schedulePost(userId, postTime, mediaByteArray, schedulePostRequest)
                 if (posted) {
                     call.respond(HttpStatusCode.OK, posted)
                 } else {
                     call.respond(HttpStatusCode.InternalServerError, "Post could not be scheduled")
                 }
+                call.respond(schedulePostRequest)
             }
         }
     }
