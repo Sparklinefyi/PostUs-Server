@@ -1,19 +1,10 @@
 package postus.controllers
 
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import postus.endpoints.MediaController
-import postus.models.YoutubeUploadRequest
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3Client
@@ -98,7 +89,7 @@ class MediaController {
         return videoUrl
     }
 
-    private fun getPresignedUrl(key: String): String {
+    fun getPresignedUrlFromKey(key: String): String {
         val bucketName = "postus-user-media"
         val region = Region.US_EAST_1
 
@@ -132,7 +123,7 @@ class MediaController {
             .build()
 
         val listResponse = s3Client.listObjectsV2(listRequest)
-        val videoKeys = listResponse.contents().map { getPresignedUrl(it.key()) }
+        val videoKeys = listResponse.contents().map { getPresignedUrlFromKey(it.key()) }
         return ImageListResponse(videoKeys)
     }
 
@@ -150,7 +141,7 @@ class MediaController {
             .build()
 
         val listResponse = s3Client.listObjectsV2(listRequest)
-        val videoKeys = listResponse.contents().map { getPresignedUrl(it.key()) }
+        val videoKeys = listResponse.contents().map { getPresignedUrlFromKey(it.key()) }
         return VideoListResponse(videoKeys)
     }
 
@@ -169,7 +160,7 @@ class MediaController {
 
         val listResponse = s3Client.listObjectsV2(listRequest)
         val videoKey = listResponse.contents().map { it.key() }[0]
-        return getPresignedUrl(videoKey)
+        return getPresignedUrlFromKey(videoKey)
     }
 
     fun getVideo(userId: String, key: String) : String {
@@ -187,7 +178,7 @@ class MediaController {
 
         val listResponse = s3Client.listObjectsV2(listRequest)
         val videoKey = listResponse.contents().map { it.key() }[0]
-        return getPresignedUrl(videoKey)
+        return getPresignedUrlFromKey(videoKey)
     }
 
     private fun generateFileName(): String {

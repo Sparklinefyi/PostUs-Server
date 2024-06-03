@@ -3,7 +3,6 @@ package postus.workers
 import postus.endpoints.MediaController
 import postus.endpoints.SocialsController
 import postus.models.ScheduledPost
-import postus.repositories.UserRepository
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
@@ -28,21 +27,15 @@ class PostWorker(private val scheduledPost: ScheduledPost) {
         val userId = scheduledPost.userId
         val S3Url = scheduledPost.s3Path
         val mediaType = scheduledPost.mediaType
-        val user = UserRepository().findById(userId.toInt()) ?: throw Exception("User not found while trying to upload scheduled post")
-        val mediaUrl = if(mediaType == "IMAGE") {
-            MediaController.getImage(userId, S3Url)
-        } else {
-            MediaController.getVideo(userId, S3Url)
-        }
         for (provider in scheduledPost.schedulePostRequest.providers) {
             println("Posting to $provider with media at ${scheduledPost.s3Path}")
             when (provider) {
                 "YOUTUBE" -> {
-                    val accessToken = user.googleAccessToken!!
                     try {
+                        val mediaUrl = MediaController.getPresignedUrlFromKey(S3Url)
                         SocialsController.uploadYoutubeShort(
                             scheduledPost.schedulePostRequest.youtubePostRequest!!,
-                            accessToken,
+                            userId,
                             mediaUrl
                         )
                     } catch (e: Exception) {
@@ -50,9 +43,8 @@ class PostWorker(private val scheduledPost: ScheduledPost) {
                     }
                 }
                 "INSTAGRAM" -> {
-                    val accessToken = user.instagramAccessToken!!
-                    val accountId = user.instagramAccountId!!
                     try {
+                        val mediaUrl = MediaController.getPresignedUrlFromKey(S3Url)
                         if (mediaType == "IMAGE") {
                             SocialsController.uploadPictureToInstagram(
                                 userId,

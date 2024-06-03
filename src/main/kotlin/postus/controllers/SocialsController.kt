@@ -114,7 +114,7 @@ class SocialsController{
 
         val containerResponse = client.newCall(containerRequest).execute()
         if (!containerResponse.isSuccessful) {
-            return "Container Response Body: ${containerResponse.body?.string()}"
+            println("Container Response Body: ${containerResponse.body?.string()}")
         }
 
         val responseBody = containerResponse.body?.string()
@@ -173,7 +173,7 @@ class SocialsController{
             return "Publish Request Exception: ${e.message}"
         }
         if (!publishResponse.isSuccessful) {
-            return publishResponse.body?.toString() ?: "Publish Request Failed"
+            println("INSTAGRAM FAILURE ${publishResponse.body?.string()}" ?: "Publish Request Failed")
         }
 
         return "Publish Response Body: ${publishResponse.body?.string()}"
@@ -181,6 +181,7 @@ class SocialsController{
 
     fun uploadPictureToInstagram(userId: String, imageUrl: String, caption: String? = "") : String {
         val user = userRepository.findById(userId.toInt())
+        refreshInstagramAccessToken(userId.toInt())
         val accessToken = user?.instagramAccessToken ?: throw Exception("User not found")
         val instagramAccountId = user.instagramAccountId ?: throw Exception("Instagram access token or accountId not found")
 
@@ -198,7 +199,7 @@ class SocialsController{
 
         val containerResponse = client.newCall(containerRequest).execute()
         if (!containerResponse.isSuccessful) {
-            return "Container Response Body: ${containerResponse.body?.string()}"
+            println("${containerResponse.body?.string()}")
         }
 
         val responseBody = containerResponse.body?.string()
@@ -270,6 +271,43 @@ class SocialsController{
         val responseBody = response.body?.string() ?: return null
         val jsonElement = Json.parseToJsonElement(responseBody)
         return jsonElement.jsonObject["access_token"]?.jsonPrimitive?.content
+    }
+
+    fun refreshInstagramAccessToken(userId: Int) {
+        val clientId = instagramConfig.getString("clientID")
+        val clientSecret = instagramConfig.getString("clientSecret")
+        val refreshToken = userRepository.findById(userId)?.instagramRefresh ?: throw Exception("Useror refresh token not found")
+        val url = "https://graph.instagram.com/refresh_access_token".toHttpUrlOrNull()!!.newBuilder()
+            .addQueryParameter("grant_type", "ig_refresh_token")
+            .addQueryParameter("client_id", clientId)
+            .addQueryParameter("client_secret", clientSecret)
+            .addQueryParameter("refresh_token", refreshToken)
+            .build()
+            .toString()
+
+        val request = Request.Builder()
+            .url(url)
+            .get()
+            .build()
+
+        try {
+            val response = client.newCall(request).execute()
+            val responseBody = response.body?.string() ?: return
+            if (!response.isSuccessful) return
+
+            val jsonElement = Json.parseToJsonElement(responseBody)
+            val newAccessToken = jsonElement.jsonObject["access_token"]?.jsonPrimitive?.content
+
+            if (newAccessToken != null) {
+                userController.linkAccount(userId, "INSTAGRAM", null, newAccessToken, newAccessToken)
+            }
+
+            newAccessToken
+        } catch (e: Exception) {
+            println("Error refreshing Instagram access token: ${e.message}")
+            e.printStackTrace()
+            null
+        }
     }
 
     fun getUserPages(accessToken: String): String? {
@@ -645,21 +683,27 @@ class SocialsController{
 
     fun schedulePost(userId: String, postTime: String, mediaUrl: ByteArray, schedulePostRequest: SchedulePostRequest): Boolean {
         val mediaType = schedulePostRequest.mediaType
-        val s3Path: String
+        val s3Key: String
         when (mediaType) {
-            "IMAGE" -> s3Path = MediaController.uploadImage(userId, mediaUrl)
-            "VIDEO" -> s3Path = MediaController.uploadVideo(userId, mediaUrl)
+            "IMAGE" -> {
+                val path = MediaController.uploadImage(userId, mediaUrl)
+                s3Key= path.substring(path.indexOf("/", 10)+1)
+            }
+            "VIDEO" -> {
+                val path = MediaController.uploadVideo(userId, mediaUrl)
+                s3Key= path.substring(path.indexOf("/",10)+1)
+            }
             else -> {
                 throw Exception("Not a supported media type (VIDEO or IMAGE)")
             }
         }
         val postTimeInstant: Instant = LocalDateTime.parse(postTime).toInstant(ZoneOffset.UTC)
-        val delay = Duration.between(LocalDateTime.now().toInstant(ZoneOffset.UTC), postTimeInstant).toHours()
-        if (delay < 12){
+        val delay = Duration.between(LocalDateTime.now().toInstant(ZoneOffset.UTC), postTimeInstant).toMinutes()
+        if (delay < 5){
             val post = ScheduledPost(
                 0,
                 userId,
-                s3Path,
+                s3Key,
                 postTime,
                 mediaType,
                 schedulePostRequest,
@@ -668,7 +712,7 @@ class SocialsController{
             PostWorker(post).schedule()
             return true
         }
-        val scheduled = ScheduleRepository.addSchedule(userId, s3Path, postTime, mediaType, schedulePostRequest)
+        val scheduled = ScheduleRepository.addSchedule(userId, s3Key, postTime, mediaType, schedulePostRequest)
         return scheduled
     }
 }
