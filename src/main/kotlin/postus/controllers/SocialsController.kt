@@ -702,7 +702,7 @@ class SocialsController{
         if (delay < 5){
             val post = ScheduledPost(
                 0,
-                userId,
+                userId.toInt(),
                 s3Key,
                 postTime,
                 mediaType,
@@ -712,7 +712,7 @@ class SocialsController{
             PostWorker(post).schedule()
             return true
         }
-        val scheduled = ScheduleRepository.addSchedule(userId, s3Key, postTime, mediaType, schedulePostRequest)
+        val scheduled = ScheduleRepository.addSchedule(userId.toInt(), s3Key, postTime, mediaType, schedulePostRequest)
         return scheduled
     }
 }

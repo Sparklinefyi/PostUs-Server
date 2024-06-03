@@ -24,7 +24,7 @@ class PostWorker(private val scheduledPost: ScheduledPost) {
     }
 
     private fun post() {
-        val userId = scheduledPost.userId
+        val userId = scheduledPost.userId.toString()
         val S3Url = scheduledPost.s3Path
         val mediaType = scheduledPost.mediaType
         for (provider in scheduledPost.schedulePostRequest.providers) {

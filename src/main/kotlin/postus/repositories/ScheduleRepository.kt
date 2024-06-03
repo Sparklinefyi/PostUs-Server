@@ -25,7 +25,7 @@ object ScheduleRepository {
     }
 
     fun addSchedule(
-        userId: String,
+        userId: Int,
         s3Path: String,
         postTime: String,
         mediaType: String,
