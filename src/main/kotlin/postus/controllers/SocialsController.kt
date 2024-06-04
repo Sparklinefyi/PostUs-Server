@@ -13,10 +13,7 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import postus.endpoints.MediaController
-import postus.models.SchedulePostRequest
-import postus.models.ScheduledPost
-import postus.models.YoutubeOAuthResponse
-import postus.models.YoutubeUploadRequest
+import postus.models.*
 import postus.repositories.User
 import postus.repositories.UserRepository
 import postus.workers.PostWorker
@@ -504,7 +501,41 @@ class SocialsController{
         return true
     }
 
+    fun refreshYouTubeAccessToken(userId: String): String? {
+        val clientId = youtubeConfig.getString("clientID")
+        val clientSecret = youtubeConfig.getString("clientSecret")
+        val user = userRepository.findById(userId.toInt())
+        val refreshToken = user?.googleRefresh ?: throw Exception("User not found")
+
+        val requestBody = FormBody.Builder()
+            .add("client_id", clientId)
+            .add("client_secret", clientSecret)
+            .add("refresh_token", refreshToken)
+            .add("grant_type", "refresh_token")
+            .build()
+
+        val request = Request.Builder()
+            .url("https://oauth2.googleapis.com/token")
+            .post(requestBody)
+            .build()
+
+        val client = OkHttpClient()
+        val response = client.newCall(request).execute()
+        val responseBody = response.body?.string() ?: return null
+
+        if (!response.isSuccessful) {
+            println("Error: ${responseBody}")
+            return null
+        }
+
+        val oauthResponse = Json { ignoreUnknownKeys = true }.decodeFromString<YoutubeRefreshResponse>(responseBody)
+        userController.linkAccount(userId.toInt(), "GOOGLE", null, oauthResponse.access_token, null)
+
+        return oauthResponse.access_token
+    }
+
     fun uploadYoutubeShort(uploadRequest: YoutubeUploadRequest, userId: String, videoUrl: String): String {
+        refreshYouTubeAccessToken(userId)
         val videoFile = MediaController.downloadVideo(videoUrl)
         val user = userRepository.findById(userId.toInt())
         val accessToken = user?.googleAccessToken ?: throw Exception("User not found")
