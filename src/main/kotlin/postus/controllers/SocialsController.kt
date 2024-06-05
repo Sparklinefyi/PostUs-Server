@@ -88,6 +88,7 @@ class SocialsController{
     private val userRepository = UserRepository()
     private val userController = UserController(userRepository)
     private val youtubeConfig = ConfigFactory.load().getConfig("google")
+    private val twitterConfig = ConfigFactory.load().getConfig("twitter")
     private val instagramConfig = ConfigFactory.load().getConfig("instagram")
 
 
@@ -710,6 +711,35 @@ class SocialsController{
         if (!response.isSuccessful) return null
 
         return response.body?.string()
+    }
+
+    fun fetchTwitterAccessToken(userId: String, code: String): TwitterOAuthResponse? {
+        val clientId = twitterConfig.getString("clientID")
+        val clientSecret = twitterConfig.getString("clientSecret")
+        val redirectUri = twitterConfig.getString("redirectUri")
+        val requestBody = FormBody.Builder()
+            .add("grant_type", "authorization_code")
+            .add("client_id", clientId)
+            .add("redirect_uri", redirectUri)
+            .add("code", code)
+            .add("code_verifier", "YOUR_CODE_VERIFIER") // Use the actual code verifier here
+            .build()
+
+        val request = Request.Builder()
+            .url("https://api.twitter.com/2/oauth2/token")
+            .post(requestBody)
+            .header("Authorization", Credentials.basic(clientId, clientSecret))
+            .build()
+
+        val response = client.newCall(request).execute()
+        val responseBody = response.body?.string() ?: return null
+        if (!response.isSuccessful) {
+            println("Error: $responseBody")
+            return null
+        }
+
+        val twitterOAuthResponse = Json { ignoreUnknownKeys = true }.decodeFromString<TwitterOAuthResponse>(responseBody)
+        userController.linkAccount(userId.toInt(), "TWITTER", null, twitterOAuthResponse.access_token, twitterOAuthResponse.refresh_token)
     }
 
     fun schedulePost(userId: String, postTime: String, mediaUrl: ByteArray, schedulePostRequest: SchedulePostRequest): Boolean {
