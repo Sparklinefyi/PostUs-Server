@@ -17,10 +17,12 @@ import postus.models.*
 import postus.repositories.User
 import postus.repositories.UserRepository
 import postus.workers.PostWorker
+import java.security.MessageDigest
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
+import java.util.*
 
 
 @Serializable
@@ -713,7 +715,7 @@ class SocialsController{
         return response.body?.string()
     }
 
-    fun fetchTwitterAccessToken(userId: String, code: String): TwitterOAuthResponse? {
+    fun fetchTwitterAccessToken(userId: String, code: String): String? {
         val clientId = twitterConfig.getString("clientID")
         val clientSecret = twitterConfig.getString("clientSecret")
         val redirectUri = twitterConfig.getString("redirectUri")
@@ -722,7 +724,36 @@ class SocialsController{
             .add("client_id", clientId)
             .add("redirect_uri", redirectUri)
             .add("code", code)
-            .add("code_verifier", "YOUR_CODE_VERIFIER") // Use the actual code verifier here
+            .add("code_verifier", "1") // Use the plain code verifier here
+            .build()
+
+        val request = Request.Builder()
+            .url("https://api.twitter.com/2/oauth2/token")
+            .post(requestBody)
+            .header("Authorization", Credentials.basic(clientId, clientSecret))
+            .build()
+
+        val response = client.newCall(request).execute()
+        val responseBody = response.body?.string() ?: return null
+        if (!response.isSuccessful) {
+            println("Error: $responseBody")
+            return null
+        }
+
+        val twitterOAuthResponse = Json { ignoreUnknownKeys = true }.decodeFromString<TwitterOAuthResponse>(responseBody)
+        val accountID = getAuthenticatedTwitterAccountId(twitterOAuthResponse.access_token) ?: throw Exception("Error getting Twitter account ID")
+        userController.linkAccount(userId.toInt(), "TWITTER", accountID, twitterOAuthResponse.access_token, twitterOAuthResponse.refresh_token)
+        return twitterOAuthResponse.access_token
+    }
+
+    fun refreshTwitterAccessToken(userId: String): String? {
+        val user = userRepository.findById(userId.toInt())
+        val refreshToken = user?.twitterRefresh ?: throw Exception("User not found")
+        val clientId = twitterConfig.getString("clientID")
+        val clientSecret = twitterConfig.getString("clientSecret")
+        val requestBody = FormBody.Builder()
+            .add("grant_type", "refresh_token")
+            .add("refresh_token", refreshToken)
             .build()
 
         val request = Request.Builder()
@@ -740,6 +771,24 @@ class SocialsController{
 
         val twitterOAuthResponse = Json { ignoreUnknownKeys = true }.decodeFromString<TwitterOAuthResponse>(responseBody)
         userController.linkAccount(userId.toInt(), "TWITTER", null, twitterOAuthResponse.access_token, twitterOAuthResponse.refresh_token)
+        return twitterOAuthResponse.access_token
+    }
+
+    fun getAuthenticatedTwitterAccountId(accessToken: String): String? {
+        val request = Request.Builder()
+            .url("https://api.twitter.com/2/users/me")
+            .header("Authorization", "Bearer $accessToken")
+            .build()
+
+        val response = client.newCall(request).execute()
+        val responseBody = response.body?.string() ?: return null
+        if (!response.isSuccessful) {
+            println("Error: $responseBody")
+            return null
+        }
+
+        val twitterUserResponse = Json { ignoreUnknownKeys = true }.decodeFromString<TwitterAuthenticatedUserResponse>(responseBody)
+        return twitterUserResponse.data.id
     }
 
     fun schedulePost(userId: String, postTime: String, mediaUrl: ByteArray, schedulePostRequest: SchedulePostRequest): Boolean {
