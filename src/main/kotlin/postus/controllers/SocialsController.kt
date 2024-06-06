@@ -802,12 +802,11 @@ class SocialsController{
 
         var mediaId: String? = null
         if (imagePath != null) {
-            mediaId = uploadMedia(accessToken, imagePath, "image")
+            mediaId = uploadMedia(accessToken, imagePath, "IMAGE")
         } else if (videoPath != null) {
-            mediaId = uploadMedia(accessToken, videoPath, "video")
+            mediaId = uploadMedia(accessToken, videoPath, "VIDEO")
         }
 
-        // Step 2: Post Tweet
         val tweetJson = Json.encodeToString(mapOf(
             "text" to text,
             "media" to mapOf("media_ids" to listOfNotNull(mediaId))
@@ -830,17 +829,20 @@ class SocialsController{
     }
 
     private fun uploadMedia(accessToken: String, filePath: String, mediaType: String): String {
-        val mediaFile = File(filePath)
-        val mediaTypeValue = when (mediaType) {
-            "image" -> "image/*"
-            "video" -> "video/*"
+        val mediaFile = when (mediaType) {
+            "IMAGE" -> {
+                MediaController.downloadImage(filePath)
+            }
+            "VIDEO" -> {
+                MediaController.downloadImage(filePath)
+            }
             else -> throw IllegalArgumentException("Unsupported media type")
-        }.toMediaTypeOrNull()
+        }
 
         val initResponse = initializeMediaUpload(accessToken, mediaFile.length(), mediaType)
-        val mediaId = initResponse?.media_id_string ?: throw Exception("Error initializing media upload")
+        val mediaId = initResponse.media_id_string
 
-        if (mediaType == "video") {
+        if (mediaType == "VIDEO") {
             appendMediaChunks(accessToken, mediaFile, mediaId)
         }
 
@@ -849,11 +851,11 @@ class SocialsController{
         return mediaId
     }
 
-    private fun initializeMediaUpload(accessToken: String, mediaSize: Long, mediaType: String): TwitterMediaUploadResponse? {
+    private fun initializeMediaUpload(accessToken: String, mediaSize: Long, mediaType: String): TwitterMediaUploadResponse {
         val requestBody = FormBody.Builder()
             .add("command", "INIT")
             .add("total_bytes", mediaSize.toString())
-            .add("media_type", if (mediaType == "image") "image/jpeg" else "video/mp4")
+            .add("media_type", if (mediaType == "IMAGE") "image/jpeg" else "video/mp4")
             .build()
 
         val request = Request.Builder()
@@ -868,7 +870,7 @@ class SocialsController{
             throw Exception("Error initializing media upload: $responseBody")
         }
 
-        return Json { ignoreUnknownKeys = true }.decodeFromString(responseBody!!)
+        return Json { ignoreUnknownKeys = true }.decodeFromString<TwitterMediaUploadResponse>(responseBody!!)
     }
 
     private fun appendMediaChunks(accessToken: String, mediaFile: File, mediaId: String) {

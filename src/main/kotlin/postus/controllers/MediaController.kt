@@ -202,6 +202,23 @@ class MediaController {
         }
     }
 
+    fun downloadImage(imageUrl: String): File {
+        val client = OkHttpClient()
+        val request = Request.Builder().url(imageUrl).build()
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) throw IOException("Failed to download image: $response")
+
+            // Create a temporary file with a unique name and appropriate file extension
+            val tempFile = File.createTempFile("image", ".jpg")
+            tempFile.outputStream().use { fileOut ->
+                response.body?.byteStream()?.copyTo(fileOut)
+            }
+
+            return tempFile
+        }
+    }
+
     private fun uploadFileToS3(presignedUrl: String, fileByteArray: ByteArray, mediaType: String): String {
         val client = OkHttpClient()
         val requestBody = fileByteArray.toRequestBody(mediaType.toMediaTypeOrNull())
