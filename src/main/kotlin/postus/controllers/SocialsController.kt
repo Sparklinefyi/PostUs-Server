@@ -794,12 +794,11 @@ class SocialsController{
 
     fun postToTwitter(
         userId: String,
-        accessToken: String,
         text: String? = null,
         imagePath: String? = null,
         videoPath: String? = null,
     ): String {
-
+        val accessToken = refreshTwitterAccessToken(userId) ?: throw Exception("User not found")
         var mediaId: String? = null
         if (imagePath != null) {
             mediaId = uploadMedia(accessToken, imagePath, "IMAGE")
@@ -834,7 +833,7 @@ class SocialsController{
                 MediaController.downloadImage(filePath)
             }
             "VIDEO" -> {
-                MediaController.downloadImage(filePath)
+                MediaController.downloadVideo(filePath)
             }
             else -> throw IllegalArgumentException("Unsupported media type")
         }
