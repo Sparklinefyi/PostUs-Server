@@ -46,17 +46,18 @@ dependencies {
     implementation("org.postgresql:postgresql:42.7.3")
     implementation("com.zaxxer:HikariCP:4.0.3")
 
-    implementation("io.ktor:ktor-server-auth")
-    implementation("io.ktor:ktor-server-auth-jwt")
-    implementation("io.ktor:ktor-server-core-jvm")
-    implementation("io.ktor:ktor-server-netty-jvm")
-    testImplementation("io.ktor:ktor-server-tests-jvm")
+    implementation("io.ktor:ktor-server-auth:$ktor_version")
+    implementation("io.ktor:ktor-server-auth-jwt:$ktor_version")
+    implementation("io.ktor:ktor-server-core-jvm:$ktor_version")
+    implementation("io.ktor:ktor-server-netty-jvm:$ktor_version")
+    testImplementation("io.ktor:ktor-server-tests-jvm:$ktor_version")
     implementation("io.ktor:ktor-server-cors:$ktor_version")
-    implementation("io.ktor:ktor-server-core")
-    implementation("io.ktor:ktor-server-netty")
-    implementation("io.ktor:ktor-server-host-common")
-    implementation("io.ktor:ktor-server-sessions")
-    implementation("io.ktor:ktor-server-auth")
+    implementation("io.ktor:ktor-server-core:$ktor_version")
+    implementation("io.ktor:ktor-server-netty:$ktor_version")
+    implementation("io.ktor:ktor-server-host-common:$ktor_version")
+    implementation("io.ktor:ktor-server-sessions:$ktor_version")
+    implementation("oauth.signpost:signpost-core:1.2.1.2")
+    implementation("oauth.signpost:signpost-commonshttp4:1.2.1.2")
 
     implementation("io.ktor:ktor-server-host-common:2.0.0")
     implementation("io.ktor:ktor-server-content-negotiation:$ktor_version")
@@ -69,6 +70,7 @@ dependencies {
     implementation("software.amazon.awssdk:s3:2.20.17")
     implementation("software.amazon.awssdk:auth:2.20.17")
     implementation("com.squareup.okhttp3:okhttp:4.9.3")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.9.3")
     implementation("ch.qos.logback:logback-classic:$logback_version")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
     implementation("org.jetbrains.exposed:exposed-java-time:0.51.0")
@@ -84,4 +86,10 @@ dependencies {
     testImplementation("io.ktor:ktor-client-content-negotiation:$ktor_version")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     implementation("io.github.cdimascio:java-dotenv:5.2.2")
+}
+
+tasks.withType<KotlinCompile> {
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
 }

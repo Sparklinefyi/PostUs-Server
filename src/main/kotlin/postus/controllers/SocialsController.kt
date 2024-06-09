@@ -7,23 +7,31 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import oauth.signpost.OAuthConsumer
+import oauth.signpost.OAuthProvider
+import oauth.signpost.basic.DefaultOAuthConsumer
+import oauth.signpost.basic.DefaultOAuthProvider
 import okhttp3.*
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.logging.HttpLoggingInterceptor
 import postus.endpoints.MediaController
 import postus.models.*
 import postus.repositories.User
 import postus.repositories.UserRepository
 import postus.workers.PostWorker
 import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 import java.security.MessageDigest
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.*
+import java.util.concurrent.TimeUnit
 
 
 @Serializable
@@ -93,6 +101,14 @@ class SocialsController{
     private val youtubeConfig = ConfigFactory.load().getConfig("google")
     private val twitterConfig = ConfigFactory.load().getConfig("twitter")
     private val instagramConfig = ConfigFactory.load().getConfig("instagram")
+    val consumer: OAuthConsumer = DefaultOAuthConsumer(twitterConfig.getString("apiKey"), twitterConfig.getString("apiSecret")).apply {
+        setTokenWithSecret(twitterConfig.getString("accessToken"), twitterConfig.getString("accessTokenSecret"))
+    }
+    val provider: OAuthProvider = DefaultOAuthProvider(
+        "https://api.twitter.com/oauth/request_token",
+        "https://api.twitter.com/oauth/access_token",
+        "https://api.twitter.com/oauth/authorize"
+    )
 
 
     fun uploadVideoToInstagram(userId: String, videoUrl: String, caption: String? = "") : String {
@@ -792,6 +808,25 @@ class SocialsController{
         return twitterUserResponse.data.id
     }
 
+
+    fun getTwitterRequestToken(): String {
+        return provider.retrieveRequestToken(consumer, twitterConfig.getString("redirectUrl"))
+    }
+
+    fun redirectToTwitter(): String {
+        val authUrl = getTwitterRequestToken()
+        return "Redirect the user to: $authUrl"
+    }
+
+    fun getAccessToken(verifier: String) {
+        provider.retrieveAccessToken(consumer, verifier)
+        val accessToken = consumer.token
+        val accessTokenSecret = consumer.tokenSecret
+
+        println("Access Token: $accessToken")
+        println("Access Token Secret: $accessTokenSecret")
+    }
+
     fun postToTwitter(
         userId: String,
         text: String? = null,
@@ -799,6 +834,7 @@ class SocialsController{
         videoPath: String? = null,
     ): String {
         val accessToken = refreshTwitterAccessToken(userId) ?: throw Exception("User not found")
+        /*
         var mediaId: String? = null
         if (imagePath != null) {
             mediaId = uploadMedia(accessToken, imagePath, "IMAGE")
@@ -806,11 +842,13 @@ class SocialsController{
             mediaId = uploadMedia(accessToken, videoPath, "VIDEO")
         }
 
-        val tweetJson = Json.encodeToString(mapOf(
-            "text" to text,
-            "media" to mapOf("media_ids" to listOfNotNull(mediaId))
-        ))
-
+        val tweetData = mutableMapOf<String, Any?>("text" to text)
+        if (mediaId != null) {
+            tweetData["media"] = mapOf("media_ids" to listOf(mediaId))
+        }
+*/
+        val tweetData = mutableMapOf<String, String?>("text" to text)
+        val tweetJson = Json.encodeToString(tweetData)
         val tweetRequestBody = tweetJson.toRequestBody("application/json".toMediaTypeOrNull())
         val tweetRequest = Request.Builder()
             .url("https://api.twitter.com/2/tweets")
@@ -825,84 +863,6 @@ class SocialsController{
         }
 
         return tweetResponseBody ?: ""
-    }
-
-    private fun uploadMedia(accessToken: String, filePath: String, mediaType: String): String {
-        val mediaFile = when (mediaType) {
-            "IMAGE" -> {
-                MediaController.downloadImage(filePath)
-            }
-            "VIDEO" -> {
-                MediaController.downloadVideo(filePath)
-            }
-            else -> throw IllegalArgumentException("Unsupported media type")
-        }
-
-        val initResponse = initializeMediaUpload(accessToken, mediaFile.length(), mediaType)
-        val mediaId = initResponse.media_id_string
-
-        if (mediaType == "VIDEO") {
-            appendMediaChunks(accessToken, mediaFile, mediaId)
-        }
-
-        finalizeMediaUpload(accessToken, mediaId)
-
-        return mediaId
-    }
-
-    private fun initializeMediaUpload(accessToken: String, mediaSize: Long, mediaType: String): TwitterMediaUploadResponse {
-        val requestBody = FormBody.Builder()
-            .add("command", "INIT")
-            .add("total_bytes", mediaSize.toString())
-            .add("media_type", if (mediaType == "IMAGE") "image/jpeg" else "video/mp4")
-            .build()
-
-        val request = Request.Builder()
-            .url("https://upload.twitter.com/1.1/media/upload.json")
-            .post(requestBody)
-            .header("Authorization", "Bearer $accessToken")
-            .build()
-
-        val response = client.newCall(request).execute()
-        val responseBody = response.body?.string()
-        if (!response.isSuccessful) {
-            throw Exception("Error initializing media upload: $responseBody")
-        }
-
-        return Json { ignoreUnknownKeys = true }.decodeFromString<TwitterMediaUploadResponse>(responseBody!!)
-    }
-
-    private fun appendMediaChunks(accessToken: String, mediaFile: File, mediaId: String) {
-        val mediaBytes = mediaFile.readBytes()
-        val requestBody = RequestBody.create("application/octet-stream".toMediaTypeOrNull(), mediaBytes)
-        val request = Request.Builder()
-            .url("https://upload.twitter.com/1.1/media/upload.json?command=APPEND&media_id=$mediaId&segment_index=0")
-            .post(requestBody)
-            .header("Authorization", "Bearer $accessToken")
-            .build()
-
-        val response = client.newCall(request).execute()
-        if (!response.isSuccessful) {
-            throw Exception("Error appending media chunks: ${response.body?.string()}")
-        }
-    }
-
-    private fun finalizeMediaUpload(accessToken: String, mediaId: String) {
-        val requestBody = FormBody.Builder()
-            .add("command", "FINALIZE")
-            .add("media_id", mediaId)
-            .build()
-
-        val request = Request.Builder()
-            .url("https://upload.twitter.com/1.1/media/upload.json")
-            .post(requestBody)
-            .header("Authorization", "Bearer $accessToken")
-            .build()
-
-        val response = client.newCall(request).execute()
-        if (!response.isSuccessful) {
-            throw Exception("Error finalizing media upload: ${response.body?.string()}")
-        }
     }
 
     fun schedulePost(userId: String, postTime: String, mediaUrl: ByteArray, schedulePostRequest: SchedulePostRequest): Boolean {
