@@ -79,24 +79,6 @@ fun Application.module() {
         }
     }
 
-    // print directory
-    println(System.getProperty("user.dir"))
-    val envFile = File(".env")
-    val envProperties = Properties()
-
-    // Load environment variables from .env file
-    if (envFile.exists()) {
-        envFile.bufferedReader().use { reader ->
-            envProperties.load(reader)
-        }
-    }
-
-    // Set the environment variables
-    for ((key, value) in envProperties) {
-        val envKey = key.toString()
-        val envValue = value.toString()
-        System.setProperty(envKey, envValue)
-    }
 
     // Initialize the database
     Database
@@ -110,7 +92,7 @@ fun Application.module() {
     // Pass userService to configureAuthRouting
     configureAuthRouting(userService)
     configureMediaRouting()
-    configureSocialsRouting()
+    configureSocialsRouting(userService)
 }
 
 data class MySession(val token: String) : Principal

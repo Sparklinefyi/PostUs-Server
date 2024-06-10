@@ -60,6 +60,18 @@ class UserController(
             ?.let { UserInfo(it.id, it.email, it.name, it.role, it.description, it.createdAt) }
     }
 
+    fun fetchUserDataByTokenWithProvider(token: String): Pair<String, UserInfo?>? {
+        val verifier = JwtHandler().makeJwtVerifier("your_issuer_here")
+        val decodedJWT = verifier.verify(token)
+
+        val user = decodedJWT.getClaim("user").asString() ?: return null
+        val userInfo = fetchUserDataByToken(user) ?: return null
+        val platform = decodedJWT.getClaim("platform").asString() ?: return null
+
+        return Pair(platform, userRepository.findById(userInfo.id)
+            ?.let { UserInfo(it.id, it.email, it.name, it.role, it.description, it.createdAt) })
+    }
+
     fun authenticateWithEmailPassword(email: String, password: String): UserInfo? {
         val user = userRepository.findByEmail(email) ?: return null
         if (!BCrypt.checkpw(password, user.passwordHash))
