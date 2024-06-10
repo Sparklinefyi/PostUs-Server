@@ -68,6 +68,7 @@ class UserController(
         val userInfo = fetchUserDataByToken(user) ?: return null
         val platform = decodedJWT.getClaim("platform").asString()?.removeSurrounding("\"") ?: return null
 
+
         return Pair(platform, userRepository.findById(userInfo.id)
             ?.let { UserInfo(it.id, it.email, it.name, it.role, it.description, it.createdAt) })
     }
