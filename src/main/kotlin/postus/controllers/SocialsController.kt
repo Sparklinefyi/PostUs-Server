@@ -97,9 +97,6 @@ class SocialsController {
     private val client = OkHttpClient()
     private val userRepository = UserRepository()
     private val userController = UserController(userRepository)
-    private val youtubeConfig = ConfigFactory.load().getConfig("google")
-    private val twitterConfig = ConfigFactory.load().getConfig("twitter")
-    private val instagramConfig = ConfigFactory.load().getConfig("instagram")
     private val dotenv = Dotenv.configure().ignoreIfMissing().load()
 
     fun uploadVideoToInstagram(userId: String, videoUrl: String, caption: String? = ""): String {
@@ -728,65 +725,6 @@ class SocialsController {
         return response.body?.string()
     }
 
-    fun fetchTwitterAccessToken(userId: String, code: String): String? {
-        val clientId = twitterConfig.getString("clientID")
-        val clientSecret = twitterConfig.getString("clientSecret")
-        val redirectUri = twitterConfig.getString("redirectUri")
-        val requestBody = FormBody.Builder()
-            .add("grant_type", "authorization_code")
-            .add("client_id", clientId)
-            .add("redirect_uri", redirectUri)
-            .add("code", code)
-            .add("code_verifier", "1") // Use the plain code verifier here
-            .build()
-
-        val request = Request.Builder()
-            .url("https://api.twitter.com/2/oauth2/token")
-            .post(requestBody)
-            .header("Authorization", Credentials.basic(clientId, clientSecret))
-            .build()
-
-        val response = client.newCall(request).execute()
-        val responseBody = response.body?.string() ?: return null
-        if (!response.isSuccessful) {
-            println("Error: $responseBody")
-            return null
-        }
-
-        val twitterOAuthResponse = Json { ignoreUnknownKeys = true }.decodeFromString<TwitterOAuthResponse>(responseBody)
-        val accountID = getAuthenticatedTwitterAccountId(twitterOAuthResponse.access_token) ?: throw Exception("Error getting Twitter account ID")
-        userController.linkAccount(userId.toInt(), "TWITTER", accountID, twitterOAuthResponse.access_token, twitterOAuthResponse.refresh_token)
-        return twitterOAuthResponse.access_token
-    }
-
-    fun refreshTwitterAccessToken(userId: String): String? {
-        val user = userRepository.findById(userId.toInt())
-        val refreshToken = user?.twitterRefresh ?: throw Exception("User not found")
-        val clientId = twitterConfig.getString("clientID")
-        val clientSecret = twitterConfig.getString("clientSecret")
-        val requestBody = FormBody.Builder()
-            .add("grant_type", "refresh_token")
-            .add("refresh_token", refreshToken)
-            .build()
-
-        val request = Request.Builder()
-            .url("https://api.twitter.com/2/oauth2/token")
-            .post(requestBody)
-            .header("Authorization", Credentials.basic(clientId, clientSecret))
-            .build()
-
-        val response = client.newCall(request).execute()
-        val responseBody = response.body?.string() ?: return null
-        if (!response.isSuccessful) {
-            println("Error: $responseBody")
-            return null
-        }
-
-        val twitterOAuthResponse = Json { ignoreUnknownKeys = true }.decodeFromString<TwitterOAuthResponse>(responseBody)
-        userController.linkAccount(userId.toInt(), "TWITTER", null, twitterOAuthResponse.access_token, twitterOAuthResponse.refresh_token)
-        return twitterOAuthResponse.access_token
-    }
-
     fun getAuthenticatedTwitterAccountId(accessToken: String): String? {
         val request = Request.Builder()
             .url("https://api.twitter.com/2/users/me")
@@ -802,63 +740,6 @@ class SocialsController {
 
         val twitterUserResponse = Json { ignoreUnknownKeys = true }.decodeFromString<TwitterAuthenticatedUserResponse>(responseBody)
         return twitterUserResponse.data.id
-    }
-
-
-    fun getTwitterRequestToken(): String {
-        return provider.retrieveRequestToken(consumer, twitterConfig.getString("redirectUrl"))
-    }
-
-    fun redirectToTwitter(): String {
-        val authUrl = getTwitterRequestToken()
-        return "Redirect the user to: $authUrl"
-    }
-
-    fun getAccessToken(verifier: String) {
-        provider.retrieveAccessToken(consumer, verifier)
-        val accessToken = consumer.token
-        val accessTokenSecret = consumer.tokenSecret
-
-        println("Access Token: $accessToken")
-        println("Access Token Secret: $accessTokenSecret")
-    }
-
-    fun postToTwitter(
-        userId: String,
-        text: String? = null,
-        imagePath: String? = null,
-        videoPath: String? = null,
-    ): String {
-        val accessToken = refreshTwitterAccessToken(userId) ?: throw Exception("User not found")
-        /*
-        var mediaId: String? = null
-        if (imagePath != null) {
-            mediaId = uploadMedia(accessToken, imagePath, "IMAGE")
-        } else if (videoPath != null) {
-            mediaId = uploadMedia(accessToken, videoPath, "VIDEO")
-        }
-
-        val tweetData = mutableMapOf<String, Any?>("text" to text)
-        if (mediaId != null) {
-            tweetData["media"] = mapOf("media_ids" to listOf(mediaId))
-        }
-*/
-        val tweetData = mutableMapOf<String, String?>("text" to text)
-        val tweetJson = Json.encodeToString(tweetData)
-        val tweetRequestBody = tweetJson.toRequestBody("application/json".toMediaTypeOrNull())
-        val tweetRequest = Request.Builder()
-            .url("https://api.twitter.com/2/tweets")
-            .post(tweetRequestBody)
-            .header("Authorization", "Bearer $accessToken")
-            .build()
-
-        val tweetResponse = client.newCall(tweetRequest).execute()
-        val tweetResponseBody = tweetResponse.body?.string()
-        if (!tweetResponse.isSuccessful) {
-            throw Exception("Error posting tweet: $tweetResponseBody")
-        }
-
-        return tweetResponseBody ?: ""
     }
 
     fun schedulePost(userId: String, postTime: String, mediaUrl: ByteArray, schedulePostRequest: SchedulePostRequest): Boolean {
