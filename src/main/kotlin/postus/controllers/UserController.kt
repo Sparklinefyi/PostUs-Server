@@ -2,7 +2,6 @@ package postus.controllers
 
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
-import io.github.cdimascio.dotenv.Dotenv
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
@@ -20,8 +19,6 @@ import java.time.LocalDateTime.now
 class UserController(
     private val userRepository: UserRepository,
 ) {
-    private val dotenv = Dotenv.configure().ignoreIfMissing().load()
-
     fun registerUser(request: Registration) {
         val hashedPassword = BCrypt.hashpw(request.password, BCrypt.gensalt())
         val user = User(
@@ -61,13 +58,12 @@ class UserController(
 
     fun fetchUserDataByTokenWithPlatform(token: String): Pair<String, UserInfo?>? {
         try {
-            val verifier = JwtHandler().makeJwtVerifier(dotenv["JWT_ISSUER"]!!)
+            val verifier = JwtHandler().makeJwtVerifier(System.getProperty("JWT_ISSUER")!!)
             val decodedJWT = verifier.verify(token)
 
             // Strip surrounding quotes
-            var user = decodedJWT.getClaim("user").asString()!!.removeSurrounding(""""""")
-            var platform = decodedJWT.getClaim("platform").asString()!!.removeSurrounding(""""""")
-
+            var user = decodedJWT.getClaim("user").asString()!!.removeSurrounding("\"")
+            var platform = decodedJWT.getClaim("platform").asString()!!.removeSurrounding("\"")
 
             val userInfo = fetchUserDataByToken(user) ?: return null
             val userEntity = userRepository.findById(userInfo.id)
@@ -133,14 +129,14 @@ class UserController(
     private suspend fun exchangeCodeForToken(code: String, provider: String): Map<String, String>? {
         val params = listOf(
             "code" to code,
-            "client_id" to dotenv["GOOGLE_CLIENT_ID"],
-            "client_secret" to dotenv["GOOGLE_CLIENT_SECRET"],
-            "redirect_uri" to dotenv["GOOGLE_REDIRECT_URI"],
+            "client_id" to System.getProperty("GOOGLE_CLIENT_ID"),
+            "client_secret" to System.getProperty("GOOGLE_CLIENT_SECRET"),
+            "redirect_uri" to System.getProperty("GOOGLE_REDIRECT_URI"),
             "grant_type" to "authorization_code"
         )
 
         val client = HttpClient()
-        val tokenResponse = client.post(Url(dotenv["GOOGLE_TOKEN_URL"]!!)) {
+        val tokenResponse = client.post(Url(System.getProperty("GOOGLE_TOKEN_URL")!!)) {
             headers {
                 append(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
             }
@@ -163,7 +159,7 @@ class UserController(
     }
 
     private suspend fun fetchOAuthUser(accessToken: String, provider: String): JsonObject? {
-        val userInfoUrl = dotenv["GOOGLE_USER_INFO_URL"]
+        val userInfoUrl = System.getProperty("GOOGLE_USER_INFO_URL")
 
         val client = HttpClient()
         val userInfoResponse = client.get(Url(userInfoUrl!!)) {

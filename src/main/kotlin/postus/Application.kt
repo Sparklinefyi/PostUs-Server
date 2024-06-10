@@ -1,4 +1,5 @@
 package postus
+
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
@@ -16,65 +17,55 @@ import io.ktor.server.plugins.cors.routing.*
 import io.ktor.server.sessions.*
 import postus.utils.JwtHandler
 import postus.workers.startScheduledPostsChecker
-
 import io.github.cdimascio.dotenv.Dotenv
-import java.io.File
-import java.util.*
 
 fun main() {
-    Database
+    Database // Ensure the database is initialized
     startScheduledPostsChecker()
     val port = System.getenv("PORT")?.toInt() ?: 8080
-    if (port != 8080)
-        embeddedServer(Netty, port, module = Application::module)
-            .start(wait = true)
-    else
-        embeddedServer(Netty, port, host = "localhost", module = Application::module)
-            .start()
+    embeddedServer(Netty, port, host = if (port == 8080) "localhost" else "0.0.0.0", module = Application::module)
+        .start(wait = true)
 }
 
 fun Application.module() {
+    val isProduction = System.getenv("ENVIRONMENT") == "production"
+    val dotenv = if (!isProduction) Dotenv.load() else null
 
-    val dotenv = Dotenv.load()
-
-    environment.config.config("database").apply {
-        val dbUrl = dotenv["DB_URL"]
-        val dbUser = dotenv["DB_USER"]
-        val dbPassword = dotenv["DB_PASSWORD"]
-        val dbDriver = dotenv["DB_DRIVER"]
-        val dbMaxPoolSize = dotenv["DB_MAX_POOL_SIZE"]?.toInt()
+    fun setEnvVariable(key: String, value: String?) {
+        if (value != null) {
+            System.setProperty(key, value)
+        }
     }
 
-    environment.config.config("google").apply {
-        val googleClientId = dotenv["GOOGLE_CLIENT_ID"]
-        val googleClientSecret = dotenv["GOOGLE_CLIENT_SECRET"]
-        val googleApiKey = dotenv["GOOGLE_API_KEY"]
-        val googleRedirectUri = dotenv["GOOGLE_REDIRECT_URI"]
-        val googleTokenUrl = dotenv["GOOGLE_TOKEN_URL"]
-        val googleUserInfoUrl = dotenv["GOOGLE_USER_INFO_URL"]
-    }
+    // Setting environment variables
+    setEnvVariable("DB_URL", dotenv?.get("DB_URL") ?: System.getenv("DB_URL"))
+    setEnvVariable("DB_USER", dotenv?.get("DB_USER") ?: System.getenv("DB_USER"))
+    setEnvVariable("DB_PASSWORD", dotenv?.get("DB_PASSWORD") ?: System.getenv("DB_PASSWORD"))
+    setEnvVariable("DB_DRIVER", dotenv?.get("DB_DRIVER") ?: System.getenv("DB_DRIVER"))
+    setEnvVariable("DB_MAX_POOL_SIZE", dotenv?.get("DB_MAX_POOL_SIZE") ?: System.getenv("DB_MAX_POOL_SIZE"))
 
-    environment.config.config("facebook").apply {
-        val facebookClientId = dotenv["FACEBOOK_CLIENT_ID"]
-        val facebookClientSecret = dotenv["FACEBOOK_CLIENT_SECRET"]
-        val facebookRedirectUri = dotenv["FACEBOOK_REDIRECT_URI"]
-        val facebookTokenUrl = dotenv["FACEBOOK_TOKEN_URL"]
-        val facebookUserInfoUrl = dotenv["FACEBOOK_USER_INFO_URL"]
-    }
+    setEnvVariable("GOOGLE_CLIENT_ID", dotenv?.get("GOOGLE_CLIENT_ID") ?: System.getenv("GOOGLE_CLIENT_ID"))
+    setEnvVariable("GOOGLE_CLIENT_SECRET", dotenv?.get("GOOGLE_CLIENT_SECRET") ?: System.getenv("GOOGLE_CLIENT_SECRET"))
+    setEnvVariable("GOOGLE_API_KEY", dotenv?.get("GOOGLE_API_KEY") ?: System.getenv("GOOGLE_API_KEY"))
+    setEnvVariable("GOOGLE_REDIRECT_URI", dotenv?.get("GOOGLE_REDIRECT_URI") ?: System.getenv("GOOGLE_REDIRECT_URI"))
+    setEnvVariable("GOOGLE_TOKEN_URL", dotenv?.get("GOOGLE_TOKEN_URL") ?: System.getenv("GOOGLE_TOKEN_URL"))
+    setEnvVariable("GOOGLE_USER_INFO_URL", dotenv?.get("GOOGLE_USER_INFO_URL") ?: System.getenv("GOOGLE_USER_INFO_URL"))
 
-    environment.config.config("instagram").apply {
-        val instagramClientId = dotenv["INSTAGRAM_CLIENT_ID"]
-        val instagramClientSecret = dotenv["INSTAGRAM_CLIENT_SECRET"]
-        val instagramRedirectUri = dotenv["INSTAGRAM_REDIRECT_URI"]
-        val instagramTokenUrl = dotenv["INSTAGRAM_TOKEN_URL"]
-        val instagramUserInfoUrl = dotenv["INSTAGRAM_USER_INFO_URL"]
-    }
+    setEnvVariable("FACEBOOK_CLIENT_ID", dotenv?.get("FACEBOOK_CLIENT_ID") ?: System.getenv("FACEBOOK_CLIENT_ID"))
+    setEnvVariable("FACEBOOK_CLIENT_SECRET", dotenv?.get("FACEBOOK_CLIENT_SECRET") ?: System.getenv("FACEBOOK_CLIENT_SECRET"))
+    setEnvVariable("FACEBOOK_REDIRECT_URI", dotenv?.get("FACEBOOK_REDIRECT_URI") ?: System.getenv("FACEBOOK_REDIRECT_URI"))
+    setEnvVariable("FACEBOOK_TOKEN_URL", dotenv?.get("FACEBOOK_TOKEN_URL") ?: System.getenv("FACEBOOK_TOKEN_URL"))
+    setEnvVariable("FACEBOOK_USER_INFO_URL", dotenv?.get("FACEBOOK_USER_INFO_URL") ?: System.getenv("FACEBOOK_USER_INFO_URL"))
 
-    environment.config.config("jwt").apply {
-        val jwtSecret = dotenv["JWT_SECRET"]
-        val jwtExpiration = dotenv["JWT_EXPIRATION"]?.toInt()
-        val jwtIssuer = dotenv["JWT_ISSUER"]
-    }
+    setEnvVariable("INSTAGRAM_CLIENT_ID", dotenv?.get("INSTAGRAM_CLIENT_ID") ?: System.getenv("INSTAGRAM_CLIENT_ID"))
+    setEnvVariable("INSTAGRAM_CLIENT_SECRET", dotenv?.get("INSTAGRAM_CLIENT_SECRET") ?: System.getenv("INSTAGRAM_CLIENT_SECRET"))
+    setEnvVariable("INSTAGRAM_REDIRECT_URI", dotenv?.get("INSTAGRAM_REDIRECT_URI") ?: System.getenv("INSTAGRAM_REDIRECT_URI"))
+    setEnvVariable("INSTAGRAM_TOKEN_URL", dotenv?.get("INSTAGRAM_TOKEN_URL") ?: System.getenv("INSTAGRAM_TOKEN_URL"))
+    setEnvVariable("INSTAGRAM_USER_INFO_URL", dotenv?.get("INSTAGRAM_USER_INFO_URL") ?: System.getenv("INSTAGRAM_USER_INFO_URL"))
+
+    setEnvVariable("JWT_SECRET", dotenv?.get("JWT_SECRET") ?: System.getenv("JWT_SECRET"))
+    setEnvVariable("JWT_EXPIRATION", dotenv?.get("JWT_EXPIRATION") ?: System.getenv("JWT_EXPIRATION"))
+    setEnvVariable("JWT_ISSUER", dotenv?.get("JWT_ISSUER") ?: System.getenv("JWT_ISSUER"))
 
     install(CORS) {
         allowMethod(HttpMethod.Options)
@@ -90,12 +81,11 @@ fun Application.module() {
 
     install(Sessions) {
         cookie<MySession>("SESSION") {
-            // Configure the session cookie settings
-            cookie.path = "/" // Applies to the entire application
-            cookie.maxAgeInSeconds = 1 * 24 * 60 * 60 // One week
-            cookie.httpOnly = true // Mitigates XSS attacks
-            cookie.secure = false // Use secure cookies in production
-            cookie.extensions["SameSite"] = "None" // Helps mitigate CSRF attacks
+            cookie.path = "/"
+            cookie.maxAgeInSeconds = 1 * 24 * 60 * 60
+            cookie.httpOnly = true
+            cookie.secure = isProduction
+            cookie.extensions["SameSite"] = "None"
         }
     }
 
@@ -109,10 +99,9 @@ fun Application.module() {
 
     install(Authentication) {
         jwt("jwt") {
-            val issuer = "your_issuer_here"
-            verifier(JwtHandler().makeJwtVerifier(issuer))
+            verifier(JwtHandler().makeJwtVerifier(System.getProperty("JWT_ISSUER")))
             validate { credential ->
-                if (credential.payload.audience.contains(issuer)) {
+                if (credential.payload.audience.contains(System.getProperty("JWT_ISSUER"))) {
                     JWTPrincipal(credential.payload)
                 } else {
                     null
@@ -133,8 +122,7 @@ fun Application.module() {
     // Pass userService to configureAuthRouting
     configureAuthRouting(userService)
     configureMediaRouting()
-    configureSocialsRouting(userService, dotenv)
+    configureSocialsRouting(userService)
 }
 
 data class MySession(val token: String) : Principal
-
