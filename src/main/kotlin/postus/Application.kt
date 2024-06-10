@@ -34,6 +34,48 @@ fun main() {
 }
 
 fun Application.module() {
+
+    val dotenv = Dotenv.load()
+
+    environment.config.config("database").apply {
+        val dbUrl = dotenv["DB_URL"]
+        val dbUser = dotenv["DB_USER"]
+        val dbPassword = dotenv["DB_PASSWORD"]
+        val dbDriver = dotenv["DB_DRIVER"]
+        val dbMaxPoolSize = dotenv["DB_MAX_POOL_SIZE"]?.toInt()
+    }
+
+    environment.config.config("google").apply {
+        val googleClientId = dotenv["GOOGLE_CLIENT_ID"]
+        val googleClientSecret = dotenv["GOOGLE_CLIENT_SECRET"]
+        val googleApiKey = dotenv["GOOGLE_API_KEY"]
+        val googleRedirectUri = dotenv["GOOGLE_REDIRECT_URI"]
+        val googleTokenUrl = dotenv["GOOGLE_TOKEN_URL"]
+        val googleUserInfoUrl = dotenv["GOOGLE_USER_INFO_URL"]
+    }
+
+    environment.config.config("facebook").apply {
+        val facebookClientId = dotenv["FACEBOOK_CLIENT_ID"]
+        val facebookClientSecret = dotenv["FACEBOOK_CLIENT_SECRET"]
+        val facebookRedirectUri = dotenv["FACEBOOK_REDIRECT_URI"]
+        val facebookTokenUrl = dotenv["FACEBOOK_TOKEN_URL"]
+        val facebookUserInfoUrl = dotenv["FACEBOOK_USER_INFO_URL"]
+    }
+
+    environment.config.config("instagram").apply {
+        val instagramClientId = dotenv["INSTAGRAM_CLIENT_ID"]
+        val instagramClientSecret = dotenv["INSTAGRAM_CLIENT_SECRET"]
+        val instagramRedirectUri = dotenv["INSTAGRAM_REDIRECT_URI"]
+        val instagramTokenUrl = dotenv["INSTAGRAM_TOKEN_URL"]
+        val instagramUserInfoUrl = dotenv["INSTAGRAM_USER_INFO_URL"]
+    }
+
+    environment.config.config("jwt").apply {
+        val jwtSecret = dotenv["JWT_SECRET"]
+        val jwtExpiration = dotenv["JWT_EXPIRATION"]?.toInt()
+        val jwtIssuer = dotenv["JWT_ISSUER"]
+    }
+
     install(CORS) {
         allowMethod(HttpMethod.Options)
         allowMethod(HttpMethod.Post)
@@ -79,25 +121,6 @@ fun Application.module() {
         }
     }
 
-    // print directory
-    println(System.getProperty("user.dir"))
-    val envFile = File(".env")
-    val envProperties = Properties()
-
-    // Load environment variables from .env file
-    if (envFile.exists()) {
-        envFile.bufferedReader().use { reader ->
-            envProperties.load(reader)
-        }
-    }
-
-    // Set the environment variables
-    for ((key, value) in envProperties) {
-        val envKey = key.toString()
-        val envValue = value.toString()
-        System.setProperty(envKey, envValue)
-    }
-
     // Initialize the database
     Database
 
@@ -110,7 +133,7 @@ fun Application.module() {
     // Pass userService to configureAuthRouting
     configureAuthRouting(userService)
     configureMediaRouting()
-    configureSocialsRouting()
+    configureSocialsRouting(userService, dotenv)
 }
 
 data class MySession(val token: String) : Principal

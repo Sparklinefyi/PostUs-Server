@@ -6,7 +6,6 @@ import io.github.cdimascio.dotenv.Dotenv
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
-import io.ktor.client.request.headers
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.coroutines.runBlocking
@@ -16,13 +15,13 @@ import org.mindrot.jbcrypt.BCrypt
 import postus.repositories.UserInfo
 import postus.utils.JwtHandler
 import java.lang.IllegalArgumentException
-
-import org.jetbrains.exposed.sql.javatime.datetime
 import java.time.LocalDateTime.now
 
 class UserController(
     private val userRepository: UserRepository,
 ) {
+    private val dotenv = Dotenv.configure().ignoreIfMissing().load()
+
     fun registerUser(request: Registration) {
         val hashedPassword = BCrypt.hashpw(request.password, BCrypt.gensalt())
         val user = User(
@@ -51,19 +50,42 @@ class UserController(
     }
 
     suspend fun updateUser(userId: Int, description: String) {
-        // Update the user information in the database
         userRepository.updateUserDescription(userId, description)
     }
+
     fun fetchUserDataByToken(token: String): UserInfo? {
         val userId = JwtHandler().validateTokenAndGetUserId(token) ?: return null
         return userRepository.findById(userId.toInt())
             ?.let { UserInfo(it.id, it.email, it.name, it.role, it.description, it.createdAt) }
     }
 
+    fun fetchUserDataByTokenWithPlatform(token: String): Pair<String, UserInfo?>? {
+        try {
+            val verifier = JwtHandler().makeJwtVerifier(dotenv["JWT_ISSUER"]!!)
+            val decodedJWT = verifier.verify(token)
+
+            // Strip surrounding quotes
+            var user = decodedJWT.getClaim("user").asString()!!.removeSurrounding(""""""")
+            var platform = decodedJWT.getClaim("platform").asString()!!.removeSurrounding(""""""")
+
+
+            val userInfo = fetchUserDataByToken(user) ?: return null
+            val userEntity = userRepository.findById(userInfo.id)
+
+            return if (userEntity != null) {
+                Pair(platform, UserInfo(userEntity.id, userEntity.email, userEntity.name, userEntity.role, userEntity.description, userEntity.createdAt))
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            println("Error verifying token: ${e.message}")
+            return null
+        }
+    }
+
     fun authenticateWithEmailPassword(email: String, password: String): UserInfo? {
         val user = userRepository.findByEmail(email) ?: return null
-        if (!BCrypt.checkpw(password, user.passwordHash))
-            return null
+        if (!BCrypt.checkpw(password, user.passwordHash)) return null
 
         return UserInfo(user.id, user.email, user.name, user.role, user.description, user.createdAt, user.updatedAt)
     }
@@ -94,30 +116,31 @@ class UserController(
 
     fun verifyOAuthToken(code: String?, provider: String): TokenResponse {
         val tokenMap = runBlocking {
-            exchangeCodeForToken(code?: "", provider)
+            exchangeCodeForToken(code ?: "", provider)
         } ?: throw IllegalArgumentException("Failed to exchange code for token")
 
         val idToken = tokenMap["id_token"]
         val accessToken = tokenMap["access_token"]
         val refreshToken = tokenMap["refresh_token"]
-        val userInfoJson = runBlocking {fetchOAuthUser(accessToken!!, provider) }
+        val userInfoJson = runBlocking { fetchOAuthUser(accessToken!!, provider) }
 
         return TokenResponse(
             accessToken = accessToken!!,
             refreshToken = refreshToken!!
         )
     }
+
     private suspend fun exchangeCodeForToken(code: String, provider: String): Map<String, String>? {
         val params = listOf(
             "code" to code,
-            "client_id" to System.getProperty("GOOGLE_CLIENT_ID"),
-            "client_secret" to System.getProperty("GOOGLE_CLIENT_SECRET"),
-            "redirect_uri" to System.getProperty("GOOGLE_REDIRECT_URI"),
+            "client_id" to dotenv["GOOGLE_CLIENT_ID"],
+            "client_secret" to dotenv["GOOGLE_CLIENT_SECRET"],
+            "redirect_uri" to dotenv["GOOGLE_REDIRECT_URI"],
             "grant_type" to "authorization_code"
         )
 
         val client = HttpClient()
-        val tokenResponse = client.post(Url(System.getProperty("GOOGLE_TOKEN_URL")!!)) {
+        val tokenResponse = client.post(Url(dotenv["GOOGLE_TOKEN_URL"]!!)) {
             headers {
                 append(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
             }
@@ -140,7 +163,6 @@ class UserController(
     }
 
     private suspend fun fetchOAuthUser(accessToken: String, provider: String): JsonObject? {
-        val dotenv = Dotenv.configure().ignoreIfMissing().load()
         val userInfoUrl = dotenv["GOOGLE_USER_INFO_URL"]
 
         val client = HttpClient()

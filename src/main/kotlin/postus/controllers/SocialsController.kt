@@ -1,6 +1,6 @@
 package postus.controllers
 
-import com.typesafe.config.ConfigFactory
+import io.github.cdimascio.dotenv.Dotenv
 import kotlinx.serialization.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -32,7 +32,6 @@ import java.time.LocalDateTime
 import java.time.ZoneOffset
 import java.util.*
 import java.util.concurrent.TimeUnit
-
 
 @Serializable
 data class PlaylistItemsResponse(
@@ -93,7 +92,7 @@ data class PageInfo(
     val resultsPerPage: Int
 )
 
-class SocialsController{
+class SocialsController {
 
     private val client = OkHttpClient()
     private val userRepository = UserRepository()
@@ -101,17 +100,9 @@ class SocialsController{
     private val youtubeConfig = ConfigFactory.load().getConfig("google")
     private val twitterConfig = ConfigFactory.load().getConfig("twitter")
     private val instagramConfig = ConfigFactory.load().getConfig("instagram")
-    val consumer: OAuthConsumer = DefaultOAuthConsumer(twitterConfig.getString("apiKey"), twitterConfig.getString("apiSecret")).apply {
-        setTokenWithSecret(twitterConfig.getString("accessToken"), twitterConfig.getString("accessTokenSecret"))
-    }
-    val provider: OAuthProvider = DefaultOAuthProvider(
-        "https://api.twitter.com/oauth/request_token",
-        "https://api.twitter.com/oauth/access_token",
-        "https://api.twitter.com/oauth/authorize"
-    )
+    private val dotenv = Dotenv.configure().ignoreIfMissing().load()
 
-
-    fun uploadVideoToInstagram(userId: String, videoUrl: String, caption: String? = "") : String {
+    fun uploadVideoToInstagram(userId: String, videoUrl: String, caption: String? = ""): String {
         val user = userRepository.findById(userId.toInt())
         val accessToken = user?.instagramAccessToken ?: throw Exception("User not found")
         val instagramAccountId = user.instagramAccountId ?: throw Exception("Instagram access token or accountId not found")
@@ -196,7 +187,7 @@ class SocialsController{
         return "Publish Response Body: ${publishResponse.body?.string()}"
     }
 
-    fun uploadPictureToInstagram(userId: String, imageUrl: String, caption: String? = "") : String {
+    fun uploadPictureToInstagram(userId: String, imageUrl: String, caption: String? = ""): String {
         val user = userRepository.findById(userId.toInt())
         refreshInstagramAccessToken(userId.toInt())
         val accessToken = user?.instagramAccessToken ?: throw Exception("User not found")
@@ -291,9 +282,9 @@ class SocialsController{
     }
 
     fun refreshInstagramAccessToken(userId: Int) {
-        val clientId = instagramConfig.getString("clientID")
-        val clientSecret = instagramConfig.getString("clientSecret")
-        val refreshToken = userRepository.findById(userId)?.instagramRefresh ?: throw Exception("Useror refresh token not found")
+        val clientId = dotenv["INSTAGRAM_CLIENT_ID"]
+        val clientSecret = dotenv["INSTAGRAM_CLIENT_SECRET"]
+        val refreshToken = userRepository.findById(userId)?.instagramRefresh ?: throw Exception("User or refresh token not found")
         val url = "https://graph.instagram.com/refresh_access_token".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("grant_type", "ig_refresh_token")
             .addQueryParameter("client_id", clientId)
@@ -364,11 +355,13 @@ class SocialsController{
         return jsonElement.jsonObject["instagram_business_account"]?.jsonObject?.get("id")?.jsonPrimitive?.content
     }
 
-    fun getLongLivedAccessTokenAndInstagramBusinessAccountId(userId: String, code: String): Pair<String?, String?> {
-        val clientId = instagramConfig.getString("clientID")
-        val clientSecret = instagramConfig.getString("clientSecret")
-        val redirectUri = instagramConfig.getString("redirectUri")
-        val shortLivedToken = exchangeCodeForAccessToken(clientId, clientSecret, redirectUri, code) ?: return null to null
+    fun getLongLivedAccessTokenAndInstagramBusinessAccountId(userId: Int, code: String): Pair<String?, String?> {
+
+        val clientId = dotenv["INSTAGRAM_CLIENT_ID"]
+        val clientSecret = dotenv["INSTAGRAM_CLIENT_SECRET"]
+        val redirectUri = dotenv["INSTAGRAM_REDIRECT_URI"]
+        val shortLivedToken = exchangeCodeForAccessToken(clientId!!, clientSecret!!, redirectUri!!, code) ?: return null to null
+
         val longLivedToken = exchangeShortLivedTokenForLongLivedToken(clientId, clientSecret, shortLivedToken) ?: return null to null
         val pages = getUserPages(longLivedToken) ?: return null to null
 
@@ -376,13 +369,15 @@ class SocialsController{
         val pageId = jsonElement.jsonObject["data"]?.jsonArray?.firstOrNull()?.jsonObject?.get("id")?.jsonPrimitive?.content ?: return longLivedToken to null
 
         val instagramBusinessAccountId = getInstagramBusinessAccountId(pageId, longLivedToken)
-        userController.linkAccount(userId.toInt(), "INSTAGRAM", instagramBusinessAccountId, longLivedToken, longLivedToken )
+
+        userController.linkAccount(userId, "INSTAGRAM", instagramBusinessAccountId, longLivedToken, longLivedToken )
+
         return longLivedToken to instagramBusinessAccountId
     }
 
     fun getInstagramPageAnalytics(userId: String): String? {
-        //periods allowed [day, week, days_28, month, lifetime]
-        //metrics allowed [impressions, reach, profile_views, follower_count, website_clicks, email_contacts, get_directions_clicks]
+        // periods allowed [day, week, days_28, month, lifetime]
+        // metrics allowed [impressions, reach, profile_views, follower_count, website_clicks, email_contacts, get_directions_clicks]
         val user = userRepository.findById(userId.toInt())
         val accessToken = user?.instagramAccessToken ?: throw Exception("User not found")
         val instagramAccountId = user.instagramAccountId ?: throw Exception("Instagram access token or accountId not found")
@@ -414,7 +409,7 @@ class SocialsController{
 
     fun getInstagramPostAnalytics(userId: String, postId: String): String? {
         // metrics allowed for media [impressions, reach, engagement, saved, video_views, comments, likes]
-        //metrics allowed for shorts [plays, comments, likes, saves, shares, total_interactions, reach]
+        // metrics allowed for shorts [plays, comments, likes, saves, shares, total_interactions, reach]
         //
         val user = userRepository.findById(userId.toInt())
         val accessToken = user?.instagramAccessToken ?: throw Exception("User not found")
@@ -460,7 +455,7 @@ class SocialsController{
             return null
         }
         println(responseBody)
-        //VIDEO TYPE is REELS, IMAGE and CAROUSEL_ALBUM are other 2 types
+        // VIDEO TYPE is REELS, IMAGE and CAROUSEL_ALBUM are other 2 types
         return null
     }
 
@@ -494,20 +489,21 @@ class SocialsController{
         return jsonResponse["media_url"]?.jsonPrimitive?.content ?: ""
     }
 
-    fun fetchYouTubeAccessToken(userId: String, code: String): Boolean {
-        val clientId = youtubeConfig.getString("clientID")
-        val clientSecret = youtubeConfig.getString("clientSecret")
-        val redirectUri = youtubeConfig.getString("redirectUri")
+    fun fetchYouTubeAccessToken(userId: Int, code: String): Boolean {
+
+        val clientId = dotenv["GOOGLE_CLIENT_ID"]
+        val clientSecret = dotenv["GOOGLE_CLIENT_SECRET"]
+        val redirectUri = dotenv["GOOGLE_REDIRECT_URI"]
         val requestBody = FormBody.Builder()
             .add("code", code)
-            .add("client_id", clientId)
-            .add("client_secret", clientSecret)
-            .add("redirect_uri", redirectUri)
+            .add("client_id", clientId!!)
+            .add("client_secret", clientSecret!!)
+            .add("redirect_uri", redirectUri!!)
             .add("grant_type", "authorization_code")
             .build()
 
         val request = Request.Builder()
-            .url("https://oauth2.googleapis.com/token")
+            .url(dotenv["GOOGLE_TOKEN_URL"]!!)
             .post(requestBody)
             .build()
 
@@ -515,27 +511,27 @@ class SocialsController{
         val responseBody = response.body?.string() ?: return false
         if (!response.isSuccessful) return false
 
-        val youtubeTokens = Json{ ignoreUnknownKeys = true }.decodeFromString<YoutubeOAuthResponse>(responseBody)
+        val youtubeTokens = Json { ignoreUnknownKeys = true }.decodeFromString<YoutubeOAuthResponse>(responseBody)
         val channelId = getAuthenticatedUserChannelId(youtubeTokens.access_token)
-        userController.linkAccount(userId.toInt(), "GOOGLE", channelId, youtubeTokens.access_token, youtubeTokens.refresh_token)
+        userController.linkAccount(userId, "GOOGLE", channelId, youtubeTokens.access_token, youtubeTokens.refresh_token)
         return true
     }
 
     fun refreshYouTubeAccessToken(userId: String): String? {
-        val clientId = youtubeConfig.getString("clientID")
-        val clientSecret = youtubeConfig.getString("clientSecret")
+        val clientId = dotenv["GOOGLE_CLIENT_ID"]
+        val clientSecret = dotenv["GOOGLE_CLIENT_SECRET"]
         val user = userRepository.findById(userId.toInt())
         val refreshToken = user?.googleRefresh ?: throw Exception("User not found")
 
         val requestBody = FormBody.Builder()
-            .add("client_id", clientId)
-            .add("client_secret", clientSecret)
+            .add("client_id", clientId!!)
+            .add("client_secret", clientSecret!!)
             .add("refresh_token", refreshToken)
             .add("grant_type", "refresh_token")
             .build()
 
         val request = Request.Builder()
-            .url("https://oauth2.googleapis.com/token")
+            .url(dotenv["GOOGLE_TOKEN_URL"]!!)
             .post(requestBody)
             .build()
 
@@ -594,7 +590,7 @@ class SocialsController{
     }
 
     fun getYouTubeUploadsPlaylistId(userId: String): String? {
-        val apiKey = youtubeConfig.getString("apiKey")
+        val apiKey = dotenv["GOOGLE_API_KEY"]
         val user = userRepository.findById(userId.toInt())
         val channelId = user?.googleAccountId ?: throw Exception("Youtube ChannelId not found")
         val url = "https://www.googleapis.com/youtube/v3/channels".toHttpUrlOrNull()!!.newBuilder()
@@ -630,7 +626,7 @@ class SocialsController{
     fun getLast10YouTubeVideos(userId: String): List<String>? {
         val user = userRepository.findById(userId.toInt())
         val channelId = user?.googleAccountId ?: throw Exception("Youtube ChannelId not found")
-        val apiKey = youtubeConfig.getString("apiKey")
+        val apiKey = dotenv["GOOGLE_API_KEY"]
         val uploadsPlaylistId = getYouTubeUploadsPlaylistId(channelId) ?: return null
 
         val url = "https://www.googleapis.com/youtube/v3/playlistItems".toHttpUrlOrNull()!!.newBuilder()
@@ -661,7 +657,7 @@ class SocialsController{
         return videoIds
     }
 
-    //Testing function
+    // Testing function
     fun getAuthenticatedUserChannelId(accessToken: String): String? {
         val url = "https://www.googleapis.com/youtube/v3/channels".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("part", "id")
@@ -691,7 +687,7 @@ class SocialsController{
     }
 
     fun getYouTubeChannelAnalytics(userId: String): String? {
-        val apiKey = youtubeConfig.getString("apiKey")
+        val apiKey = dotenv["GOOGLE_API_KEY"]
         val user = userRepository.findById(userId.toInt())
         val channelId = user?.googleAccountId ?: throw Exception("Youtube ChannelId not found")
         val url = "https://www.googleapis.com/youtube/v3/channels".toHttpUrlOrNull()!!.newBuilder()
@@ -713,7 +709,7 @@ class SocialsController{
     }
 
     fun getYouTubeVideoAnalytics(videoId: String): String? {
-        val apiKey = youtubeConfig.getString("apiKey")
+        val apiKey = dotenv["GOOGLE_API_KEY"]
         val url = "https://www.googleapis.com/youtube/v3/videos".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("part", "statistics")
             .addQueryParameter("id", videoId)
@@ -871,11 +867,11 @@ class SocialsController{
         when (mediaType) {
             "IMAGE" -> {
                 val path = MediaController.uploadImage(userId, mediaUrl)
-                s3Key= path.substring(path.indexOf("/", 10)+1)
+                s3Key = path.substring(path.indexOf("/", 10) + 1)
             }
             "VIDEO" -> {
                 val path = MediaController.uploadVideo(userId, mediaUrl)
-                s3Key= path.substring(path.indexOf("/",10)+1)
+                s3Key = path.substring(path.indexOf("/", 10) + 1)
             }
             else -> {
                 throw Exception("Not a supported media type (VIDEO or IMAGE)")
@@ -883,7 +879,7 @@ class SocialsController{
         }
         val postTimeInstant: Instant = LocalDateTime.parse(postTime).toInstant(ZoneOffset.UTC)
         val delay = Duration.between(LocalDateTime.now().toInstant(ZoneOffset.UTC), postTimeInstant).toHours()
-        if (delay < 3){
+        if (delay < 3) {
             val post = ScheduledPost(
                 0,
                 userId.toInt(),
