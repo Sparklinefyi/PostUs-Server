@@ -40,9 +40,6 @@ fun Application.configureSocialsRouting(userService: UserController, dotenv: Dot
                             call.respond(e)
                         }
                     }
-                    post("youtube"){
-
-                    }
                 }
                 route("video"){
                     post("tiktok"){
@@ -82,6 +79,17 @@ fun Application.configureSocialsRouting(userService: UserController, dotenv: Dot
                             call.respond(e)
                         }
                     }
+                }
+                post("twitter"){
+                    val userId = call.parameters["userId"] ?: return@post call.respond(
+                        HttpStatusCode.BadRequest,
+                        "Missing userId"
+                    )
+                    val imageUrl = call.parameters["imageUrl"]
+                    val videoUrl = call.parameters["videoUrl"]
+                    val text = call.parameters["text"]
+                    val response = SocialsController.postToTwitter(userId, text, imageUrl, videoUrl)
+                    call.respond(HttpStatusCode.OK, response)
                 }
             }
             route("analyze"){
@@ -182,6 +190,15 @@ fun Application.configureSocialsRouting(userService: UserController, dotenv: Dot
                         // For iOS, you might need to use a custom scheme to notify the app
                         call.respond(HttpStatusCode.OK, "You can now close this window and return to the app.")
                     }
+                }
+                get("twitter"){
+                    val userId = call.parameters["userId"] ?: return@get call.respond(
+                        HttpStatusCode.BadRequest,
+                        "Missing userId"
+                    )
+                    val code = call.parameters["code"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing code parameter")
+                    val token = SocialsController.fetchTwitterAccessToken(userId, code)
+                    call.respond(200)
                 }
             }
             get("test"){
