@@ -1,96 +1,24 @@
 package postus.controllers
 
 import io.github.cdimascio.dotenv.Dotenv
-import kotlinx.serialization.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import oauth.signpost.OAuthConsumer
-import oauth.signpost.OAuthProvider
-import oauth.signpost.basic.DefaultOAuthConsumer
-import oauth.signpost.basic.DefaultOAuthProvider
 import okhttp3.*
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.logging.HttpLoggingInterceptor
 import postus.endpoints.MediaController
 import postus.models.*
-import postus.repositories.User
 import postus.repositories.UserRepository
 import postus.workers.PostWorker
-import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
-import java.security.MessageDigest
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
-import java.util.*
-import java.util.concurrent.TimeUnit
-
-@Serializable
-data class PlaylistItemsResponse(
-    val kind: String,
-    val etag: String,
-    val items: List<PlaylistItem>,
-    val pageInfo: PageInfo
-)
-
-@Serializable
-data class PlaylistItem(
-    val kind: String,
-    val etag: String,
-    val id: String,
-    val snippet: Snippet
-)
-
-@Serializable
-data class Snippet(
-    val publishedAt: String,
-    val channelId: String,
-    val title: String,
-    val description: String,
-    val thumbnails: Thumbnails,
-    val channelTitle: String,
-    val playlistId: String,
-    val position: Int,
-    val resourceId: ResourceId,
-    val videoOwnerChannelTitle: String,
-    val videoOwnerChannelId: String
-)
-
-@Serializable
-data class Thumbnails(
-    val default: Thumbnail,
-    val medium: Thumbnail,
-    val high: Thumbnail,
-    val standard: Thumbnail? = null,
-    val maxres: Thumbnail? = null
-)
-
-@Serializable
-data class Thumbnail(
-    val url: String,
-    val width: Int,
-    val height: Int
-)
-
-@Serializable
-data class ResourceId(
-    val kind: String,
-    val videoId: String
-)
-
-@Serializable
-data class PageInfo(
-    val totalResults: Int,
-    val resultsPerPage: Int
-)
 
 class SocialsController {
 
@@ -178,7 +106,7 @@ class SocialsController {
             return "Publish Request Exception: ${e.message}"
         }
         if (!publishResponse.isSuccessful) {
-            println("INSTAGRAM FAILURE ${publishResponse.body?.string()}" ?: "Publish Request Failed")
+            println("INSTAGRAM FAILURE ${publishResponse.body?.string()?: "Publish Request Failed"}")
         }
 
         return "Publish Response Body: ${publishResponse.body?.string()}"
@@ -306,12 +234,9 @@ class SocialsController {
             if (newAccessToken != null) {
                 userController.linkAccount(userId, "INSTAGRAM", null, newAccessToken, newAccessToken)
             }
-
-            newAccessToken
         } catch (e: Exception) {
             println("Error refreshing Instagram access token: ${e.message}")
             e.printStackTrace()
-            null
         }
     }
 
@@ -485,6 +410,8 @@ class SocialsController {
         val jsonResponse = Json.parseToJsonElement(responseBody ?: "").jsonObject
         return jsonResponse["media_url"]?.jsonPrimitive?.content ?: ""
     }
+
+    //YOUTUBE FUNCTIONS
 
     fun fetchYouTubeAccessToken(userId: Int, code: String): Boolean {
 
@@ -725,6 +652,8 @@ class SocialsController {
         return response.body?.string()
     }
 
+    //TWITTER FUNCTIONS
+
     fun fetchTwitterAccessToken(userId: String, code: String): String? {
         val clientId = dotenv["TWITTER_CLIENT_ID"] ?: throw Error("Missing Twitter client ID")
         val clientSecret = dotenv["TWITTER_CLIENT_SECRET"] ?: throw Error("Missing Twitter client secret")
@@ -839,6 +768,115 @@ class SocialsController {
 
         return tweetResponseBody ?: ""
     }
+
+    //LINKEDIN FUNCTIONS
+
+    fun getLinkedInAccessToken(authCode: String): LinkedinOAuthResponse? {
+        val clientId = dotenv["LINKEDIN_CLIENT_ID"] ?: throw Exception("LinkedIn client ID not found")
+        val clientSecret = dotenv["LINKEDIN_CLIENT_SECRET"] ?: throw Exception("LinkedIn client secret not found")
+        val redirectUri = dotenv["LINKEDIN_REDIRECT_URI"] ?: throw Exception("LinkedIn redirect URI not found")
+        val tokenUrl = dotenv["LINKEDIN_TOKEN_URL"] ?: throw Exception("LinkedIn token URL not found")
+
+        val requestBody = FormBody.Builder()
+            .add("grant_type", "authorization_code")
+            .add("code", authCode)
+            .add("redirect_uri", redirectUri)
+            .add("client_id", clientId)
+            .add("client_secret", clientSecret)
+            .build()
+
+        val request = Request.Builder()
+            .url(tokenUrl)
+            .post(requestBody)
+            .build()
+
+        val response = client.newCall(request).execute()
+        val responseBody = response.body?.string() ?: return null
+        if (!response.isSuccessful) return null
+
+        return Json { ignoreUnknownKeys = true }.decodeFromString<LinkedinOAuthResponse>(responseBody)
+    }
+
+    fun refreshLinkedInAccessToken(refreshToken: String): LinkedinOAuthResponse? {
+        val clientId = dotenv["LINKEDIN_CLIENT_ID"] ?: throw Exception("LinkedIn client ID not found")
+        val clientSecret = dotenv["LINKEDIN_CLIENT_SECRET"] ?: throw Exception("LinkedIn client secret not found")
+        val tokenUrl = dotenv["LINKEDIN_TOKEN_URL"] ?: throw Exception("LinkedIn token URL not found")
+
+        val requestBody = FormBody.Builder()
+            .add("grant_type", "refresh_token")
+            .add("refresh_token", refreshToken)
+            .add("client_id", clientId)
+            .add("client_secret", clientSecret)
+            .build()
+
+        val request = Request.Builder()
+            .url(tokenUrl)
+            .post(requestBody)
+            .build()
+
+        val response = client.newCall(request).execute()
+        val responseBody = response.body?.string() ?: return null
+        if (!response.isSuccessful) return null
+
+        return Json { ignoreUnknownKeys = true }.decodeFromString<LinkedinOAuthResponse>(responseBody)
+    }
+
+    fun postToLinkedIn(accessToken: String, content: String, author: String): Boolean {
+        val postUrl = dotenv["LINKEDIN_POST_URL"] ?: throw Exception("LinkedIn post URL not found")
+
+        val postRequest = LinkedInPostRequest(
+            author = author,
+            lifecycleState = "PUBLISHED",
+            specificContent = SpecificContent(
+                shareContent = ShareContent(
+                    shareCommentary = ShareCommentary(text = content),
+                    shareMediaCategory = "NONE"
+                )
+            ),
+            visibility = Visibility(memberNetworkVisibility = "PUBLIC")
+        )
+
+        val postBody = Json.encodeToString(LinkedInPostRequest.serializer(), postRequest)
+
+        val mediaType = "application/json".toMediaTypeOrNull()
+        val requestBody = RequestBody.create(mediaType, postBody)
+
+        val request = Request.Builder()
+            .url(postUrl)
+            .post(requestBody)
+            .addHeader("Authorization", "Bearer $accessToken")
+            .addHeader("Content-Type", "application/json")
+            .build()
+
+        val response = client.newCall(request).execute()
+        val responseBody = response.body?.string() ?: return false
+        if (!response.isSuccessful) return false
+
+        println("Post successful: $responseBody")
+        return true
+    }
+
+    fun getLinkedInPostAnalytics(accessToken: String, postUrn: String): LinkedInAnalyticsResponse? {
+        val analyticsUrl = dotenv["LINKEDIN_ANALYTICS_URL"] ?: throw Exception("LinkedIn analytics URL not found")
+        val url = analyticsUrl.toHttpUrlOrNull()!!.newBuilder()
+            .addQueryParameter("q", "statistics")
+            .addQueryParameter("shares", postUrn)
+            .build()
+
+        val request = Request.Builder()
+            .url(url)
+            .get()
+            .addHeader("Authorization", "Bearer $accessToken")
+            .build()
+
+        val response = client.newCall(request).execute()
+        val responseBody = response.body?.string() ?: return null
+        if (!response.isSuccessful) return null
+
+        return Json { ignoreUnknownKeys = true }.decodeFromString<LinkedInAnalyticsResponse>(responseBody)
+    }
+
+
 
     fun schedulePost(userId: String, postTime: String, mediaUrl: ByteArray, schedulePostRequest: SchedulePostRequest): Boolean {
         val mediaType = schedulePostRequest.mediaType
