@@ -1,6 +1,5 @@
 package postus.controllers
 
-import io.github.cdimascio.dotenv.Dotenv
 import kotlinx.serialization.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
