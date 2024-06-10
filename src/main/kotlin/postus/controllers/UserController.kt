@@ -64,9 +64,9 @@ class UserController(
         val verifier = JwtHandler().makeJwtVerifier("your_issuer_here")
         val decodedJWT = verifier.verify(token)
 
-        val user = decodedJWT.getClaim("user").asString() ?: return null
+        val user = decodedJWT.getClaim("user").asString()?.removeSurrounding("\"") ?: return null
         val userInfo = fetchUserDataByToken(user) ?: return null
-        val platform = decodedJWT.getClaim("platform").asString() ?: return null
+        val platform = decodedJWT.getClaim("platform").asString()?.removeSurrounding("\"") ?: return null
 
         return Pair(platform, userRepository.findById(userInfo.id)
             ?.let { UserInfo(it.id, it.email, it.name, it.role, it.description, it.createdAt) })

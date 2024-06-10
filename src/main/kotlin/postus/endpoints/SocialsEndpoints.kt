@@ -11,10 +11,11 @@ import postus.controllers.SocialsController
 import postus.controllers.UserController
 import postus.models.SchedulePostRequest
 import postus.models.YoutubeUploadRequest
+import io.github.cdimascio.dotenv.Dotenv
 
 val SocialsController = SocialsController()
 
-fun Application.configureSocialsRouting(userService: UserController) {
+fun Application.configureSocialsRouting(userService: UserController, dotenv: Dotenv) {
     routing {
         route("socials"){
             route("publish"){
@@ -160,7 +161,7 @@ fun Application.configureSocialsRouting(userService: UserController) {
                     SocialsController.getLongLivedAccessTokenAndInstagramBusinessAccountId(user!!.id, code)
 
                     if (platform == "web") {
-                        call.respondRedirect("http://localhost:3000/profile")
+                        call.respondRedirect(dotenv["FRONTEND_REDIRECT"]!!)
                     } else if (platform == "ios") {
                         // For iOS, you might need to use a custom scheme to notify the app
                         call.respond(HttpStatusCode.OK, "You can now close this window and return to the app.")
@@ -176,7 +177,7 @@ fun Application.configureSocialsRouting(userService: UserController) {
 
                     SocialsController.fetchYouTubeAccessToken(user!!.id, code)
                     if (platform == "web") {
-                        call.respondRedirect("http://localhost:3000/profile")
+                        call.respondRedirect(dotenv["FRONTEND_REDIRECT"]!!)
                     } else if (platform == "ios") {
                         // For iOS, you might need to use a custom scheme to notify the app
                         call.respond(HttpStatusCode.OK, "You can now close this window and return to the app.")
