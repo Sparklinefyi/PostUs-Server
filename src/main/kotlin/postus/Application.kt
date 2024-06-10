@@ -28,7 +28,7 @@ fun main() {
 }
 
 fun Application.module() {
-    val isProduction = System.getenv("ENVIRONMENT") == "production"
+    val isProduction = System.getenv("ENVIRONMENT") == "prod"
     val dotenv = if (!isProduction) Dotenv.load() else null
 
     fun setEnvVariable(key: String, value: String?) {
