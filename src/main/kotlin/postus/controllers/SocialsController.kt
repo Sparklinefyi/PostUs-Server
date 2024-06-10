@@ -97,9 +97,6 @@ class SocialsController {
     private val client = OkHttpClient()
     private val userRepository = UserRepository()
     private val userController = UserController(userRepository)
-    private val youtubeConfig = ConfigFactory.load().getConfig("google")
-    private val twitterConfig = ConfigFactory.load().getConfig("twitter")
-    private val instagramConfig = ConfigFactory.load().getConfig("instagram")
     private val dotenv = Dotenv.configure().ignoreIfMissing().load()
 
     fun uploadVideoToInstagram(userId: String, videoUrl: String, caption: String? = ""): String {
@@ -729,9 +726,9 @@ class SocialsController {
     }
 
     fun fetchTwitterAccessToken(userId: String, code: String): String? {
-        val clientId = twitterConfig.getString("clientID")
-        val clientSecret = twitterConfig.getString("clientSecret")
-        val redirectUri = twitterConfig.getString("redirectUri")
+        val clientId = dotenv["TWITTER_CLIENT_ID"] ?: throw Error("Missing Twitter client ID")
+        val clientSecret = dotenv["TWITTER_CLIENT_SECRET"] ?: throw Error("Missing Twitter client secret")
+        val redirectUri = dotenv["TWITTER_REDIRECT_URI"] ?: throw Error("Missing Twitter redirect URI")
         val requestBody = FormBody.Builder()
             .add("grant_type", "authorization_code")
             .add("client_id", clientId)
@@ -762,8 +759,8 @@ class SocialsController {
     fun refreshTwitterAccessToken(userId: String): String? {
         val user = userRepository.findById(userId.toInt())
         val refreshToken = user?.twitterRefresh ?: throw Exception("User not found")
-        val clientId = twitterConfig.getString("clientID")
-        val clientSecret = twitterConfig.getString("clientSecret")
+        val clientId = dotenv["TWITTER_CLIENT_ID"] ?: throw Error("Missing Twitter client ID")
+        val clientSecret = dotenv["TWITTER_CLIENT_SECRET"] ?: throw Error("Missing Twitter client secret")
         val requestBody = FormBody.Builder()
             .add("grant_type", "refresh_token")
             .add("refresh_token", refreshToken)
@@ -804,24 +801,6 @@ class SocialsController {
         return twitterUserResponse.data.id
     }
 
-
-    fun getTwitterRequestToken(): String {
-        return provider.retrieveRequestToken(consumer, twitterConfig.getString("redirectUrl"))
-    }
-
-    fun redirectToTwitter(): String {
-        val authUrl = getTwitterRequestToken()
-        return "Redirect the user to: $authUrl"
-    }
-
-    fun getAccessToken(verifier: String) {
-        provider.retrieveAccessToken(consumer, verifier)
-        val accessToken = consumer.token
-        val accessTokenSecret = consumer.tokenSecret
-
-        println("Access Token: $accessToken")
-        println("Access Token Secret: $accessTokenSecret")
-    }
 
     fun postToTwitter(
         userId: String,
