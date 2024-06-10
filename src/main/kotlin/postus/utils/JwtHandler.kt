@@ -10,7 +10,6 @@ class JwtHandler {
     fun makeJwtVerifier(issuer: String): JWTVerifier {
         val algorithm = Algorithm.HMAC256("your_secret_here")
         return JWT.require(algorithm)
-            .withIssuer(issuer)
             .build()
     }
 
@@ -18,7 +17,6 @@ class JwtHandler {
         val algorithm = Algorithm.HMAC256("your_secret_here")
         return JWT.create()
             .withSubject(userId)
-            .withIssuer("your_issuer_here")
             .withExpiresAt(Date(System.currentTimeMillis() + 1 * 1000 * 60 * 60 * 72)) // 3 days
             .sign(algorithm)
     }

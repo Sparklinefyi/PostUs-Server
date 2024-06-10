@@ -344,7 +344,7 @@ class SocialsController{
         return jsonElement.jsonObject["instagram_business_account"]?.jsonObject?.get("id")?.jsonPrimitive?.content
     }
 
-    fun getLongLivedAccessTokenAndInstagramBusinessAccountId(userId: String, code: String): Pair<String?, String?> {
+    fun getLongLivedAccessTokenAndInstagramBusinessAccountId(userId: Int, code: String): Pair<String?, String?> {
         val clientId = instagramConfig.getString("clientID")
         val clientSecret = instagramConfig.getString("clientSecret")
         val redirectUri = instagramConfig.getString("redirectUri")
@@ -356,7 +356,7 @@ class SocialsController{
         val pageId = jsonElement.jsonObject["data"]?.jsonArray?.firstOrNull()?.jsonObject?.get("id")?.jsonPrimitive?.content ?: return longLivedToken to null
 
         val instagramBusinessAccountId = getInstagramBusinessAccountId(pageId, longLivedToken)
-        userController.linkAccount(userId.toInt(), "INSTAGRAM", instagramBusinessAccountId, longLivedToken, longLivedToken )
+        userController.linkAccount(userId, "INSTAGRAM", instagramBusinessAccountId, longLivedToken, longLivedToken )
         return longLivedToken to instagramBusinessAccountId
     }
 
@@ -474,7 +474,7 @@ class SocialsController{
         return jsonResponse["media_url"]?.jsonPrimitive?.content ?: ""
     }
 
-    fun fetchYouTubeAccessToken(userId: String, code: String): Boolean {
+    fun fetchYouTubeAccessToken(userId: Int, code: String): Boolean {
         val clientId = youtubeConfig.getString("clientID")
         val clientSecret = youtubeConfig.getString("clientSecret")
         val redirectUri = youtubeConfig.getString("redirectUri")
@@ -497,7 +497,7 @@ class SocialsController{
 
         val youtubeTokens = Json{ ignoreUnknownKeys = true }.decodeFromString<YoutubeOAuthResponse>(responseBody)
         val channelId = getAuthenticatedUserChannelId(youtubeTokens.access_token)
-        userController.linkAccount(userId.toInt(), "GOOGLE", channelId, youtubeTokens.access_token, youtubeTokens.refresh_token)
+        userController.linkAccount(userId, "GOOGLE", channelId, youtubeTokens.access_token, youtubeTokens.refresh_token)
         return true
     }
 

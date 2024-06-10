@@ -8,12 +8,13 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import postus.controllers.SocialsController
+import postus.controllers.UserController
 import postus.models.SchedulePostRequest
 import postus.models.YoutubeUploadRequest
 
 val SocialsController = SocialsController()
 
-fun Application.configureSocialsRouting() {
+fun Application.configureSocialsRouting(userService: UserController) {
     routing {
         route("socials"){
             route("publish"){
@@ -149,27 +150,37 @@ fun Application.configureSocialsRouting() {
             }
             route("auth"){
                 get("instagram"){
-                    val userId = call.parameters["userId"] ?: return@get call.respond(
-                        HttpStatusCode.BadRequest,
-                        "Missing userId"
-                    )
                     val code = call.parameters["code"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing code parameter")
-                    val (longLivedToken, instagramBusinessAccountId) = SocialsController.getLongLivedAccessTokenAndInstagramBusinessAccountId(userId, code)
+                    val state = call.parameters["state"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing state parameter")
 
-                    if (longLivedToken == null || instagramBusinessAccountId == null) {
-                        call.respond(HttpStatusCode.InternalServerError, "Failed to retrieve tokens or Instagram Business Account ID")
-                    } else {
-                        call.respond(mapOf("long_lived_access_token" to longLivedToken, "instagram_business_account_id" to instagramBusinessAccountId))
+                    val info = userService.fetchUserDataByTokenWithProvider(state) ?: return@get call.respond(HttpStatusCode.BadRequest, "Invalid state parameter")
+                    val platform = info.first;
+                    val user = info.second
+
+                    SocialsController.getLongLivedAccessTokenAndInstagramBusinessAccountId(user!!.id, code)
+
+                    if (platform == "web") {
+                        call.respondRedirect("http://localhost:3000/profile")
+                    } else if (platform == "ios") {
+                        // For iOS, you might need to use a custom scheme to notify the app
+                        call.respond(HttpStatusCode.OK, "You can now close this window and return to the app.")
                     }
                 }
                 get("youtube"){
-                    val userId = call.parameters["userId"] ?: return@get call.respond(
-                        HttpStatusCode.BadRequest,
-                        "Missing userId"
-                    )
                     val code = call.parameters["code"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing code parameter")
-                    val validated = SocialsController.fetchYouTubeAccessToken(userId, code)
-                    call.respond(validated)
+                    val state = call.parameters["state"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing state parameter")
+
+                    val info = userService.fetchUserDataByTokenWithProvider(state) ?: return@get call.respond(HttpStatusCode.BadRequest, "Invalid state parameter")
+                    val platform = info.first;
+                    val user = info.second
+
+                    SocialsController.fetchYouTubeAccessToken(user!!.id, code)
+                    if (platform == "web") {
+                        call.respondRedirect("http://localhost:3000/profile")
+                    } else if (platform == "ios") {
+                        // For iOS, you might need to use a custom scheme to notify the app
+                        call.respond(HttpStatusCode.OK, "You can now close this window and return to the app.")
+                    }
                 }
             }
             get("test"){

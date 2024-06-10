@@ -1,5 +1,6 @@
 package postus.utils
 
+import com.typesafe.config.ConfigFactory
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import org.jetbrains.exposed.sql.Database as ExposedDatabase
@@ -8,13 +9,21 @@ import java.sql.Connection
 
 object Database {
     private val logger = LoggerFactory.getLogger(ExposedDatabase::class.java)
+    private val databaseConfig = ConfigFactory.load().getConfig("database")
+    private val hikariConfig = HikariConfig().apply {
+        jdbcUrl = databaseConfig.getString("url")
+        username = databaseConfig.getString("user")
+        password = databaseConfig.getString("password")
+    }
 
     init {
+        logger.info("Database initialized with URL: ${hikariConfig.jdbcUrl}")
         ExposedDatabase.connect(
-            url = "jdbc:postgresql://sparkline-db.c1y0c8y882lf.us-east-1.rds.amazonaws.com:5432/postgres",
-                    user = "sparklinefyi",
-                    password = "SuperSecure052624!",
-                    driver = "org.postgresql.Driver",
+            url = hikariConfig.jdbcUrl,
+            user = hikariConfig.username,
+            password = hikariConfig.password,
+            driver = "org.postgresql.Driver",
         )
     }
+
 }
