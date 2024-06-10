@@ -8,23 +8,28 @@ import org.slf4j.LoggerFactory
 
 object Database {
 
-    private val logger = LoggerFactory.getLogger(ExposedDatabase::class.java)
-    private val dotenv = Dotenv.load()
-    private val hikariConfig = HikariConfig().apply {
-        jdbcUrl = dotenv["DB_URL"]
-        username = dotenv["DB_USER"]
-        password = dotenv["DB_PASSWORD"]
-        driverClassName = dotenv["DB_DRIVER"]
-        maximumPoolSize = dotenv["DB_MAX_POOL_SIZE"]?.toInt() ?: 10
-    }
+    private val dotenv: Dotenv? = if (System.getenv("ENVIRONMENT") == "production") null else loadDotenv()
 
+    val dbUrl: String = dotenv?.get("DB_URL") ?: System.getenv("DB_URL")
+    val dbUser: String = dotenv?.get("DB_USER") ?: System.getenv("DB_USER")
+    val dbPassword: String = dotenv?.get("DB_PASSWORD") ?: System.getenv("DB_PASSWORD")
+    val dbDriver: String = dotenv?.get("DB_DRIVER") ?: System.getenv("DB_DRIVER")
+    val dbMaxPoolSize: Int = dotenv?.get("DB_MAX_POOL_SIZE")?.toInt() ?: System.getenv("DB_MAX_POOL_SIZE")?.toInt() ?: 10
+
+    private fun loadDotenv(): Dotenv? {
+        return try {
+            Dotenv.load()
+        } catch (e: Exception) {
+            println("Warning: .env file not found, falling back to system environment variables")
+            null
+        }
+    }
     init {
-        logger.info("Database initialized with URL: ${hikariConfig.jdbcUrl}")
         ExposedDatabase.connect(
-            url = hikariConfig.jdbcUrl,
-            driver = hikariConfig.driverClassName,
-            user = hikariConfig.username,
-            password = hikariConfig.password
+            url = dbUrl,
+            driver = dbDriver,
+            user = dbUser,
+            password = dbPassword
         )
     }
 
