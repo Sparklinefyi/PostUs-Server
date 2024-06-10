@@ -59,15 +59,17 @@ class UserController(
             ?.let { UserInfo(it.id, it.email, it.name, it.role, it.description, it.createdAt) }
     }
 
-    fun fetchUserDataByTokenWithProvider(token: String): Pair<String, UserInfo?>? {
+    fun fetchUserDataByTokenWithPlatform(token: String): Pair<String, UserInfo?>? {
         try {
             val verifier = JwtHandler().makeJwtVerifier(dotenv["JWT_ISSUER"]!!)
             val decodedJWT = verifier.verify(token)
 
-            val user = decodedJWT.getClaim("user").asString() ?: return null
-            val userInfo = fetchUserDataByToken(user) ?: return null
-            val platform = decodedJWT.getClaim("platform").asString() ?: return null
+            // Strip surrounding quotes
+            var user = decodedJWT.getClaim("user").asString()!!.removeSurrounding(""""""")
+            var platform = decodedJWT.getClaim("platform").asString()!!.removeSurrounding(""""""")
 
+
+            val userInfo = fetchUserDataByToken(user) ?: return null
             val userEntity = userRepository.findById(userInfo.id)
 
             return if (userEntity != null) {

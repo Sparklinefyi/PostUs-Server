@@ -154,7 +154,7 @@ fun Application.configureSocialsRouting(userService: UserController, dotenv: Dot
                     val code = call.parameters["code"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing code parameter")
                     val state = call.parameters["state"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing state parameter")
 
-                    val info = userService.fetchUserDataByTokenWithProvider(state) ?: return@get call.respond(HttpStatusCode.BadRequest, "Invalid state parameter")
+                    val info = userService.fetchUserDataByTokenWithPlatform(state) ?: return@get call.respond(HttpStatusCode.BadRequest, "Invalid state parameter")
                     val platform = info.first;
                     val user = info.second
 
@@ -171,7 +171,7 @@ fun Application.configureSocialsRouting(userService: UserController, dotenv: Dot
                     val code = call.parameters["code"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing code parameter")
                     val state = call.parameters["state"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing state parameter")
 
-                    val info = userService.fetchUserDataByTokenWithProvider(state) ?: return@get call.respond(HttpStatusCode.BadRequest, "Invalid state parameter")
+                    val info = userService.fetchUserDataByTokenWithPlatform(state) ?: return@get call.respond(HttpStatusCode.BadRequest, "Invalid state parameter")
                     val platform = info.first;
                     val user = info.second
 
