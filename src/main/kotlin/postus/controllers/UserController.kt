@@ -60,15 +60,25 @@ class UserController(
     }
 
     fun fetchUserDataByTokenWithProvider(token: String): Pair<String, UserInfo?>? {
-        val verifier = JwtHandler().makeJwtVerifier(dotenv["JWT_ISSUER"]!!)
-        val decodedJWT = verifier.verify(token)
+        try {
+            val verifier = JwtHandler().makeJwtVerifier(dotenv["JWT_ISSUER"]!!)
+            val decodedJWT = verifier.verify(token)
 
-        val user = decodedJWT.getClaim("user").asString()?.removeSurrounding("\"") ?: return null
-        val userInfo = fetchUserDataByToken(user) ?: return null
-        val platform = decodedJWT.getClaim("platform").asString()?.removeSurrounding("\"") ?: return null
+            val user = decodedJWT.getClaim("user").asString() ?: return null
+            val userInfo = fetchUserDataByToken(user) ?: return null
+            val platform = decodedJWT.getClaim("platform").asString() ?: return null
 
-        return Pair(platform, userRepository.findById(userInfo.id)
-            ?.let { UserInfo(it.id, it.email, it.name, it.role, it.description, it.createdAt) })
+            val userEntity = userRepository.findById(userInfo.id)
+
+            return if (userEntity != null) {
+                Pair(platform, UserInfo(userEntity.id, userEntity.email, userEntity.name, userEntity.role, userEntity.description, userEntity.createdAt))
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            println("Error verifying token: ${e.message}")
+            return null
+        }
     }
 
     fun authenticateWithEmailPassword(email: String, password: String): UserInfo? {
