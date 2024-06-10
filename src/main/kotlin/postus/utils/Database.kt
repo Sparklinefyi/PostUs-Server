@@ -1,5 +1,6 @@
 package postus.utils
 import io.github.cdimascio.dotenv.Dotenv;
+import com.typesafe.config.ConfigFactory
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import org.jetbrains.exposed.sql.Database as ExposedDatabase
@@ -26,4 +27,5 @@ object Database {
             password = hikariConfig.password
         )
     }
+
 }

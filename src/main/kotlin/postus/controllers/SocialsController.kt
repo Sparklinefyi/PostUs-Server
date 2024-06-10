@@ -342,10 +342,12 @@ class SocialsController {
     }
 
     fun getLongLivedAccessTokenAndInstagramBusinessAccountId(userId: Int, code: String): Pair<String?, String?> {
+
         val clientId = dotenv["INSTAGRAM_CLIENT_ID"]
         val clientSecret = dotenv["INSTAGRAM_CLIENT_SECRET"]
         val redirectUri = dotenv["INSTAGRAM_REDIRECT_URI"]
         val shortLivedToken = exchangeCodeForAccessToken(clientId!!, clientSecret!!, redirectUri!!, code) ?: return null to null
+
         val longLivedToken = exchangeShortLivedTokenForLongLivedToken(clientId, clientSecret, shortLivedToken) ?: return null to null
         val pages = getUserPages(longLivedToken) ?: return null to null
 
@@ -353,7 +355,9 @@ class SocialsController {
         val pageId = jsonElement.jsonObject["data"]?.jsonArray?.firstOrNull()?.jsonObject?.get("id")?.jsonPrimitive?.content ?: return longLivedToken to null
 
         val instagramBusinessAccountId = getInstagramBusinessAccountId(pageId, longLivedToken)
-        userController.linkAccount(userId, "INSTAGRAM", instagramBusinessAccountId, longLivedToken, longLivedToken)
+
+        userController.linkAccount(userId, "INSTAGRAM", instagramBusinessAccountId, longLivedToken, longLivedToken )
+
         return longLivedToken to instagramBusinessAccountId
     }
 
@@ -472,6 +476,7 @@ class SocialsController {
     }
 
     fun fetchYouTubeAccessToken(userId: Int, code: String): Boolean {
+
         val clientId = dotenv["GOOGLE_CLIENT_ID"]
         val clientSecret = dotenv["GOOGLE_CLIENT_SECRET"]
         val redirectUri = dotenv["GOOGLE_REDIRECT_URI"]
