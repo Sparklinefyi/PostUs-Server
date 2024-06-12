@@ -109,6 +109,11 @@ class MediaController {
         return presignedRequest.url().toString()
     }
 
+    fun getPresignedUrlFromPath(path: String): String {
+        val s3Key = path.substring(path.indexOf("/", 10) + 1)
+        return getPresignedUrlFromKey(s3Key)
+    }
+
     fun getImageList(userId: String) : ImageListResponse {
         val bucketName = "postus-user-media"
 
@@ -143,42 +148,6 @@ class MediaController {
         val listResponse = s3Client.listObjectsV2(listRequest)
         val videoKeys = listResponse.contents().map { getPresignedUrlFromKey(it.key()) }
         return VideoListResponse(videoKeys)
-    }
-
-    fun getImage(userId: String, key: String) : String {
-        val bucketName = "postus-user-media"
-
-        val s3Client = S3Client.builder()
-            .region(Region.US_EAST_1)
-            .credentialsProvider(DefaultCredentialsProvider.create())
-            .build()
-
-        val listRequest = ListObjectsV2Request.builder()
-            .bucket(bucketName)
-            .prefix("$userId/images/$key")
-            .build()
-
-        val listResponse = s3Client.listObjectsV2(listRequest)
-        val videoKey = listResponse.contents().map { it.key() }[0]
-        return getPresignedUrlFromKey(videoKey)
-    }
-
-    fun getVideo(userId: String, key: String) : String {
-        val bucketName = "postus-user-media"
-
-        val s3Client = S3Client.builder()
-            .region(Region.US_EAST_1)
-            .credentialsProvider(DefaultCredentialsProvider.create())
-            .build()
-
-        val listRequest = ListObjectsV2Request.builder()
-            .bucket(bucketName)
-            .prefix("$userId/videos/$key")
-            .build()
-
-        val listResponse = s3Client.listObjectsV2(listRequest)
-        val videoKey = listResponse.contents().map { it.key() }[0]
-        return getPresignedUrlFromKey(videoKey)
     }
 
     private fun generateFileName(): String {
