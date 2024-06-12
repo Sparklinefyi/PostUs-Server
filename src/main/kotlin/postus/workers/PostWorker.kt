@@ -25,15 +25,15 @@ class PostWorker(private val scheduledPost: ScheduledPost) {
 
     private fun post() {
         val userId = scheduledPost.userId.toString()
-        val S3Url = scheduledPost.s3Path
+        val S3Path = scheduledPost.s3Path
         val mediaType = scheduledPost.mediaType
         for (provider in scheduledPost.schedulePostRequest.providers) {
             println("Posting to $provider with media at ${scheduledPost.s3Path}")
             when (provider) {
                 "YOUTUBE" -> {
                     try {
-                        val mediaUrl = mediaController.getPresignedUrlFromKey(S3Url)
-                        socialController.uploadYoutubeShort(
+                        val mediaUrl = MediaController.getPresignedUrlFromPath(S3Path)
+                        SocialsController.uploadYoutubeShort(
                             scheduledPost.schedulePostRequest.youtubePostRequest!!,
                             userId,
                             mediaUrl
@@ -44,7 +44,7 @@ class PostWorker(private val scheduledPost: ScheduledPost) {
                 }
                 "INSTAGRAM" -> {
                     try {
-                        val mediaUrl = mediaController.getPresignedUrlFromKey(S3Url)
+                        val mediaUrl = MediaController.getPresignedUrlFromPath(S3Path)
                         if (mediaType == "IMAGE") {
                             socialController.uploadPictureToInstagram(
                                 userId,

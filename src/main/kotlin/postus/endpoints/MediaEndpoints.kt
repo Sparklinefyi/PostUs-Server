@@ -97,6 +97,10 @@ fun Application.configureMediaRouting(userService: UserController) {
                         val response = mediaController.getVideo(userInfo.id.toString(), key)
                         call.respond(response)
                     }
+                get("media"){
+                    val path = call.parameters["path"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing path to media")
+                    val response = MediaController.getPresignedUrlFromPath(path)
+                    call.respond(response)
                 }
             }
     }
