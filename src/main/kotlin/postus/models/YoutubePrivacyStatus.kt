@@ -1,10 +1,19 @@
 package postus.models
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
 
-enum class YoutubePrivacyStatuses{
-    PRIVATE,
+
+@Serializable
+enum class YoutubePrivacyStatuses {
+    @SerialName("public")
     PUBLIC,
+
+    @SerialName("private")
+    PRIVATE,
+
+    @SerialName("unlisted")
+    UNLISTED
 }
 @Serializable
 data class YoutubePrivacyStatus(

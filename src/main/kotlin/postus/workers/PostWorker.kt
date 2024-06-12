@@ -1,7 +1,7 @@
 package postus.workers
 
-import postus.endpoints.MediaController
-import postus.endpoints.SocialsController
+import postus.endpoints.mediaController
+import postus.endpoints.socialController
 import postus.models.ScheduledPost
 import java.time.Duration
 import java.time.Instant
@@ -32,8 +32,8 @@ class PostWorker(private val scheduledPost: ScheduledPost) {
             when (provider) {
                 "YOUTUBE" -> {
                     try {
-                        val mediaUrl = MediaController.getPresignedUrlFromKey(S3Url)
-                        SocialsController.uploadYoutubeShort(
+                        val mediaUrl = mediaController.getPresignedUrlFromKey(S3Url)
+                        socialController.uploadYoutubeShort(
                             scheduledPost.schedulePostRequest.youtubePostRequest!!,
                             userId,
                             mediaUrl
@@ -44,15 +44,15 @@ class PostWorker(private val scheduledPost: ScheduledPost) {
                 }
                 "INSTAGRAM" -> {
                     try {
-                        val mediaUrl = MediaController.getPresignedUrlFromKey(S3Url)
+                        val mediaUrl = mediaController.getPresignedUrlFromKey(S3Url)
                         if (mediaType == "IMAGE") {
-                            SocialsController.uploadPictureToInstagram(
+                            socialController.uploadPictureToInstagram(
                                 userId,
                                 mediaUrl,
                                 scheduledPost.schedulePostRequest.instagramPostRequest?.caption,
                             )
                         } else {
-                            SocialsController.uploadVideoToInstagram(
+                            socialController.uploadVideoToInstagram(
                                 userId,
                                 mediaUrl,
                                 scheduledPost.schedulePostRequest.instagramPostRequest?.caption,

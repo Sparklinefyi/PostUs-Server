@@ -83,9 +83,9 @@ class MediaController {
             .build()
 
         val presignedRequest = presigner.presignPutObject(presignRequest)
-        val presignedUrl = presignedRequest.url()
+        val presignedUrl = presignedRequest.url().toString()
 
-        val videoUrl = uploadFileToS3(presignedUrl.toString(), video, "video/mp4")
+        val videoUrl = uploadFileToS3(presignedUrl, video, "video/mp4")
         return videoUrl
     }
 
@@ -107,6 +107,11 @@ class MediaController {
 
         val presignedRequest = presigner.presignGetObject(getObjectRequest)
         return presignedRequest.url().toString()
+    }
+
+    fun getPresignedUrlFromPath(path: String): String {
+        val s3Key = path.substring(path.indexOf("/", 10) + 1)
+        return getPresignedUrlFromKey(s3Key)
     }
 
     fun getImageList(userId: String) : ImageListResponse {
@@ -187,11 +192,13 @@ class MediaController {
     }
 
     fun downloadVideo(videoUrl: String): File {
+
         val client = OkHttpClient()
         val request = Request.Builder().url(videoUrl).build()
 
         client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) throw IOException("Failed to download video: $response")
+            if (!response.isSuccessful)
+                throw IOException("Failed to download video: $response")
 
             val tempFile = File.createTempFile("video", ".mp4")
             tempFile.outputStream().use { fileOut ->
@@ -229,9 +236,7 @@ class MediaController {
 
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) throw IOException("Unexpected code $response")
-            val uncutURL = response.networkResponse?.request?.url.toString()
-            val fileUrl = uncutURL.removeRange(uncutURL.indexOf("?"), uncutURL.length)
-            return fileUrl
+            return presignedUrl.split("?")[0] // Return the URL without query parameters
         }
     }
 }
