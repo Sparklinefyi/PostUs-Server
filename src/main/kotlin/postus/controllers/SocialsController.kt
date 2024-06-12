@@ -772,10 +772,10 @@ class SocialsController {
     //LINKEDIN FUNCTIONS
 
     fun getLinkedInAccessToken(userId: Int, authCode: String): Boolean? {
-        val clientId = dotenv["LINKEDIN_CLIENT_ID"] ?: throw Exception("LinkedIn client ID not found")
-        val clientSecret = dotenv["LINKEDIN_CLIENT_SECRET"] ?: throw Exception("LinkedIn client secret not found")
-        val redirectUri = dotenv["LINKEDIN_REDIRECT_URI"] ?: throw Exception("LinkedIn redirect URI not found")
-        val tokenUrl = dotenv["LINKEDIN_TOKEN_URL"] ?: throw Exception("LinkedIn token URL not found")
+        val clientId = System.getProperty("LINKEDIN_CLIENT_ID") ?: throw Exception("LinkedIn client ID not found")
+        val clientSecret = System.getProperty("LINKEDIN_CLIENT_SECRET") ?: throw Exception("LinkedIn client secret not found")
+        val redirectUri = System.getProperty("LINKEDIN_REDIRECT_URI") ?: throw Exception("LinkedIn redirect URI not found")
+        val tokenUrl = System.getProperty("LINKEDIN_TOKEN_URL") ?: throw Exception("LinkedIn token URL not found")
 
         val requestBody = FormBody.Builder()
             .add("grant_type", "authorization_code")
@@ -801,9 +801,9 @@ class SocialsController {
     }
 
     fun refreshLinkedInAccessToken(userId: Int, refreshToken: String): Boolean? {
-        val clientId = dotenv["LINKEDIN_CLIENT_ID"] ?: throw Exception("LinkedIn client ID not found")
-        val clientSecret = dotenv["LINKEDIN_CLIENT_SECRET"] ?: throw Exception("LinkedIn client secret not found")
-        val tokenUrl = dotenv["LINKEDIN_TOKEN_URL"] ?: throw Exception("LinkedIn token URL not found")
+        val clientId = System.getProperty("LINKEDIN_CLIENT_ID") ?: throw Exception("LinkedIn client ID not found")
+        val clientSecret = System.getProperty("LINKEDIN_CLIENT_SECRET") ?: throw Exception("LinkedIn client secret not found")
+        val tokenUrl = System.getProperty("LINKEDIN_TOKEN_URL") ?: throw Exception("LinkedIn token URL not found")
 
         val requestBody = FormBody.Builder()
             .add("grant_type", "refresh_token")
@@ -846,7 +846,7 @@ class SocialsController {
         val user = userRepository.findById(userId)
         val accessToken = "TODO"//user?.linkedinAccessToken ?: throw Exception("User not found")
         val accountId = "TODO"//user.linkedinAccountId ?: throw Exception("LinkedIn account ID not found")
-        val postUrl = dotenv["LINKEDIN_POST_URL"] ?: throw Exception("LinkedIn post URL not found")
+        val postUrl = System.getProperty("LINKEDIN_POST_URL") ?: throw Exception("LinkedIn post URL not found")
 
         val postRequest = LinkedInPostRequest(
             author = accountId,
@@ -881,7 +881,7 @@ class SocialsController {
     }
 
     fun getLinkedInPostAnalytics(accessToken: String, postUrn: String): LinkedInAnalyticsResponse? {
-        val analyticsUrl = dotenv["LINKEDIN_ANALYTICS_URL"] ?: throw Exception("LinkedIn analytics URL not found")
+        val analyticsUrl = System.getProperty("LINKEDIN_ANALYTICS_URL") ?: throw Exception("LinkedIn analytics URL not found")
         val url = analyticsUrl.toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("q", "statistics")
             .addQueryParameter("shares", postUrn)
