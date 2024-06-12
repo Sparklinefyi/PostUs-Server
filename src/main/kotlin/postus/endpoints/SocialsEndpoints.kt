@@ -96,8 +96,11 @@ fun Application.configureSocialsRouting(userService: UserController, dotenv: Dot
                         HttpStatusCode.BadRequest,
                         "Missing userId"
                     )
-                    val imageUrl = call.parameters["content"]
-                    val response = SocialsController.postToLinkedIn(userId, content)
+                    val content = call.parameters["content"]?: return@post call.respond(
+                        HttpStatusCode.BadRequest,
+                        "Missing content"
+                    )
+                    val response = SocialsController.postToLinkedIn(userId.toInt(), content)
                     call.respond(HttpStatusCode.OK, response)
                 }
             }

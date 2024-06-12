@@ -795,7 +795,8 @@ class SocialsController {
         if (!response.isSuccessful) return null
 
         val linkedInOAuthResponse = Json { ignoreUnknownKeys = true }.decodeFromString<LinkedinOAuthResponse>(responseBody)
-        userController.linkAccount(userId, "LINKEDIN", null, linkedInOAuthResponse.accessToken, linkedInOAuthResponse.refreshToken)
+        val accountId = linkedInAccountId(linkedInOAuthResponse.accessToken) ?: return null
+        userController.linkAccount(userId, "LINKEDIN", accountId, linkedInOAuthResponse.accessToken, linkedInOAuthResponse.refreshToken)
         return true
     }
 
@@ -825,13 +826,30 @@ class SocialsController {
         return true
     }
 
-    fun postToLinkedIn(userId: Int, content: String, author: String): Boolean {
+    fun linkedInAccountId(accessToken: String): String? {
+        val request = Request.Builder()
+            .url("https://api.linkedin.com/v2/me")
+            .addHeader("Authorization", "Bearer $accessToken")
+            .build()
+
+        val response = client.newCall(request).execute()
+        val responseBody = response.body?.string() ?: return null
+        if (!response.isSuccessful) return null
+
+        val json = Json { ignoreUnknownKeys = true }
+        val profileData = json.decodeFromString<Map<String, String>>(responseBody)
+
+        return profileData["id"]
+    }
+
+    fun postToLinkedIn(userId: Int, content: String): Boolean {
         val user = userRepository.findById(userId)
-        val accessToken = user?.linkedinAccessToken ?: throw Exception("User not found")
+        val accessToken = "TODO"//user?.linkedinAccessToken ?: throw Exception("User not found")
+        val accountId = "TODO"//user.linkedinAccountId ?: throw Exception("LinkedIn account ID not found")
         val postUrl = dotenv["LINKEDIN_POST_URL"] ?: throw Exception("LinkedIn post URL not found")
 
         val postRequest = LinkedInPostRequest(
-            author = author,
+            author = accountId,
             lifecycleState = "PUBLISHED",
             specificContent = SpecificContent(
                 shareContent = ShareContent(
@@ -889,10 +907,10 @@ class SocialsController {
         val s3Path: String
         when (mediaType) {
             "IMAGE" -> {
-                val s3Path = MediaController.uploadImage(userId, mediaUrl)
+                s3Path = MediaController.uploadImage(userId, mediaUrl)
             }
             "VIDEO" -> {
-                val s3Path = MediaController.uploadVideo(userId, mediaUrl)
+                s3Path = MediaController.uploadVideo(userId, mediaUrl)
             }
             else -> {
                 throw Exception("Not a supported media type (VIDEO or IMAGE)")
@@ -913,7 +931,7 @@ class SocialsController {
             PostWorker(post).schedule()
             return true
         }
-        val scheduled = ScheduleRepository.addSchedule(userId.toInt(), s3Key, postTime, mediaType, schedulePostRequest)
+        val scheduled = ScheduleRepository.addSchedule(userId.toInt(), s3Path, postTime, mediaType, schedulePostRequest)
         return scheduled
     }
 }
