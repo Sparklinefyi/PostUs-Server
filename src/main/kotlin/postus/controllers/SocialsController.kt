@@ -909,10 +909,10 @@ class SocialsController {
         val s3Path: String
         when (mediaType) {
             "IMAGE" -> {
-                s3Path = MediaController.uploadImage(userId, mediaUrl)
+                s3Path = mediaController.uploadImage(userId, mediaUrl)
             }
             "VIDEO" -> {
-                s3Path = MediaController.uploadVideo(userId, mediaUrl)
+                s3Path = mediaController.uploadVideo(userId, mediaUrl)
             }
             else -> {
                 throw Exception("Not a supported media type (VIDEO or IMAGE)")
