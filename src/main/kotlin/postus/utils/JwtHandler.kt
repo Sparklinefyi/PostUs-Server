@@ -8,14 +8,16 @@ import java.util.*
 class JwtHandler {
 
     fun makeJwtVerifier(issuer: String): JWTVerifier {
-        val algorithm = Algorithm.HMAC256("your_secret_here")
+        val algorithm = Algorithm.HMAC256(System.getProperty("JWT_SECRET")!!)
         return JWT.require(algorithm)
+            .withIssuer(issuer)
             .build()
     }
 
     fun makeToken(userId: String): String {
-        val algorithm = Algorithm.HMAC256("your_secret_here")
+        val algorithm = Algorithm.HMAC256(System.getProperty("JWT_SECRET")!!)
         return JWT.create()
+            .withIssuer(System.getProperty("JWT_ISSUER")!!)
             .withSubject(userId)
             .withExpiresAt(Date(System.currentTimeMillis() + 1 * 1000 * 60 * 60 * 72)) // 3 days
             .sign(algorithm)
@@ -23,10 +25,10 @@ class JwtHandler {
 
     fun validateTokenAndGetUserId(token: String): String? {
         return try {
-            val verifier = makeJwtVerifier("your_issuer_here")
+            val verifier = makeJwtVerifier(System.getProperty("JWT_ISSUER")!!)
             val jwt = verifier.verify(token)
 
-            val userId = jwt.getClaim("user").asString()
+            val userId = jwt.getClaim("token").asString()
             if (userId.isNullOrEmpty()) jwt.subject else userId
         } catch (e: Exception) {
             null

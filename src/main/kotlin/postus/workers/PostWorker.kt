@@ -1,7 +1,7 @@
 package postus.workers
 
-import postus.endpoints.MediaController
-import postus.endpoints.SocialsController
+import postus.endpoints.mediaController
+import postus.endpoints.socialController
 import postus.models.ScheduledPost
 import java.time.Duration
 import java.time.Instant
@@ -46,13 +46,13 @@ class PostWorker(private val scheduledPost: ScheduledPost) {
                     try {
                         val mediaUrl = MediaController.getPresignedUrlFromPath(S3Path)
                         if (mediaType == "IMAGE") {
-                            SocialsController.uploadPictureToInstagram(
+                            socialController.uploadPictureToInstagram(
                                 userId,
                                 mediaUrl,
                                 scheduledPost.schedulePostRequest.instagramPostRequest?.caption,
                             )
                         } else {
-                            SocialsController.uploadVideoToInstagram(
+                            socialController.uploadVideoToInstagram(
                                 userId,
                                 mediaUrl,
                                 scheduledPost.schedulePostRequest.instagramPostRequest?.caption,

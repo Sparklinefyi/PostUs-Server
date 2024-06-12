@@ -56,24 +56,6 @@ fun Application.configureAuthRouting(userService: UserController) {
                 userService.updateUser(userInfo.id, request.description)
                 call.respond(HttpStatusCode.OK, LoginResponse(userInfo.id, userInfo.email, userInfo.name, userInfo.role, userInfo.description, userInfo.createdAt, request.token))
             }
-
-            post("/link-account") {
-                val token = call.request.headers["Authorization"]?.removePrefix("Bearer ")
-                    ?: throw IllegalArgumentException("Missing or invalid Authorization header")
-
-                // Validate the token and retrieve the user ID
-                //val userId = JwtHandler().validateTokenAndGetUserId(token)
-                //    ?: throw IllegalArgumentException("Invalid token")
-
-                // Extract code and provider from the request body
-                val request = call.receive<GoogleResponse>()
-
-                val tokenInfo = userService.verifyOAuthToken(request.code, request.provider)
-
-                // Link the account
-                userService.linkAccount(16, request.provider, null, null, tokenInfo.refreshToken)
-                call.respond(HttpStatusCode.OK, "Account linked")
-            }
         }
     }
 }

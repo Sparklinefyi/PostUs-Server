@@ -12,7 +12,8 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import postus.endpoints.MediaController
+import okhttp3.logging.HttpLoggingInterceptor
+import postus.endpoints.mediaController
 import postus.models.*
 import postus.repositories.UserRepository
 import postus.workers.PostWorker
@@ -476,7 +477,8 @@ class SocialsController {
 
     fun uploadYoutubeShort(uploadRequest: YoutubeUploadRequest, userId: String, videoUrl: String): String {
         refreshYouTubeAccessToken(userId)
-        val videoFile = MediaController.downloadVideo(videoUrl)
+        val signedUrl = mediaController.getPresignedUrlFromPath(videoUrl);
+        val videoFile = mediaController.downloadVideo(signedUrl)
         val user = userRepository.findById(userId.toInt())
         val accessToken = user?.googleAccessToken ?: throw Exception("User not found")
 

@@ -113,15 +113,12 @@ fun Application.module() {
     // Initialize the database
     Database
 
-    // Create instances of repositories
-    val userRepository = UserRepository()
-
     // Create an instance of UserService
-    val userService = UserController(userRepository)
+    val userService = UserController(UserRepository())
 
     // Pass userService to configureAuthRouting
     configureAuthRouting(userService)
-    configureMediaRouting()
+    configureMediaRouting(userService)
     configureSocialsRouting(userService)
 }
 
