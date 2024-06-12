@@ -91,6 +91,15 @@ fun Application.configureSocialsRouting(userService: UserController, dotenv: Dot
                     val response = SocialsController.postToTwitter(userId, text, imageUrl, videoUrl)
                     call.respond(HttpStatusCode.OK, response)
                 }
+                post("linkedin"){
+                    val userId = call.parameters["userId"] ?: return@post call.respond(
+                        HttpStatusCode.BadRequest,
+                        "Missing userId"
+                    )
+                    val imageUrl = call.parameters["content"]
+                    val response = SocialsController.postToLinkedIn(userId, content)
+                    call.respond(HttpStatusCode.OK, response)
+                }
             }
             route("analyze"){
                 route("page"){

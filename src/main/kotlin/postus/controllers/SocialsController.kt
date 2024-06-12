@@ -825,7 +825,9 @@ class SocialsController {
         return true
     }
 
-    fun postToLinkedIn(accessToken: String, content: String, author: String): Boolean {
+    fun postToLinkedIn(userId: Int, content: String, author: String): Boolean {
+        val user = userRepository.findById(userId)
+        val accessToken = user?.linkedinAccessToken ?: throw Exception("User not found")
         val postUrl = dotenv["LINKEDIN_POST_URL"] ?: throw Exception("LinkedIn post URL not found")
 
         val postRequest = LinkedInPostRequest(
@@ -884,15 +886,13 @@ class SocialsController {
 
     fun schedulePost(userId: String, postTime: String, mediaUrl: ByteArray, schedulePostRequest: SchedulePostRequest): Boolean {
         val mediaType = schedulePostRequest.mediaType
-        val s3Key: String
+        val s3Path: String
         when (mediaType) {
             "IMAGE" -> {
-                val path = MediaController.uploadImage(userId, mediaUrl)
-                s3Key = path.substring(path.indexOf("/", 10) + 1)
+                val s3Path = MediaController.uploadImage(userId, mediaUrl)
             }
             "VIDEO" -> {
-                val path = MediaController.uploadVideo(userId, mediaUrl)
-                s3Key = path.substring(path.indexOf("/", 10) + 1)
+                val s3Path = MediaController.uploadVideo(userId, mediaUrl)
             }
             else -> {
                 throw Exception("Not a supported media type (VIDEO or IMAGE)")
@@ -904,7 +904,7 @@ class SocialsController {
             val post = ScheduledPost(
                 0,
                 userId.toInt(),
-                s3Key,
+                s3Path,
                 postTime,
                 mediaType,
                 schedulePostRequest,

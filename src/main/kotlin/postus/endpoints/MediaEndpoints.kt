@@ -53,17 +53,9 @@ fun Application.configureMediaRouting() {
 
             route("/resource") {
 
-                get("image"){
-                    val userId = call.parameters["userId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing userId")
-                    val key = call.parameters["key"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing userId")
-                    val response = MediaController.getImage(userId, key)
-                    call.respond(response)
-                }
-
-                get("video"){
-                    val userId = call.parameters["userId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing userId")
-                    val key = call.parameters["key"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing userId")
-                    val response = MediaController.getVideo(userId, key)
+                get("media"){
+                    val path = call.parameters["path"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing path to media")
+                    val response = MediaController.getPresignedUrlFromPath(path)
                     call.respond(response)
                 }
             }
