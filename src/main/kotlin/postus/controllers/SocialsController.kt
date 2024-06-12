@@ -771,7 +771,7 @@ class SocialsController {
 
     //LINKEDIN FUNCTIONS
 
-    fun getLinkedInAccessToken(authCode: String): LinkedinOAuthResponse? {
+    fun getLinkedInAccessToken(userId: Int, authCode: String): Boolean? {
         val clientId = dotenv["LINKEDIN_CLIENT_ID"] ?: throw Exception("LinkedIn client ID not found")
         val clientSecret = dotenv["LINKEDIN_CLIENT_SECRET"] ?: throw Exception("LinkedIn client secret not found")
         val redirectUri = dotenv["LINKEDIN_REDIRECT_URI"] ?: throw Exception("LinkedIn redirect URI not found")
@@ -794,10 +794,12 @@ class SocialsController {
         val responseBody = response.body?.string() ?: return null
         if (!response.isSuccessful) return null
 
-        return Json { ignoreUnknownKeys = true }.decodeFromString<LinkedinOAuthResponse>(responseBody)
+        val linkedInOAuthResponse = Json { ignoreUnknownKeys = true }.decodeFromString<LinkedinOAuthResponse>(responseBody)
+        userController.linkAccount(userId, "LINKEDIN", null, linkedInOAuthResponse.accessToken, linkedInOAuthResponse.refreshToken)
+        return true
     }
 
-    fun refreshLinkedInAccessToken(refreshToken: String): LinkedinOAuthResponse? {
+    fun refreshLinkedInAccessToken(userId: Int, refreshToken: String): Boolean? {
         val clientId = dotenv["LINKEDIN_CLIENT_ID"] ?: throw Exception("LinkedIn client ID not found")
         val clientSecret = dotenv["LINKEDIN_CLIENT_SECRET"] ?: throw Exception("LinkedIn client secret not found")
         val tokenUrl = dotenv["LINKEDIN_TOKEN_URL"] ?: throw Exception("LinkedIn token URL not found")
@@ -818,7 +820,9 @@ class SocialsController {
         val responseBody = response.body?.string() ?: return null
         if (!response.isSuccessful) return null
 
-        return Json { ignoreUnknownKeys = true }.decodeFromString<LinkedinOAuthResponse>(responseBody)
+        val linkedInOAuthResponse = Json { ignoreUnknownKeys = true }.decodeFromString<LinkedinOAuthResponse>(responseBody)
+        userController.linkAccount(userId, "LINKEDIN", null, linkedInOAuthResponse.accessToken, linkedInOAuthResponse.refreshToken)
+        return true
     }
 
     fun postToLinkedIn(accessToken: String, content: String, author: String): Boolean {
