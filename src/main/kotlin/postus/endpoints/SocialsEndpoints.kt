@@ -120,7 +120,7 @@ fun Application.configureSocialsRouting(userService: UserController) {
                         HttpStatusCode.BadRequest,
                         "Missing content"
                     )
-                    val response = SocialsController.postToLinkedIn(userId.toInt(), content)
+                    val response = socialController.postToLinkedIn(userId.toInt(), content)
                     call.respond(HttpStatusCode.OK, response)
                 }
             }
