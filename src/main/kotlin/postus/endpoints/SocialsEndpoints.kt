@@ -15,7 +15,7 @@ import io.github.cdimascio.dotenv.Dotenv
 
 val SocialsController = SocialsController()
 
-fun Application.configureSocialsRouting(userService: UserController, dotenv: Dotenv) {
+fun Application.configureSocialsRouting(userService: UserController) {
     routing {
         route("socials"){
             route("publish"){
@@ -181,7 +181,7 @@ fun Application.configureSocialsRouting(userService: UserController, dotenv: Dot
                     SocialsController.getLongLivedAccessTokenAndInstagramBusinessAccountId(user!!.id, code)
 
                     if (platform == "web") {
-                        call.respondRedirect(dotenv["FRONTEND_REDIRECT"]!!)
+                        call.respondRedirect(System.getenv("FRONTEND_REDIRECT"))
                     } else if (platform == "ios") {
                         // For iOS, you might need to use a custom scheme to notify the app
                         call.respond(HttpStatusCode.OK, "You can now close this window and return to the app.")
@@ -197,7 +197,7 @@ fun Application.configureSocialsRouting(userService: UserController, dotenv: Dot
 
                     SocialsController.fetchYouTubeAccessToken(user!!.id, code)
                     if (platform == "web") {
-                        call.respondRedirect(dotenv["FRONTEND_REDIRECT"]!!)
+                        call.respondRedirect(System.getenv("FRONTEND_REDIRECT"))
                     } else if (platform == "ios") {
                         // For iOS, you might need to use a custom scheme to notify the app
                         call.respond(HttpStatusCode.OK, "You can now close this window and return to the app.")

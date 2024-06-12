@@ -1,6 +1,7 @@
 package postus.controllers
 
 import io.github.cdimascio.dotenv.Dotenv
+import kotlinx.serialization.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
@@ -25,7 +26,6 @@ class SocialsController {
     private val client = OkHttpClient()
     private val userRepository = UserRepository()
     private val userController = UserController(userRepository)
-    private val dotenv = Dotenv.configure().ignoreIfMissing().load()
 
     fun uploadVideoToInstagram(userId: String, videoUrl: String, caption: String? = ""): String {
         val user = userRepository.findById(userId.toInt())
@@ -207,8 +207,8 @@ class SocialsController {
     }
 
     fun refreshInstagramAccessToken(userId: Int) {
-        val clientId = dotenv["INSTAGRAM_CLIENT_ID"]
-        val clientSecret = dotenv["INSTAGRAM_CLIENT_SECRET"]
+        val clientId = System.getProperty("INSTAGRAM_CLIENT_ID")
+        val clientSecret = System.getProperty("INSTAGRAM_CLIENT_SECRET")
         val refreshToken = userRepository.findById(userId)?.instagramRefresh ?: throw Exception("User or refresh token not found")
         val url = "https://graph.instagram.com/refresh_access_token".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("grant_type", "ig_refresh_token")
@@ -279,9 +279,9 @@ class SocialsController {
 
     fun getLongLivedAccessTokenAndInstagramBusinessAccountId(userId: Int, code: String): Pair<String?, String?> {
 
-        val clientId = dotenv["INSTAGRAM_CLIENT_ID"]
-        val clientSecret = dotenv["INSTAGRAM_CLIENT_SECRET"]
-        val redirectUri = dotenv["INSTAGRAM_REDIRECT_URI"]
+        val clientId = System.getProperty("INSTAGRAM_CLIENT_ID")
+        val clientSecret = System.getProperty("INSTAGRAM_CLIENT_SECRET")
+        val redirectUri = System.getProperty("INSTAGRAM_REDIRECT_URI")
         val shortLivedToken = exchangeCodeForAccessToken(clientId!!, clientSecret!!, redirectUri!!, code) ?: return null to null
 
         val longLivedToken = exchangeShortLivedTokenForLongLivedToken(clientId, clientSecret, shortLivedToken) ?: return null to null
@@ -415,9 +415,9 @@ class SocialsController {
 
     fun fetchYouTubeAccessToken(userId: Int, code: String): Boolean {
 
-        val clientId = dotenv["GOOGLE_CLIENT_ID"]
-        val clientSecret = dotenv["GOOGLE_CLIENT_SECRET"]
-        val redirectUri = dotenv["GOOGLE_REDIRECT_URI"]
+        val clientId = System.getProperty("GOOGLE_CLIENT_ID")
+        val clientSecret = System.getProperty("GOOGLE_CLIENT_SECRET")
+        val redirectUri = System.getProperty("GOOGLE_REDIRECT_URI")
         val requestBody = FormBody.Builder()
             .add("code", code)
             .add("client_id", clientId!!)
@@ -427,7 +427,7 @@ class SocialsController {
             .build()
 
         val request = Request.Builder()
-            .url(dotenv["GOOGLE_TOKEN_URL"]!!)
+            .url(System.getProperty("GOOGLE_TOKEN_URL"))
             .post(requestBody)
             .build()
 
@@ -442,8 +442,8 @@ class SocialsController {
     }
 
     fun refreshYouTubeAccessToken(userId: String): String? {
-        val clientId = dotenv["GOOGLE_CLIENT_ID"]
-        val clientSecret = dotenv["GOOGLE_CLIENT_SECRET"]
+        val clientId = System.getProperty("GOOGLE_CLIENT_ID")
+        val clientSecret = System.getProperty("GOOGLE_CLIENT_SECRET")
         val user = userRepository.findById(userId.toInt())
         val refreshToken = user?.googleRefresh ?: throw Exception("User not found")
 
@@ -455,7 +455,7 @@ class SocialsController {
             .build()
 
         val request = Request.Builder()
-            .url(dotenv["GOOGLE_TOKEN_URL"]!!)
+            .url(System.getProperty("GOOGLE_TOKEN_URL"))
             .post(requestBody)
             .build()
 
@@ -514,7 +514,7 @@ class SocialsController {
     }
 
     fun getYouTubeUploadsPlaylistId(userId: String): String? {
-        val apiKey = dotenv["GOOGLE_API_KEY"]
+        val apiKey = System.getProperty("GOOGLE_API_KEY")
         val user = userRepository.findById(userId.toInt())
         val channelId = user?.googleAccountId ?: throw Exception("Youtube ChannelId not found")
         val url = "https://www.googleapis.com/youtube/v3/channels".toHttpUrlOrNull()!!.newBuilder()
@@ -550,7 +550,7 @@ class SocialsController {
     fun getLast10YouTubeVideos(userId: String): List<String>? {
         val user = userRepository.findById(userId.toInt())
         val channelId = user?.googleAccountId ?: throw Exception("Youtube ChannelId not found")
-        val apiKey = dotenv["GOOGLE_API_KEY"]
+        val apiKey = System.getProperty("GOOGLE_API_KEY")
         val uploadsPlaylistId = getYouTubeUploadsPlaylistId(channelId) ?: return null
 
         val url = "https://www.googleapis.com/youtube/v3/playlistItems".toHttpUrlOrNull()!!.newBuilder()
@@ -611,7 +611,7 @@ class SocialsController {
     }
 
     fun getYouTubeChannelAnalytics(userId: String): String? {
-        val apiKey = dotenv["GOOGLE_API_KEY"]
+        val apiKey = System.getProperty("GOOGLE_API_KEY")
         val user = userRepository.findById(userId.toInt())
         val channelId = user?.googleAccountId ?: throw Exception("Youtube ChannelId not found")
         val url = "https://www.googleapis.com/youtube/v3/channels".toHttpUrlOrNull()!!.newBuilder()
@@ -633,7 +633,7 @@ class SocialsController {
     }
 
     fun getYouTubeVideoAnalytics(videoId: String): String? {
-        val apiKey = dotenv["GOOGLE_API_KEY"]
+        val apiKey = System.getProperty("GOOGLE_API_KEY")
         val url = "https://www.googleapis.com/youtube/v3/videos".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("part", "statistics")
             .addQueryParameter("id", videoId)
@@ -655,9 +655,9 @@ class SocialsController {
     //TWITTER FUNCTIONS
 
     fun fetchTwitterAccessToken(userId: String, code: String): String? {
-        val clientId = dotenv["TWITTER_CLIENT_ID"] ?: throw Error("Missing Twitter client ID")
-        val clientSecret = dotenv["TWITTER_CLIENT_SECRET"] ?: throw Error("Missing Twitter client secret")
-        val redirectUri = dotenv["TWITTER_REDIRECT_URI"] ?: throw Error("Missing Twitter redirect URI")
+        val clientId = System.getProperty("TWITTER_CLIENT_ID") ?: throw Error("Missing Twitter client ID")
+        val clientSecret = System.getProperty("TWITTER_CLIENT_SECRET") ?: throw Error("Missing Twitter client secret")
+        val redirectUri = System.getProperty("TWITTER_REDIRECT_URI") ?: throw Error("Missing Twitter redirect URI")
         val requestBody = FormBody.Builder()
             .add("grant_type", "authorization_code")
             .add("client_id", clientId)
@@ -688,8 +688,8 @@ class SocialsController {
     fun refreshTwitterAccessToken(userId: String): String? {
         val user = userRepository.findById(userId.toInt())
         val refreshToken = user?.twitterRefresh ?: throw Exception("User not found")
-        val clientId = dotenv["TWITTER_CLIENT_ID"] ?: throw Error("Missing Twitter client ID")
-        val clientSecret = dotenv["TWITTER_CLIENT_SECRET"] ?: throw Error("Missing Twitter client secret")
+        val clientId = System.getProperty("TWITTER_CLIENT_ID") ?: throw Error("Missing Twitter client ID")
+        val clientSecret = System.getProperty("TWITTER_CLIENT_SECRET") ?: throw Error("Missing Twitter client secret")
         val requestBody = FormBody.Builder()
             .add("grant_type", "refresh_token")
             .add("refresh_token", refreshToken)
