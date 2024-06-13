@@ -37,35 +37,19 @@ fun Application.module() {
         }
     }
 
-    // Setting environment variables
-    setEnvVariable("DB_URL", dotenv?.get("DB_URL") ?: System.getenv("DB_URL"))
-    setEnvVariable("DB_USER", dotenv?.get("DB_USER") ?: System.getenv("DB_USER"))
-    setEnvVariable("DB_PASSWORD", dotenv?.get("DB_PASSWORD") ?: System.getenv("DB_PASSWORD"))
-    setEnvVariable("DB_DRIVER", dotenv?.get("DB_DRIVER") ?: System.getenv("DB_DRIVER"))
-    setEnvVariable("DB_MAX_POOL_SIZE", dotenv?.get("DB_MAX_POOL_SIZE") ?: System.getenv("DB_MAX_POOL_SIZE"))
+    // Set environment variables
+    val keys = listOf(
+        "DB_URL", "DB_USER", "DB_PASSWORD", "DB_DRIVER", "DB_MAX_POOL_SIZE",
+        "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_API_KEY", "GOOGLE_REDIRECT_URI",
+        "GOOGLE_TOKEN_URL", "GOOGLE_USER_INFO_URL", "FACEBOOK_CLIENT_ID", "FACEBOOK_CLIENT_SECRET",
+        "FACEBOOK_REDIRECT_URI", "FACEBOOK_TOKEN_URL", "FACEBOOK_USER_INFO_URL", "INSTAGRAM_CLIENT_ID",
+        "INSTAGRAM_CLIENT_SECRET", "INSTAGRAM_REDIRECT_URI", "INSTAGRAM_TOKEN_URL", "INSTAGRAM_USER_INFO_URL",
+        "JWT_SECRET", "JWT_EXPIRATION", "JWT_ISSUER"
+    )
 
-    setEnvVariable("GOOGLE_CLIENT_ID", dotenv?.get("GOOGLE_CLIENT_ID") ?: System.getenv("GOOGLE_CLIENT_ID"))
-    setEnvVariable("GOOGLE_CLIENT_SECRET", dotenv?.get("GOOGLE_CLIENT_SECRET") ?: System.getenv("GOOGLE_CLIENT_SECRET"))
-    setEnvVariable("GOOGLE_API_KEY", dotenv?.get("GOOGLE_API_KEY") ?: System.getenv("GOOGLE_API_KEY"))
-    setEnvVariable("GOOGLE_REDIRECT_URI", dotenv?.get("GOOGLE_REDIRECT_URI") ?: System.getenv("GOOGLE_REDIRECT_URI"))
-    setEnvVariable("GOOGLE_TOKEN_URL", dotenv?.get("GOOGLE_TOKEN_URL") ?: System.getenv("GOOGLE_TOKEN_URL"))
-    setEnvVariable("GOOGLE_USER_INFO_URL", dotenv?.get("GOOGLE_USER_INFO_URL") ?: System.getenv("GOOGLE_USER_INFO_URL"))
-
-    setEnvVariable("FACEBOOK_CLIENT_ID", dotenv?.get("FACEBOOK_CLIENT_ID") ?: System.getenv("FACEBOOK_CLIENT_ID"))
-    setEnvVariable("FACEBOOK_CLIENT_SECRET", dotenv?.get("FACEBOOK_CLIENT_SECRET") ?: System.getenv("FACEBOOK_CLIENT_SECRET"))
-    setEnvVariable("FACEBOOK_REDIRECT_URI", dotenv?.get("FACEBOOK_REDIRECT_URI") ?: System.getenv("FACEBOOK_REDIRECT_URI"))
-    setEnvVariable("FACEBOOK_TOKEN_URL", dotenv?.get("FACEBOOK_TOKEN_URL") ?: System.getenv("FACEBOOK_TOKEN_URL"))
-    setEnvVariable("FACEBOOK_USER_INFO_URL", dotenv?.get("FACEBOOK_USER_INFO_URL") ?: System.getenv("FACEBOOK_USER_INFO_URL"))
-
-    setEnvVariable("INSTAGRAM_CLIENT_ID", dotenv?.get("INSTAGRAM_CLIENT_ID") ?: System.getenv("INSTAGRAM_CLIENT_ID"))
-    setEnvVariable("INSTAGRAM_CLIENT_SECRET", dotenv?.get("INSTAGRAM_CLIENT_SECRET") ?: System.getenv("INSTAGRAM_CLIENT_SECRET"))
-    setEnvVariable("INSTAGRAM_REDIRECT_URI", dotenv?.get("INSTAGRAM_REDIRECT_URI") ?: System.getenv("INSTAGRAM_REDIRECT_URI"))
-    setEnvVariable("INSTAGRAM_TOKEN_URL", dotenv?.get("INSTAGRAM_TOKEN_URL") ?: System.getenv("INSTAGRAM_TOKEN_URL"))
-    setEnvVariable("INSTAGRAM_USER_INFO_URL", dotenv?.get("INSTAGRAM_USER_INFO_URL") ?: System.getenv("INSTAGRAM_USER_INFO_URL"))
-
-    setEnvVariable("JWT_SECRET", dotenv?.get("JWT_SECRET") ?: System.getenv("JWT_SECRET"))
-    setEnvVariable("JWT_EXPIRATION", dotenv?.get("JWT_EXPIRATION") ?: System.getenv("JWT_EXPIRATION"))
-    setEnvVariable("JWT_ISSUER", dotenv?.get("JWT_ISSUER") ?: System.getenv("JWT_ISSUER"))
+    keys.forEach { key ->
+        setEnvVariable(key, dotenv?.get(key) ?: System.getenv(key))
+    }
 
     install(CORS) {
         allowMethod(HttpMethod.Options)

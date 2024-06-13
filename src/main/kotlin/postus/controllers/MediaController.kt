@@ -6,6 +6,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider
+import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsProvider
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request
@@ -32,10 +33,17 @@ class MediaController {
     fun uploadImage(userId: String, image : ByteArray) : String {
         val bucketName = "postus-user-media"
         val region = Region.US_EAST_1
+        val production = System.getProperty("production")
+
+        val credentials = if (production == "true") {
+            EnvironmentVariableCredentialsProvider.create()
+        } else {
+            DefaultCredentialsProvider.create()
+        }
 
         val presigner = S3Presigner.builder()
             .region(region)
-            .credentialsProvider(DefaultCredentialsProvider.create())
+            .credentialsProvider(credentials)
             .build()
 
         val fileName = generateFileName()
@@ -63,9 +71,16 @@ class MediaController {
         val bucketName = "postus-user-media"
         val region = Region.US_EAST_1
 
+        val production = System.getProperty("production")
+
+        val credentials = if (production == "true") {
+            EnvironmentVariableCredentialsProvider.create()
+        } else {
+            DefaultCredentialsProvider.create()
+        }
         val presigner = S3Presigner.builder()
             .region(region)
-            .credentialsProvider(DefaultCredentialsProvider.create())
+            .credentialsProvider(credentials)
             .build()
 
         val fileName = generateFileName() + ".mp4"
@@ -92,12 +107,18 @@ class MediaController {
     fun getPresignedUrlFromKey(key: String): String {
         val bucketName = "postus-user-media"
         val region = Region.US_EAST_1
+        val production = System.getProperty("production")
+
+        val credentials = if (production == "true") {
+            EnvironmentVariableCredentialsProvider.create()
+        } else {
+            DefaultCredentialsProvider.create()
+        }
 
         val presigner = S3Presigner.builder()
             .region(region)
-            .credentialsProvider(DefaultCredentialsProvider.create())
+            .credentialsProvider(credentials)
             .build()
-
         val getObjectRequest = GetObjectPresignRequest.builder()
             .getObjectRequest { builder ->
                 builder.bucket(bucketName).key(key)
@@ -117,9 +138,17 @@ class MediaController {
     fun getImageList(userId: String) : ImageListResponse {
         val bucketName = "postus-user-media"
 
+        val production = System.getProperty("production")
+
+        val credentials = if (production == "true") {
+            EnvironmentVariableCredentialsProvider.create()
+        } else {
+            DefaultCredentialsProvider.create()
+        }
+
         val s3Client = S3Client.builder()
             .region(Region.US_EAST_1)
-            .credentialsProvider(DefaultCredentialsProvider.create())
+            .credentialsProvider(credentials)
             .build()
 
         val listRequest = ListObjectsV2Request.builder()
@@ -135,9 +164,17 @@ class MediaController {
     fun getVideoList(userId: String) : VideoListResponse {
         val bucketName = "postus-user-media"
 
+        val production = System.getProperty("production")
+
+        val credentials = if (production == "true") {
+            EnvironmentVariableCredentialsProvider.create()
+        } else {
+            DefaultCredentialsProvider.create()
+        }
+
         val s3Client = S3Client.builder()
             .region(Region.US_EAST_1)
-            .credentialsProvider(DefaultCredentialsProvider.create())
+            .credentialsProvider(credentials)
             .build()
 
         val listRequest = ListObjectsV2Request.builder()
