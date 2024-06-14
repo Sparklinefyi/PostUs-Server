@@ -3,6 +3,8 @@ import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.sql.*
 import postus.models.auth.Users
 import org.jetbrains.exposed.sql.transactions.transaction
+import postus.models.auth.User
+import postus.models.auth.UserInfo
 
 @Serializable
 data class UserInfo(
@@ -45,7 +47,6 @@ data class User(
     val description: String
 )
 
-
 class UserRepository {
     fun findByEmail(email: String): User? {
         return transaction {
@@ -62,7 +63,6 @@ class UserRepository {
                 .singleOrNull()
         }
     }
-
 
     fun save(user: User): UserInfo {
         val savedUser = transaction {
@@ -158,6 +158,21 @@ class UserRepository {
             tiktokAccountId = row[Users.tiktokAccountId],
             tiktokAccessToken = row[Users.tiktokAccessToken],
             tiktokRefresh = row[Users.tiktokRefresh]
+        )
+    }
+
+    fun toUserInfo(user: User): UserInfo {
+        return UserInfo(
+            id = user.id,
+            email = user.email,
+            name = user.name,
+            role = user.role,
+            createdAt = user.createdAt,
+            description = user.description,
+            googleAccountId = user.googleAccountId,
+            facebookAccountId = user.facebookAccountId,
+            twitterAccountId = user.twitterAccountId,
+            instagramAccountId = user.instagramAccountId,
         )
     }
 }

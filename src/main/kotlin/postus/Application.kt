@@ -32,7 +32,6 @@ fun main() {
 
     startScheduledPostsChecker(socialController)
 
-
     val port = System.getenv("PORT")?.toInt() ?: 8080
     embeddedServer(Netty, port, host = if (port == 8080) "localhost" else "0.0.0.0", module = Application::module)
         .start(wait = true)
@@ -55,6 +54,7 @@ fun Application.module() {
         "GOOGLE_TOKEN_URL", "GOOGLE_USER_INFO_URL", "FACEBOOK_CLIENT_ID", "FACEBOOK_CLIENT_SECRET",
         "FACEBOOK_REDIRECT_URI", "FACEBOOK_TOKEN_URL", "FACEBOOK_USER_INFO_URL", "INSTAGRAM_CLIENT_ID",
         "INSTAGRAM_CLIENT_SECRET", "INSTAGRAM_REDIRECT_URI", "INSTAGRAM_TOKEN_URL", "INSTAGRAM_USER_INFO_URL",
+
         "TWITTER_CLIENT_ID", "TWITTER_CLIENT_SECRET", "TWITTER_REDIRECT_URI", "TWITTER_API_KEY", "TWITTER_API_SECRET",
         "TWITTER_ACCESS_TOKEN", "TWITTER_ACCESS_TOKEN_SECRET", "LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET",
         "LINKEDIN_REDIRECT_URI", "LINKEDIN_TOKEN_URL", "LINKEDIN_POST_URL", "LINKEDIN_POST_ANALYTICS",

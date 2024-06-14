@@ -32,3 +32,43 @@ object Users : IntIdTable() {
     val timeCreated = datetime("time_created").default(now())
     val timeUpdated = datetime("time_updated").default(now())
 }
+
+
+@Serializable
+data class User(
+    val id: Int,
+    val email: String,
+    val name: String,
+    val passwordHash: String,
+    val googleAccountId: String?,
+    val googleAccessToken: String?,
+    val googleRefresh: String?,
+    val facebookAccountId: String?,
+    val facebookAccessToken: String?,
+    val facebookRefresh: String?,
+    val twitterAccountId: String?,
+    val twitterAccessToken: String?,
+    val twitterRefresh: String?,
+    val instagramAccountId: String?,
+    val instagramAccessToken: String?,
+    val instagramRefresh: String?,
+    val createdAt: String,
+    val updatedAt: String,
+    val role: String,
+    val description: String
+)
+
+@Serializable
+data class UserInfo(
+    val id: Int,
+    val email: String,
+    val name: String,
+    val role: String,
+    val createdAt: String,
+    val description: String = "",
+    val token: String = "",
+    val googleAccountId: String? = "",
+    val facebookAccountId: String? = "",
+    val twitterAccountId: String? = "",
+    val instagramAccountId: String? = "",
+)

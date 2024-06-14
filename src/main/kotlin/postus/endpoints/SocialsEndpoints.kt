@@ -239,6 +239,7 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
                     val userId = userInfo.id.toString()
                     val code = call.parameters["code"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing code parameter")
                     twitterController.fetchTwitterAccessToken(userId, code)
+
                     call.respond(200)
                 }
                 get("linkedin"){

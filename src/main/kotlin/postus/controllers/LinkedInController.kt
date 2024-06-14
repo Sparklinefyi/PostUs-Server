@@ -68,6 +68,7 @@ class LinkedInController (client: OkHttpClient, userRepository: UserRepository, 
      */
     fun refreshLinkedInAccessToken(userId: Int, refreshToken: String): Boolean? {
         val clientId = System.getProperty("LINKEDIN_CLIENT_ID") ?: throw Exception("LinkedIn client ID not found")
+
         val clientSecret =
             System.getProperty("LINKEDIN_CLIENT_SECRET") ?: throw Exception("LinkedIn client secret not found")
 
@@ -122,7 +123,6 @@ class LinkedInController (client: OkHttpClient, userRepository: UserRepository, 
         return profileData["id"]
     }
 
-
     /**
      * Post to LinkedIn.
      * Sample Call:
@@ -130,8 +130,10 @@ class LinkedInController (client: OkHttpClient, userRepository: UserRepository, 
      */
     fun postToLinkedIn(userId: Int, content: String): Boolean {
         val user = userRepository.findById(userId)
+
         val accessToken = user?.linkedinAccessToken ?: throw Exception("User not found")
         val accountId = user.linkedinAccountId ?: throw Exception("LinkedIn account ID not found")
+
         val postUrl = System.getProperty("LINKEDIN_POST_URL") ?: throw Exception("LinkedIn post URL not found")
 
         val postRequest = LinkedInPostRequest(
@@ -172,8 +174,10 @@ class LinkedInController (client: OkHttpClient, userRepository: UserRepository, 
      * `getLinkedInPostAnalytics("accessToken", "postUrn")`
      */
     fun getLinkedInPostAnalytics(accessToken: String, postUrn: String): LinkedInAnalyticsResponse? {
+
         val analyticsUrl =
             System.getProperty("LINKEDIN_ANALYTICS_URL") ?: throw Exception("LinkedIn analytics URL not found")
+
         val url = analyticsUrl.toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("q", "statistics")
             .addQueryParameter("shares", postUrn)
@@ -190,5 +194,6 @@ class LinkedInController (client: OkHttpClient, userRepository: UserRepository, 
         if (!response.isSuccessful) return null
 
         return Json { ignoreUnknownKeys = true }.decodeFromString<LinkedInAnalyticsResponse>(responseBody)
+
     }
 }
