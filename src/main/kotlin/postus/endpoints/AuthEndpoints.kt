@@ -26,7 +26,7 @@ fun Application.configureAuthRouting(userService: UserController) {
                 val user = userService.authenticateWithEmailPassword(request.email, request.password)
                 if (user != null) {
                     val token = JwtHandler().makeToken(user.id.toString())
-                    val response = UserInfo(user.id, user.email, user.name, user.role, user.description, user.createdAt, token,
+                    val response = UserInfo(user.id, user.email, user.name, user.role, user.createdAt, user.description, token,
                         user.googleAccountId, user.facebookAccountId, user.twitterAccountId, user.instagramAccountId);
                     call.respond(HttpStatusCode.OK, response)
                 }
