@@ -42,7 +42,13 @@ class UserController(
             twitterRefresh = null,
             instagramAccountId = null,
             instagramAccessToken = null,
-            instagramRefresh = null
+            instagramRefresh = null,
+            linkedinAccountId = null,
+            linkedinAccessToken = null,
+            linkedinRefresh = null,
+            tiktokAccountId = null,
+            tiktokAccessToken = null,
+            tiktokRefresh = null
         )
         userRepository.save(user)
     }
@@ -101,7 +107,13 @@ class UserController(
             twitterRefresh = if (provider == "TWITTER" && refreshToken != null) refreshToken else user.twitterRefresh,
             instagramAccountId = if (provider == "INSTAGRAM" && accountId != null) accountId else user.instagramAccountId,
             instagramAccessToken = if (provider == "INSTAGRAM" && accessToken != null) accessToken else user.instagramAccessToken,
-            instagramRefresh = if (provider == "INSTAGRAM" && refreshToken != null) refreshToken else user.instagramRefresh
+            instagramRefresh = if (provider == "INSTAGRAM" && refreshToken != null) refreshToken else user.instagramRefresh,
+            linkedinAccountId = if (provider == "LINKEDIN" && accountId != null) accountId else user.linkedinAccountId,
+            linkedinAccessToken = if (provider == "LINKEDIN" && accessToken != null) accessToken else user.linkedinAccessToken,
+            linkedinRefresh = if (provider == "LINKEDIN" && refreshToken != null) refreshToken else user.linkedinRefresh,
+            tiktokAccountId = if (provider == "TIKTOK" && accountId != null) accountId else user.tiktokAccountId,
+            tiktokAccessToken = if (provider == "TIKTOK" && accessToken != null) accessToken else user.tiktokAccessToken,
+            tiktokRefresh = if (provider == "TIKTOK" && refreshToken != null) refreshToken else user.tiktokRefresh
         )
 
         if (updatedUser == user) {

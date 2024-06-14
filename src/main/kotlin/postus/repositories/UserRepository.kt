@@ -33,6 +33,12 @@ data class User(
     val instagramAccountId: String?,
     val instagramAccessToken: String?,
     val instagramRefresh: String?,
+    val linkedinAccountId: String?,
+    val linkedinAccessToken: String?,
+    val linkedinRefresh: String?,
+    val tiktokAccountId: String?,
+    val tiktokAccessToken: String?,
+    val tiktokRefresh: String?,
     val createdAt: String,
     val updatedAt: String,
     val role: String,
@@ -106,6 +112,12 @@ class UserRepository {
                 it[instagramAccountId] = user.instagramAccountId
                 it[instagramAccessToken] = user.instagramAccessToken
                 it[instagramRefresh] = user.instagramRefresh
+                it[linkedinAccountId] = user.linkedinAccountId
+                it[linkedinAccessToken] = user.linkedinAccessToken
+                it[linkedinRefresh] = user.linkedinRefresh
+                it[tiktokAccountId] = user.tiktokAccountId
+                it[tiktokAccessToken] = user.tiktokAccessToken
+                it[tiktokRefresh] = user.tiktokRefresh
             }
         }
     }
@@ -140,6 +152,12 @@ class UserRepository {
             instagramAccountId = row[Users.instagramAccountId],
             instagramAccessToken = row[Users.instagramAccessToken],
             instagramRefresh = row[Users.instagramRefresh],
+            linkedinAccountId = row[Users.linkedinAccountId],
+            linkedinAccessToken = row[Users.linkedinAccessToken],
+            linkedinRefresh = row[Users.linkedinRefresh],
+            tiktokAccountId = row[Users.tiktokAccountId],
+            tiktokAccessToken = row[Users.tiktokAccessToken],
+            tiktokRefresh = row[Users.tiktokRefresh]
         )
     }
 }
