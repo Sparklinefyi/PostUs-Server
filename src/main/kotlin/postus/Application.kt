@@ -63,6 +63,21 @@ fun Application.module() {
     setEnvVariable("INSTAGRAM_TOKEN_URL", dotenv?.get("INSTAGRAM_TOKEN_URL") ?: System.getenv("INSTAGRAM_TOKEN_URL"))
     setEnvVariable("INSTAGRAM_USER_INFO_URL", dotenv?.get("INSTAGRAM_USER_INFO_URL") ?: System.getenv("INSTAGRAM_USER_INFO_URL"))
 
+    setEnvVariable("TWITTER_CLIENT_ID", dotenv?.get("TWITTER_CLIENT_ID") ?: System.getenv("TWITTER_CLIENT_ID"))
+    setEnvVariable("TWITTER_CLIENT_SECRET", dotenv?.get("TWITTER_CLIENT_SECRET") ?: System.getenv("TWITTER_CLIENT_SECRET"))
+    setEnvVariable("TWITTER_REDIRECT_URI", dotenv?.get("TWITTER_REDIRECT_URI") ?: System.getenv("TWITTER_REDIRECT_URI"))
+    setEnvVariable("TWITTER_API_KEY", dotenv?.get("TWITTER_API_KEY") ?: System.getenv("TWITTER_API_KEY"))
+    setEnvVariable("TWITTER_API_SECRET", dotenv?.get("TWITTER_API_SECRET") ?: System.getenv("TWITTER_API_SECRET"))
+    setEnvVariable("TWITTER_ACCESS_TOKEN", dotenv?.get("TWITTER_ACCESS_TOKEN") ?: System.getenv("TWITTER_ACCESS_TOKEN"))
+    setEnvVariable("TWITTER_ACCESS_TOKEN_SECRET", dotenv?.get("TWITTER_ACCESS_TOKEN_SECRET") ?: System.getenv("TWITTER_ACCESS_TOKEN_SECRET"))
+
+    setEnvVariable("LINKEDIN_CLIENT_ID", dotenv?.get("LINKEDIN_CLIENT_ID") ?: System.getenv("LINKEDIN_CLIENT_ID"))
+    setEnvVariable("LINKEDIN_CLIENT_SECRET", dotenv?.get("LINKEDIN_CLIENT_SECRET") ?: System.getenv("LINKEDIN_CLIENT_SECRET"))
+    setEnvVariable("LINKEDIN_REDIRECT_URI", dotenv?.get("LINKEDIN_REDIRECT_URI") ?: System.getenv("LINKEDIN_REDIRECT_URI"))
+    setEnvVariable("LINKEDIN_TOKEN_URL", dotenv?.get("LINKEDIN_TOKEN_URL") ?: System.getenv("LINKEDIN_TOKEN_URL"))
+    setEnvVariable("LINKEDIN_POST_URL", dotenv?.get("LINKEDIN_POST_URL") ?: System.getenv("LINKEDIN_POST_URL"))
+    setEnvVariable("LINKEDIN_POST_ANALYTICS", dotenv?.get("LINKEDIN_POST_ANALYTICS") ?: System.getenv("LINKEDIN_POST_ANALYTICS"))
+
     setEnvVariable("JWT_SECRET", dotenv?.get("JWT_SECRET") ?: System.getenv("JWT_SECRET"))
     setEnvVariable("JWT_EXPIRATION", dotenv?.get("JWT_EXPIRATION") ?: System.getenv("JWT_EXPIRATION"))
     setEnvVariable("JWT_ISSUER", dotenv?.get("JWT_ISSUER") ?: System.getenv("JWT_ISSUER"))
