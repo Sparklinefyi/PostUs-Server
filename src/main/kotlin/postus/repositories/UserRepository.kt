@@ -6,47 +6,6 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import postus.models.auth.User
 import postus.models.auth.UserInfo
 
-@Serializable
-data class UserInfo(
-    val id: Int,
-    val email: String,
-    val name: String,
-    val role: String,
-    val createdAt: String,
-    val description: String = "",
-    val token: String = ""
-)
-
-@Serializable
-data class User(
-    val id: Int,
-    val email: String,
-    val name: String,
-    val passwordHash: String,
-    val googleAccountId: String?,
-    val googleAccessToken: String?,
-    val googleRefresh: String?,
-    val facebookAccountId: String?,
-    val facebookAccessToken: String?,
-    val facebookRefresh: String?,
-    val twitterAccountId: String?,
-    val twitterAccessToken: String?,
-    val twitterRefresh: String?,
-    val instagramAccountId: String?,
-    val instagramAccessToken: String?,
-    val instagramRefresh: String?,
-    val linkedinAccountId: String?,
-    val linkedinAccessToken: String?,
-    val linkedinRefresh: String?,
-    val tiktokAccountId: String?,
-    val tiktokAccessToken: String?,
-    val tiktokRefresh: String?,
-    val createdAt: String,
-    val updatedAt: String,
-    val role: String,
-    val description: String
-)
-
 class UserRepository {
     fun findByEmail(email: String): User? {
         return transaction {
@@ -169,10 +128,10 @@ class UserRepository {
             role = user.role,
             createdAt = user.createdAt,
             description = user.description,
-            googleAccountId = user.googleAccountId,
-            facebookAccountId = user.facebookAccountId,
-            twitterAccountId = user.twitterAccountId,
-            instagramAccountId = user.instagramAccountId,
+            googleAccountId = user.googleAccountId?: "",
+            facebookAccountId = user.facebookAccountId?: "",
+            twitterAccountId = user.twitterAccountId?: "",
+            instagramAccountId = user.instagramAccountId?: "",
         )
     }
 }

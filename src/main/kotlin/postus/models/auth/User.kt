@@ -4,6 +4,7 @@ import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.Column
 import org.jetbrains.exposed.sql.javatime.datetime
 import java.time.LocalDateTime.now
+import kotlinx.serialization.Serializable
 
 object Users : IntIdTable() {
     val email = varchar("email", 255).uniqueIndex()
@@ -33,6 +34,20 @@ object Users : IntIdTable() {
     val timeUpdated = datetime("time_updated").default(now())
 }
 
+@Serializable
+data class UserInfo(
+    val id: Int,
+    val email: String,
+    val name: String,
+    val role: String,
+    val createdAt: String,
+    val description: String = "",
+    val token: String = "",
+    val googleAccountId: String = "",
+    val facebookAccountId: String = "",
+    val twitterAccountId: String = "",
+    val instagramAccountId: String = ""
+)
 
 @Serializable
 data class User(
@@ -52,23 +67,14 @@ data class User(
     val instagramAccountId: String?,
     val instagramAccessToken: String?,
     val instagramRefresh: String?,
+    val linkedinAccountId: String?,
+    val linkedinAccessToken: String?,
+    val linkedinRefresh: String?,
+    val tiktokAccountId: String?,
+    val tiktokAccessToken: String?,
+    val tiktokRefresh: String?,
     val createdAt: String,
     val updatedAt: String,
     val role: String,
     val description: String
-)
-
-@Serializable
-data class UserInfo(
-    val id: Int,
-    val email: String,
-    val name: String,
-    val role: String,
-    val createdAt: String,
-    val description: String = "",
-    val token: String = "",
-    val googleAccountId: String? = "",
-    val facebookAccountId: String? = "",
-    val twitterAccountId: String? = "",
-    val instagramAccountId: String? = "",
 )

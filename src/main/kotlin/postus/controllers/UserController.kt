@@ -13,7 +13,8 @@ import postus.repositories.*
 import org.mindrot.jbcrypt.BCrypt
 import postus.models.auth.Registration
 import postus.models.auth.TokenResponse
-import postus.repositories.UserInfo
+import postus.models.auth.UserInfo
+import postus.models.auth.User
 import postus.utils.JwtHandler
 import java.lang.IllegalArgumentException
 import java.time.LocalDateTime.now
