@@ -772,10 +772,10 @@ class SocialsController {
     //LINKEDIN FUNCTIONS
 
     fun getLinkedInAccessToken(userId: Int, authCode: String): Boolean? {
-        val clientId = System.getProperty("LINKEDIN_CLIENT_ID") ?: throw Exception("LinkedIn client ID not found")
-        val clientSecret = System.getProperty("LINKEDIN_CLIENT_SECRET") ?: throw Exception("LinkedIn client secret not found")
-        val redirectUri = System.getProperty("LINKEDIN_REDIRECT_URI") ?: throw Exception("LinkedIn redirect URI not found")
-        val tokenUrl = System.getProperty("LINKEDIN_TOKEN_URL") ?: throw Exception("LinkedIn token URL not found")
+        val clientId = "78d2xh3vvntptl" ?: throw Exception("LinkedIn client ID not found")
+        val clientSecret = "WPL_AP1.mzK0jqJavk31aWkc.WsD5Jg==" ?: throw Exception("LinkedIn client secret not found")
+        val redirectUri = "http://sparkline.fyi/login" ?: throw Exception("LinkedIn redirect URI not found")
+        val tokenUrl = "https://www.linkedin.com/oauth/v2/accessToken" ?: throw Exception("LinkedIn token URL not found")
 
         val requestBody = FormBody.Builder()
             .add("grant_type", "authorization_code")
@@ -844,8 +844,8 @@ class SocialsController {
 
     fun postToLinkedIn(userId: Int, content: String): Boolean {
         val user = userRepository.findById(userId)
-        val accessToken = "TODO"//user?.linkedinAccessToken ?: throw Exception("User not found")
-        val accountId = "TODO"//user.linkedinAccountId ?: throw Exception("LinkedIn account ID not found")
+        val accessToken = user?.linkedinAccessToken ?: throw Exception("User not found")
+        val accountId = user.linkedinAccountId ?: throw Exception("LinkedIn account ID not found")
         val postUrl = System.getProperty("LINKEDIN_POST_URL") ?: throw Exception("LinkedIn post URL not found")
 
         val postRequest = LinkedInPostRequest(
