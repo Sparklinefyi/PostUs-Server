@@ -101,7 +101,7 @@ class YouTubeController(client: OkHttpClient, userRepository: UserRepository, us
      * Sample Call:
      * `uploadYoutubeShort(uploadRequest, "1", "videoUrl")`
      */
-    fun uploadYoutubeShort(uploadRequest: YoutubeUploadRequest, userId: String, videoUrl: String): String {
+    fun uploadYoutubeShort(uploadRequest: YoutubeUploadRequest, userId: String, videoUrl: String): ResponseBody? {
         refreshYouTubeAccessToken(userId)
         val signedUrl = mediaController.getPresignedUrlFromPath(videoUrl)
         val videoFile = mediaController.downloadVideo(signedUrl)
@@ -128,9 +128,11 @@ class YouTubeController(client: OkHttpClient, userRepository: UserRepository, us
             .addHeader("Authorization", "Bearer $accessToken")
             .build()
 
-        val response = client.newCall(request).execute()
 
-        return response.body?.string() ?: ""
+        val response = client.newCall(request).execute()
+        val responseBody = response.body ?: throw Exception("No response body")
+
+        return responseBody
     }
 
     /**

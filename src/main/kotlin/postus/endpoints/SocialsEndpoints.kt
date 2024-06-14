@@ -99,7 +99,7 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
 
                         try {
                             val result = youtubeController.uploadYoutubeShort(uploadRequest, userId, videoUrl!!)
-                            call.respond(HttpStatusCode.OK, result)
+                            call.respond(HttpStatusCode.OK)
                         } catch (e: Exception) {
                             call.respond(HttpStatusCode.InternalServerError, e.message ?: "An error occurred")
                         }
