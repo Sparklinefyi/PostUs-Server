@@ -1,6 +1,5 @@
 package postus.models.auth
 
-import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.Column
 import org.jetbrains.exposed.sql.javatime.datetime
@@ -10,6 +9,8 @@ object Users : IntIdTable() {
     val email = varchar("email", 255).uniqueIndex()
     val name = varchar("name", 255)
     val passwordHash = varchar("password_hash", 255)
+    val role: Column<String> = varchar("role", 255).default("inactive")
+    val description: Column<String> = text("description").default("")
     val googleAccountId = varchar("google_account_id", 255).nullable()
     val googleAccessToken = varchar("google_access_token", 255).nullable()
     val googleRefresh = varchar("google_refresh", 255).nullable()
@@ -22,10 +23,14 @@ object Users : IntIdTable() {
     val instagramAccountId = varchar("instagram_account_id", 255).nullable()
     val instagramAccessToken = varchar("instagram_access_token", 255).nullable()
     val instagramRefresh = varchar("instagram_refresh", 255).nullable()
+    val linkedinAccountId = varchar("linkedin_account_id", 255).nullable()
+    val linkedinAccessToken = varchar("linkedin_access_token", 255).nullable()
+    val linkedinRefresh = varchar("linkedin_refresh", 255).nullable()
+    val tiktokAccountId = varchar("tiktok_account_id", 255).nullable()
+    val tiktokAccessToken = varchar("tiktok_access_token", 255).nullable()
+    val tiktokRefresh = varchar("tiktok_refresh", 255).nullable()
     val timeCreated = datetime("time_created").default(now())
     val timeUpdated = datetime("time_updated").default(now())
-    val role: Column<String> = varchar("role", 255).default("inactive")
-    val description: Column<String> = text("description").default("")
 }
 
 

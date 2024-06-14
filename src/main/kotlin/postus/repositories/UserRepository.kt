@@ -6,6 +6,46 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import postus.models.auth.User
 import postus.models.auth.UserInfo
 
+@Serializable
+data class UserInfo(
+    val id: Int,
+    val email: String,
+    val name: String,
+    val role: String,
+    val createdAt: String,
+    val description: String = "",
+    val token: String = ""
+)
+
+@Serializable
+data class User(
+    val id: Int,
+    val email: String,
+    val name: String,
+    val passwordHash: String,
+    val googleAccountId: String?,
+    val googleAccessToken: String?,
+    val googleRefresh: String?,
+    val facebookAccountId: String?,
+    val facebookAccessToken: String?,
+    val facebookRefresh: String?,
+    val twitterAccountId: String?,
+    val twitterAccessToken: String?,
+    val twitterRefresh: String?,
+    val instagramAccountId: String?,
+    val instagramAccessToken: String?,
+    val instagramRefresh: String?,
+    val linkedinAccountId: String?,
+    val linkedinAccessToken: String?,
+    val linkedinRefresh: String?,
+    val tiktokAccountId: String?,
+    val tiktokAccessToken: String?,
+    val tiktokRefresh: String?,
+    val createdAt: String,
+    val updatedAt: String,
+    val role: String,
+    val description: String
+)
 
 class UserRepository {
     fun findByEmail(email: String): User? {
@@ -72,6 +112,12 @@ class UserRepository {
                 it[instagramAccountId] = user.instagramAccountId
                 it[instagramAccessToken] = user.instagramAccessToken
                 it[instagramRefresh] = user.instagramRefresh
+                it[linkedinAccountId] = user.linkedinAccountId
+                it[linkedinAccessToken] = user.linkedinAccessToken
+                it[linkedinRefresh] = user.linkedinRefresh
+                it[tiktokAccountId] = user.tiktokAccountId
+                it[tiktokAccessToken] = user.tiktokAccessToken
+                it[tiktokRefresh] = user.tiktokRefresh
             }
         }
     }
@@ -106,6 +152,12 @@ class UserRepository {
             instagramAccountId = row[Users.instagramAccountId],
             instagramAccessToken = row[Users.instagramAccessToken],
             instagramRefresh = row[Users.instagramRefresh],
+            linkedinAccountId = row[Users.linkedinAccountId],
+            linkedinAccessToken = row[Users.linkedinAccessToken],
+            linkedinRefresh = row[Users.linkedinRefresh],
+            tiktokAccountId = row[Users.tiktokAccountId],
+            tiktokAccessToken = row[Users.tiktokAccessToken],
+            tiktokRefresh = row[Users.tiktokRefresh]
         )
     }
 
