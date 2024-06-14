@@ -247,7 +247,7 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
                         "Missing userId"
                     )
                     val code = call.parameters["code"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing code parameter")
-                    val token = SocialsController.getLinkedInAccessToken(userId.toInt(), code)
+                    val token = linkedinController.getLinkedInAccessToken(userId.toInt(), code)
                     call.respond(200)
                 }
             }
