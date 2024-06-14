@@ -3,41 +3,8 @@ import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.sql.*
 import postus.models.auth.Users
 import org.jetbrains.exposed.sql.transactions.transaction
-
-@Serializable
-data class UserInfo(
-    val id: Int,
-    val email: String,
-    val name: String,
-    val role: String,
-    val createdAt: String,
-    val description: String = "",
-    val token: String = ""
-)
-
-@Serializable
-data class User(
-    val id: Int,
-    val email: String,
-    val name: String,
-    val passwordHash: String,
-    val googleAccountId: String?,
-    val googleAccessToken: String?,
-    val googleRefresh: String?,
-    val facebookAccountId: String?,
-    val facebookAccessToken: String?,
-    val facebookRefresh: String?,
-    val twitterAccountId: String?,
-    val twitterAccessToken: String?,
-    val twitterRefresh: String?,
-    val instagramAccountId: String?,
-    val instagramAccessToken: String?,
-    val instagramRefresh: String?,
-    val createdAt: String,
-    val updatedAt: String,
-    val role: String,
-    val description: String
-)
+import postus.models.auth.User
+import postus.models.auth.UserInfo
 
 
 class UserRepository {
@@ -56,7 +23,6 @@ class UserRepository {
                 .singleOrNull()
         }
     }
-
 
     fun save(user: User): UserInfo {
         val savedUser = transaction {
@@ -140,6 +106,21 @@ class UserRepository {
             instagramAccountId = row[Users.instagramAccountId],
             instagramAccessToken = row[Users.instagramAccessToken],
             instagramRefresh = row[Users.instagramRefresh],
+        )
+    }
+
+    fun toUserInfo(user: User): UserInfo {
+        return UserInfo(
+            id = user.id,
+            email = user.email,
+            name = user.name,
+            role = user.role,
+            createdAt = user.createdAt,
+            description = user.description,
+            googleAccountId = user.googleAccountId,
+            facebookAccountId = user.facebookAccountId,
+            twitterAccountId = user.twitterAccountId,
+            instagramAccountId = user.instagramAccountId,
         )
     }
 }

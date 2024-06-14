@@ -26,7 +26,8 @@ fun Application.configureAuthRouting(userService: UserController) {
                 val user = userService.authenticateWithEmailPassword(request.email, request.password)
                 if (user != null) {
                     val token = JwtHandler().makeToken(user.id.toString())
-                    val response = LoginResponse(user.id, user.email, user.name, user.role, user.description, user.createdAt, token);
+                    val response = UserInfo(user.id, user.email, user.name, user.role, user.description, user.createdAt, token,
+                        user.googleAccountId, user.facebookAccountId, user.twitterAccountId, user.instagramAccountId);
                     call.respond(HttpStatusCode.OK, response)
                 }
                 else
@@ -36,24 +37,27 @@ fun Application.configureAuthRouting(userService: UserController) {
             post("/signout") {
                 call.respond(HttpStatusCode.OK, "Signed out")
             }
+        }
+        route("/user") {
 
-            post("/userinfo") {
+            post("/info") {
                 val request = call.receive<UserInfoRequest>()
                 val userInfo = userService.fetchUserDataByToken(request.token)
                     ?: throw IllegalArgumentException("Invalid token")
 
-                call.respond(HttpStatusCode.OK, LoginResponse(userInfo.id, userInfo.email, userInfo.name, userInfo.role, userInfo.description, userInfo.createdAt, request.token))
+                call.respond(HttpStatusCode.OK, userInfo)
             }
 
-            post("/update-user") {
+            post("/update") {
                 val request = call.receive<UpdateUserRequest>()
                 val userInfo = userService.fetchUserDataByToken(request.token)
                     ?: throw IllegalArgumentException("Invalid token")
 
                 // Update the user information
                 userService.updateUser(userInfo.id, request.description)
-                call.respond(HttpStatusCode.OK, LoginResponse(userInfo.id, userInfo.email, userInfo.name, userInfo.role, userInfo.description, userInfo.createdAt, request.token))
+                call.respond(HttpStatusCode.OK, userInfo)
             }
         }
+
     }
 }

@@ -1,18 +1,10 @@
 package postus.controllers
 
-import com.google.gson.JsonObject
-import com.google.gson.JsonParser
-import io.ktor.client.*
-import io.ktor.client.request.*
-import io.ktor.client.request.forms.*
-import io.ktor.client.statement.*
-import io.ktor.http.*
-import kotlinx.coroutines.runBlocking
 import postus.repositories.*
 import org.mindrot.jbcrypt.BCrypt
 import postus.models.auth.Registration
-import postus.models.auth.TokenResponse
-import postus.repositories.UserInfo
+import postus.models.auth.User
+import postus.models.auth.UserInfo
 import postus.utils.JwtHandler
 import java.lang.IllegalArgumentException
 import java.time.LocalDateTime.now
@@ -54,7 +46,7 @@ class UserController(
     fun fetchUserDataByToken(token: String): UserInfo? {
         val userId = JwtHandler().validateTokenAndGetUserId(token) ?: return null
         return userRepository.findById(userId.toInt())
-            ?.let { UserInfo(it.id, it.email, it.name, it.role, it.description, it.createdAt) }
+            ?.let { userRepository.toUserInfo(it) }
     }
 
     fun fetchUserDataByTokenWithPlatform(token: String): Pair<String, UserInfo?>? {
@@ -67,10 +59,9 @@ class UserController(
             var platform = decodedJWT.getClaim("platform").asString()!!.removeSurrounding("\"")
 
             val userInfo = fetchUserDataByToken(user) ?: return null
-            val userEntity = userRepository.findById(userInfo.id)
 
-            return if (userEntity != null) {
-                Pair(platform, UserInfo(userEntity.id, userEntity.email, userEntity.name, userEntity.role, userEntity.description, userEntity.createdAt))
+            return if (userRepository.findById(userInfo.id) != null) {
+                Pair(platform, userInfo)
             } else {
                 null
             }
@@ -84,7 +75,7 @@ class UserController(
         val user = userRepository.findByEmail(email) ?: return null
         if (!BCrypt.checkpw(password, user.passwordHash)) return null
 
-        return UserInfo(user.id, user.email, user.name, user.role, user.description, user.createdAt, user.updatedAt)
+        return userRepository.toUserInfo(user)
     }
 
     fun linkAccount(userId: Int, provider: String, accountId: String?, accessToken: String?, refreshToken: String?) {
@@ -111,76 +102,4 @@ class UserController(
         userRepository.update(updatedUser)
     }
 
-    fun verifyOAuthToken(code: String?, provider: String): TokenResponse {
-        val tokenMap = runBlocking {
-            exchangeCodeForToken(code ?: "", provider)
-        } ?: throw IllegalArgumentException("Failed to exchange code for token")
-
-        val idToken = tokenMap["id_token"]
-        val accessToken = tokenMap["access_token"]
-        val refreshToken = tokenMap["refresh_token"]
-        val userInfoJson = runBlocking { fetchOAuthUser(accessToken!!, provider) }
-
-        return TokenResponse(
-            accessToken = accessToken!!,
-            refreshToken = refreshToken!!
-        )
-    }
-
-    private suspend fun exchangeCodeForToken(code: String, provider: String): Map<String, String>? {
-        val params = listOf(
-            "code" to code,
-            "client_id" to System.getProperty("GOOGLE_CLIENT_ID"),
-            "client_secret" to System.getProperty("GOOGLE_CLIENT_SECRET"),
-            "redirect_uri" to System.getProperty("GOOGLE_REDIRECT_URI"),
-            "grant_type" to "authorization_code"
-        )
-
-        val client = HttpClient()
-        val tokenResponse = client.post(Url(System.getProperty("GOOGLE_TOKEN_URL")!!)) {
-            headers {
-                append(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
-            }
-            setBody(FormDataContent(Parameters.build {
-                params.forEach { (key, value) ->
-                    append(key, value!!)
-                }
-            }))
-        }
-
-        val tokenResponseJson = tokenResponse.readBytes().decodeToString()
-        val tokenJsonObject = JsonParser.parseString(tokenResponseJson).asJsonObject
-
-        if (!tokenJsonObject.has("access_token") || !tokenJsonObject.has("id_token")) {
-            println("Token response did not contain access_token or id_token: $tokenResponseJson")
-            return null
-        }
-
-        return tokenJsonObject.entrySet().associate { it.key to it.value.asString }
-    }
-
-    private suspend fun fetchOAuthUser(accessToken: String, provider: String): JsonObject? {
-        val userInfoUrl = System.getProperty("GOOGLE_USER_INFO_URL")
-
-        val client = HttpClient()
-        val userInfoResponse = client.get(Url(userInfoUrl!!)) {
-            headers {
-                append(HttpHeaders.Authorization, "Bearer $accessToken")
-            }
-        }
-
-        val userInfoResponseJson = userInfoResponse.readBytes().decodeToString()
-        return JsonParser.parseString(userInfoResponseJson).asJsonObject
-    }
-
-    fun userInfo(user: User): UserInfo {
-        return UserInfo(
-            id = user.id,
-            email = user.email,
-            name = user.name,
-            role = user.role,
-            createdAt = user.createdAt,
-            description = user.description,
-        )
-    }
 }

@@ -1,5 +1,6 @@
 package postus.models.auth
 
+import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.Column
 import org.jetbrains.exposed.sql.javatime.datetime
@@ -26,3 +27,43 @@ object Users : IntIdTable() {
     val role: Column<String> = varchar("role", 255).default("inactive")
     val description: Column<String> = text("description").default("")
 }
+
+
+@Serializable
+data class User(
+    val id: Int,
+    val email: String,
+    val name: String,
+    val passwordHash: String,
+    val googleAccountId: String?,
+    val googleAccessToken: String?,
+    val googleRefresh: String?,
+    val facebookAccountId: String?,
+    val facebookAccessToken: String?,
+    val facebookRefresh: String?,
+    val twitterAccountId: String?,
+    val twitterAccessToken: String?,
+    val twitterRefresh: String?,
+    val instagramAccountId: String?,
+    val instagramAccessToken: String?,
+    val instagramRefresh: String?,
+    val createdAt: String,
+    val updatedAt: String,
+    val role: String,
+    val description: String
+)
+
+@Serializable
+data class UserInfo(
+    val id: Int,
+    val email: String,
+    val name: String,
+    val role: String,
+    val createdAt: String,
+    val description: String = "",
+    val token: String = "",
+    val googleAccountId: String? = "",
+    val facebookAccountId: String? = "",
+    val twitterAccountId: String? = "",
+    val instagramAccountId: String? = "",
+)

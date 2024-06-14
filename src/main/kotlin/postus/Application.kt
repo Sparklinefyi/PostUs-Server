@@ -32,7 +32,6 @@ fun main() {
 
     startScheduledPostsChecker(socialController)
 
-
     val port = System.getenv("PORT")?.toInt() ?: 8080
     embeddedServer(Netty, port, host = if (port == 8080) "localhost" else "0.0.0.0", module = Application::module)
         .start(wait = true)
