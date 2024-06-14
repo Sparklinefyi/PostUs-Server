@@ -1,4 +1,4 @@
-package postus.models
+package postus.models.auth
 
 import org.jetbrains.exposed.dao.id.IntIdTable
 import org.jetbrains.exposed.sql.Column
@@ -6,7 +6,6 @@ import org.jetbrains.exposed.sql.javatime.datetime
 import java.time.LocalDateTime.now
 
 object Users : IntIdTable() {
-
     val email = varchar("email", 255).uniqueIndex()
     val name = varchar("name", 255)
     val passwordHash = varchar("password_hash", 255)

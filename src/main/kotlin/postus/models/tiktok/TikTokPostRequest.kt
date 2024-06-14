@@ -1,4 +1,4 @@
-package postus.models
+package postus.models.tiktok
 import kotlinx.serialization.Serializable
 
 @Serializable

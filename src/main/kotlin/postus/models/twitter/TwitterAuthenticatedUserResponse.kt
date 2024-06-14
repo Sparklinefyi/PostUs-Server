@@ -1,4 +1,4 @@
-package postus.models
+package postus.models.twitter
 
 import kotlinx.serialization.Serializable
 

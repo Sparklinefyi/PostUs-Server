@@ -1,4 +1,4 @@
-package postus.dto
+package postus.models.auth
 
 import kotlinx.serialization.Serializable
 import postus.repositories.UserInfo

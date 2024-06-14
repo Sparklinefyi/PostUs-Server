@@ -8,9 +8,10 @@ import io.ktor.client.request.forms.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.coroutines.runBlocking
-import postus.dto.*
 import postus.repositories.*
 import org.mindrot.jbcrypt.BCrypt
+import postus.models.auth.Registration
+import postus.models.auth.TokenResponse
 import postus.repositories.UserInfo
 import postus.utils.JwtHandler
 import java.lang.IllegalArgumentException

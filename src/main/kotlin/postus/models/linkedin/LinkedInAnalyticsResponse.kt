@@ -1,4 +1,4 @@
-package postus.models
+package postus.models.linkedin
 
 import kotlinx.serialization.Serializable
 
