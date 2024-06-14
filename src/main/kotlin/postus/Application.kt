@@ -18,10 +18,21 @@ import io.ktor.server.sessions.*
 import postus.utils.JwtHandler
 import postus.workers.startScheduledPostsChecker
 import io.github.cdimascio.dotenv.Dotenv
+import okhttp3.OkHttpClient
 
 fun main() {
-    Database // Ensure the database is initialized
-    startScheduledPostsChecker()
+    // Initialize the database
+    Database
+
+    val client = OkHttpClient()
+    val userRepository = UserRepository()
+    val mediaController = MediaController()
+    val userService = UserController(userRepository)
+    val socialController = SocialsController(client, userRepository, userService, mediaController)
+
+    startScheduledPostsChecker(socialController)
+
+
     val port = System.getenv("PORT")?.toInt() ?: 8080
     embeddedServer(Netty, port, host = if (port == 8080) "localhost" else "0.0.0.0", module = Application::module)
         .start(wait = true)
@@ -97,13 +108,16 @@ fun Application.module() {
     // Initialize the database
     Database
 
-    // Create an instance of UserService
-    val userService = UserController(UserRepository())
+    val client = OkHttpClient()
+    val userRepository = UserRepository()
+    val mediaController = MediaController()
+    val userService = UserController(userRepository)
+    val socialController = SocialsController(client, userRepository, userService, mediaController)
 
     // Pass userService to configureAuthRouting
     configureAuthRouting(userService)
-    configureMediaRouting(userService)
-    configureSocialsRouting(userService)
+    configureMediaRouting(userService, mediaController)
+    configureSocialsRouting(userService, socialController)
 }
 
 data class MySession(val token: String) : Principal

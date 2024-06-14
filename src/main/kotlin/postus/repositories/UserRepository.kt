@@ -1,11 +1,8 @@
 package postus.repositories
 import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.sql.*
-import postus.models.Users
+import postus.models.auth.Users
 import org.jetbrains.exposed.sql.transactions.transaction
-import java.time.LocalDateTime
-import postus.models.Users.nullable
-import postus.models.Users.varchar
 
 @Serializable
 data class UserInfo(

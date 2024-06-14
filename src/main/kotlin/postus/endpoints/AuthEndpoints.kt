@@ -6,9 +6,7 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import postus.controllers.UserController
 import io.ktor.server.request.*
-import postus.dto.*
-import postus.repositories.UserInfo
-import postus.repositories.UserRepository
+import postus.models.auth.*
 import postus.utils.JwtHandler
 
 fun Application.configureAuthRouting(userService: UserController) {

@@ -1,4 +1,4 @@
-package postus.models
+package postus.models.instagram
 
 import kotlinx.serialization.Serializable
 
