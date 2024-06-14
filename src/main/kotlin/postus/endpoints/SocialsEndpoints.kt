@@ -7,15 +7,21 @@ import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.serialization.json.Json
 import postus.controllers.SocialsController
 import postus.controllers.UserController
 import postus.models.SchedulePostRequest
-import postus.models.YoutubeUploadRequest
-import io.github.cdimascio.dotenv.Dotenv
+import postus.models.youtube.YoutubePrivacyStatus
+import postus.models.youtube.YoutubeShortSnippet
+import postus.models.youtube.YoutubeUploadRequest
 
-val SocialsController = SocialsController()
+fun Application.configureSocialsRouting(userService: UserController, socialController: SocialsController) {
 
-fun Application.configureSocialsRouting(userService: UserController) {
+    val instagramController = socialController.instagramController
+    val youtubeController = socialController.youtubeController
+    val twitterController = socialController.twitterController
+    val linkedinController = socialController.linkedinController
+
     routing {
         route("socials"){
             route("publish"){
@@ -24,17 +30,16 @@ fun Application.configureSocialsRouting(userService: UserController) {
 
                     }
                     post("instagram"){
-                        val userId = call.parameters["userId"] ?: return@post call.respond(
-                            HttpStatusCode.BadRequest,
-                            "Missing userId"
-                        )
+                        val token = call.parameters["token"] as String
+                        val userInfo = userService.fetchUserDataByToken(token)!!
+                        val userId = userInfo.id.toString()
                         val imageUrl = call.parameters["imageUrl"] ?: return@post call.respond(
                             HttpStatusCode.BadRequest,
                             "Missing image"
                         )
                         val caption = call.parameters["caption"]
                         try{
-                            val result = SocialsController.uploadPictureToInstagram(userId, imageUrl, caption)
+                            val result = instagramController.uploadPictureToInstagram(userId, imageUrl, caption)
                             call.respond(HttpStatusCode.OK, result)
                         } catch (e : Exception){
                             call.respond(e)
@@ -46,49 +51,68 @@ fun Application.configureSocialsRouting(userService: UserController) {
 
                     }
                     post("instagram"){
-                        val userId = call.parameters["userId"] ?: return@post call.respond(
-                            HttpStatusCode.BadRequest,
-                            "Missing userId"
-                        )
+                        val token = call.parameters["token"] as String
+                        val userInfo = userService.fetchUserDataByToken(token)!!
+                        val userId = userInfo.id.toString()
                         val videoUrl = call.parameters["videoUrl"] ?: return@post call.respond(
                             HttpStatusCode.BadRequest,
                             "Missing video"
                         )
                         val caption = call.parameters["caption"]
                         try{
-                            val result = SocialsController.uploadVideoToInstagram(userId, videoUrl, caption)
+                            val result = instagramController.uploadVideoToInstagram(userId, videoUrl, caption)
                             call.respond(HttpStatusCode.OK, result)
                         } catch (e : Exception){
                             call.respond(e)
                         }
                     }
-                    post("youtube"){
-                        val userId = call.parameters["userId"] ?: return@post call.respond(
-                            HttpStatusCode.BadRequest,
-                            "Missing userId"
-                        )
-                        val videoUrl = call.parameters["videoUrl"] ?: return@post call.respond(
-                            HttpStatusCode.BadRequest,
-                            "Missing video"
-                        )
-                        val uploadRequest = call.receive<YoutubeUploadRequest>()
-                        try{
-                            val result = SocialsController.uploadYoutubeShort(uploadRequest, userId, videoUrl)
+                    post("youtube") {
+                        val multipart = call.receiveMultipart()
+                        var token: String? = null
+                        var videoUrl: String? = null
+                        var snippet: YoutubeShortSnippet? = null
+                        var status: YoutubePrivacyStatus? = null
+
+                        multipart.forEachPart { part ->
+                            when (part) {
+                                is PartData.FormItem -> {
+                                    when (part.name) {
+                                        "token" -> token = part.value
+                                        "videoUrl" -> videoUrl = part.value
+                                        "snippet" -> snippet = Json.decodeFromString(part.value)
+                                        "status" -> status = Json.decodeFromString(part.value)
+                                    }
+                                }
+                                else -> Unit
+                            }
+                            part.dispose()
+                        }
+
+                        if (token == null || videoUrl == null || snippet == null || status == null) {
+                            call.respond(HttpStatusCode.BadRequest, "Missing parameters")
+                            return@post
+                        }
+
+                        val userInfo = userService.fetchUserDataByToken(token!!)!!
+                        val userId = userInfo.id.toString()
+                        val uploadRequest = YoutubeUploadRequest(snippet!!, status!!)
+
+                        try {
+                            val result = youtubeController.uploadYoutubeShort(uploadRequest, userId, videoUrl!!)
                             call.respond(HttpStatusCode.OK, result)
-                        } catch (e : Exception){
-                            call.respond(e)
+                        } catch (e: Exception) {
+                            call.respond(HttpStatusCode.InternalServerError, e.message ?: "An error occurred")
                         }
                     }
                 }
                 post("twitter"){
-                    val userId = call.parameters["userId"] ?: return@post call.respond(
-                        HttpStatusCode.BadRequest,
-                        "Missing userId"
-                    )
+                    val token = call.parameters["token"] as String
+                    val userInfo = userService.fetchUserDataByToken(token)!!
+                    val userId = userInfo.id.toString()
                     val imageUrl = call.parameters["imageUrl"]
                     val videoUrl = call.parameters["videoUrl"]
                     val text = call.parameters["text"]
-                    val response = SocialsController.postToTwitter(userId, text, imageUrl, videoUrl)
+                    val response = twitterController.postToTwitter(userId, text, imageUrl, videoUrl)
                     call.respond(HttpStatusCode.OK, response)
                 }
                 post("linkedin"){
@@ -100,18 +124,17 @@ fun Application.configureSocialsRouting(userService: UserController) {
                         HttpStatusCode.BadRequest,
                         "Missing content"
                     )
-                    val response = SocialsController.postToLinkedIn(userId.toInt(), content)
+                    val response = linkedinController.postToLinkedIn(userId.toInt(), content)
                     call.respond(HttpStatusCode.OK, response)
                 }
             }
             route("analyze"){
                 route("page"){
                     get("youtube"){
-                        val userId = call.parameters["userId"] ?: return@get call.respond(
-                            HttpStatusCode.BadRequest,
-                            "Missing userId"
-                        )
-                        val analytics = SocialsController.getYouTubeChannelAnalytics(userId)
+                        val token = call.parameters["token"] as String
+                        val userInfo = userService.fetchUserDataByToken(token)!!
+                        val userId = userInfo.id.toString()
+                        val analytics = youtubeController.getYouTubeChannelAnalytics(userId)
                         if (analytics == null) {
                             call.respond(HttpStatusCode.InternalServerError, "Failed to retrieve YouTube Channel Analytics")
                         } else {
@@ -119,11 +142,10 @@ fun Application.configureSocialsRouting(userService: UserController) {
                         }
                     }
                     get("instagram"){
-                        val userId = call.parameters["userId"] ?: return@get call.respond(
-                            HttpStatusCode.BadRequest,
-                            "Missing userId"
-                        )
-                        val analytics = SocialsController.getInstagramPageAnalytics(userId)
+                        val token = call.parameters["token"] as String
+                        val userInfo = userService.fetchUserDataByToken(token)!!
+                        val userId = userInfo.id.toString()
+                        val analytics = instagramController.getInstagramPageAnalytics(userId)
                         if (analytics == null) {
                             call.respond(HttpStatusCode.InternalServerError, "Failed to retrieve Instagram Page Analytics")
                         } else {
@@ -135,7 +157,7 @@ fun Application.configureSocialsRouting(userService: UserController) {
                     get("youtube"){
                         val videoId = call.parameters["videoId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing videoId parameter")
 
-                        val analytics = SocialsController.getYouTubeVideoAnalytics(videoId)
+                        val analytics = youtubeController.getYouTubeVideoAnalytics(videoId)
                         if (analytics == null) {
                             call.respond(HttpStatusCode.InternalServerError, "Failed to retrieve YouTube Video Analytics")
                         } else {
@@ -143,13 +165,12 @@ fun Application.configureSocialsRouting(userService: UserController) {
                         }
                     }
                     get("instagram"){
-                        val userId = call.parameters["userId"] ?: return@get call.respond(
-                            HttpStatusCode.BadRequest,
-                            "Missing userId"
-                        )
+                        val token = call.parameters["token"] as String
+                        val userInfo = userService.fetchUserDataByToken(token)!!
+                        val userId = userInfo.id.toString()
                         val postId = call.parameters["postId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing postId parameter")
 
-                        val analytics = SocialsController.getInstagramPostAnalytics(userId, postId)
+                        val analytics = instagramController.getInstagramPostAnalytics(userId, postId)
                         if (analytics == null) {
                             call.respond(HttpStatusCode.InternalServerError, "Failed to retrieve Instagram Post Analytics")
                         } else {
@@ -160,12 +181,11 @@ fun Application.configureSocialsRouting(userService: UserController) {
             }
             route("retrieve"){
                 get("instagram"){
-                    val userId = call.parameters["userId"] ?: return@get call.respond(
-                        HttpStatusCode.BadRequest,
-                        "Missing userId"
-                    )
+                    val token = call.parameters["token"] as String
+                    val userInfo = userService.fetchUserDataByToken(token)!!
+                    val userId = userInfo.id.toString()
                     val postId = call.parameters["postId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing postId parameter")
-                    val url = SocialsController.getInstagramMediaDetails(userId, postId)
+                    val url = instagramController.getInstagramMediaDetails(userId, postId)
                     call.respond(url)
                 }
             }
@@ -178,7 +198,7 @@ fun Application.configureSocialsRouting(userService: UserController) {
                     val platform = info.first;
                     val user = info.second
 
-                    SocialsController.getLongLivedAccessTokenAndInstagramBusinessAccountId(user!!.id, code)
+                    instagramController.getLongLivedAccessTokenAndInstagramBusinessAccountId(user!!.id, code)
 
                     if (platform == "web") {
                         call.respondRedirect(System.getenv("FRONTEND_REDIRECT"))
@@ -187,29 +207,38 @@ fun Application.configureSocialsRouting(userService: UserController) {
                         call.respond(HttpStatusCode.OK, "You can now close this window and return to the app.")
                     }
                 }
-                get("youtube"){
-                    val code = call.parameters["code"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing code parameter")
-                    val state = call.parameters["state"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing state parameter")
+                get("youtube") {
+                    try {
+                        val code = call.parameters["code"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing code parameter")
+                        val state = call.parameters["state"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing state parameter")
 
-                    val info = userService.fetchUserDataByTokenWithPlatform(state) ?: return@get call.respond(HttpStatusCode.BadRequest, "Invalid state parameter")
-                    val platform = info.first;
-                    val user = info.second
+                        val info = userService.fetchUserDataByTokenWithPlatform(state) ?: return@get call.respond(HttpStatusCode.BadRequest, "Invalid state parameter")
+                        val platform = info.first
+                        val user = info.second
 
-                    SocialsController.fetchYouTubeAccessToken(user!!.id, code)
-                    if (platform == "web") {
-                        call.respondRedirect(System.getenv("FRONTEND_REDIRECT"))
-                    } else if (platform == "ios") {
-                        // For iOS, you might need to use a custom scheme to notify the app
-                        call.respond(HttpStatusCode.OK, "You can now close this window and return to the app.")
+                        val validated = youtubeController.fetchYouTubeAccessToken(user!!.id, code)
+                        if (validated) {
+                            if (platform == "web") {
+                                call.respondRedirect(System.getenv("FRONTEND_REDIRECT") ?: "/")
+                            } else if (platform == "ios") {
+                                call.respond(HttpStatusCode.OK, "You can now close this window and return to the app.")
+                            } else {
+                                call.respond(HttpStatusCode.BadRequest, "Unknown platform")
+                            }
+                        } else {
+                            call.respond(HttpStatusCode.InternalServerError, "Failed to validate YouTube access token")
+                        }
+                    } catch (e: Exception) {
+                        call.application.environment.log.error("Error processing YouTube callback", e)
+                        call.respond(HttpStatusCode.InternalServerError, "An error occurred while processing the request")
                     }
                 }
                 get("twitter"){
-                    val userId = call.parameters["userId"] ?: return@get call.respond(
-                        HttpStatusCode.BadRequest,
-                        "Missing userId"
-                    )
+                    val token = call.parameters["token"] as String
+                    val userInfo = userService.fetchUserDataByToken(token)!!
+                    val userId = userInfo.id.toString()
                     val code = call.parameters["code"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing code parameter")
-                    val token = SocialsController.fetchTwitterAccessToken(userId, code)
+                    twitterController.fetchTwitterAccessToken(userId, code)
                     call.respond(200)
                 }
                 get("linkedin"){
@@ -223,8 +252,10 @@ fun Application.configureSocialsRouting(userService: UserController) {
                 }
             }
             get("test"){
-                val userId = call.parameters["userId"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing userId parameter")
-                SocialsController.testYoutube(userId)
+                val token = call.parameters["token"] as String
+                val userInfo = userService.fetchUserDataByToken(token)!!
+                val userId = userInfo.id.toString()
+                youtubeController.testYoutube(userId)
                 call.respond(200)
             }
             post("schedule"){
@@ -255,7 +286,7 @@ fun Application.configureSocialsRouting(userService: UserController) {
                 val postTime = call.parameters["postTime"] ?: return@post call.respond(HttpStatusCode.BadRequest, "Missing accessToken parameter")
                 val schedulePostRequest = Gson().fromJson(json, SchedulePostRequest::class.java)
                 val mediaByteArray = fileBytes!!
-                val posted = SocialsController.schedulePost(userId, postTime, mediaByteArray, schedulePostRequest)
+                val posted = socialController.schedulePost(userId, postTime, mediaByteArray, schedulePostRequest)
                 if (posted) {
                     call.respond(HttpStatusCode.OK, posted)
                 } else {

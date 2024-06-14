@@ -2,14 +2,15 @@ package postus.workers
 
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import postus.controllers.SocialsController
 
-class ScheduleCheckWorker : Runnable {
+class ScheduleCheckWorker(private val socialController: SocialsController) : Runnable {
     override fun run() {
         try {
             println("Running ScheduleCheckWorker Job")
             val posts = ScheduleRepository.getPostsScheduledWithinNextHours(3)
             for (post in posts) {
-                PostWorker(post).schedule()
+                PostWorker(post, socialController).schedule()
             }
             println("Completed ScheduleCheckWorker Job")
         } catch (e: Exception) {
@@ -19,8 +20,8 @@ class ScheduleCheckWorker : Runnable {
     }
 }
 
-fun startScheduledPostsChecker() {
+fun startScheduledPostsChecker(socialController: SocialsController) {
     val scheduler = Executors.newScheduledThreadPool(1)
-    val worker = ScheduleCheckWorker()
+    val worker = ScheduleCheckWorker(socialController)
     scheduler.scheduleAtFixedRate(worker, 0, 3, TimeUnit.HOURS)
 }

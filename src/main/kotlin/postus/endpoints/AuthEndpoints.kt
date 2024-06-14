@@ -6,9 +6,7 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import postus.controllers.UserController
 import io.ktor.server.request.*
-import postus.dto.*
-import postus.repositories.UserInfo
-import postus.repositories.UserRepository
+import postus.models.auth.*
 import postus.utils.JwtHandler
 
 fun Application.configureAuthRouting(userService: UserController) {
@@ -55,24 +53,6 @@ fun Application.configureAuthRouting(userService: UserController) {
                 // Update the user information
                 userService.updateUser(userInfo.id, request.description)
                 call.respond(HttpStatusCode.OK, LoginResponse(userInfo.id, userInfo.email, userInfo.name, userInfo.role, userInfo.description, userInfo.createdAt, request.token))
-            }
-
-            post("/link-account") {
-                val token = call.request.headers["Authorization"]?.removePrefix("Bearer ")
-                    ?: throw IllegalArgumentException("Missing or invalid Authorization header")
-
-                // Validate the token and retrieve the user ID
-                //val userId = JwtHandler().validateTokenAndGetUserId(token)
-                //    ?: throw IllegalArgumentException("Invalid token")
-
-                // Extract code and provider from the request body
-                val request = call.receive<GoogleResponse>()
-
-                val tokenInfo = userService.verifyOAuthToken(request.code, request.provider)
-
-                // Link the account
-                userService.linkAccount(16, request.provider, null, null, tokenInfo.refreshToken)
-                call.respond(HttpStatusCode.OK, "Account linked")
             }
         }
     }

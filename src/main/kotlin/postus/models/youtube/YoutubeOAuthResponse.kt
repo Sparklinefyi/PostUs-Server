@@ -1,4 +1,4 @@
-package postus.models
+package postus.models.youtube
 
 import kotlinx.serialization.Serializable
 

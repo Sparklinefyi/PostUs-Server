@@ -1,6 +1,8 @@
 package postus.models
 
 import kotlinx.serialization.Serializable
+import postus.models.instagram.InstagramPostRequest
+import postus.models.youtube.YoutubeUploadRequest
 
 /*This is going to be a monster of a class as we grow,
  we need to ask for all possible data to post to any platform

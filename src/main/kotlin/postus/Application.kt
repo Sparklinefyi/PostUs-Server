@@ -18,10 +18,21 @@ import io.ktor.server.sessions.*
 import postus.utils.JwtHandler
 import postus.workers.startScheduledPostsChecker
 import io.github.cdimascio.dotenv.Dotenv
+import okhttp3.OkHttpClient
 
 fun main() {
-    Database // Ensure the database is initialized
-    startScheduledPostsChecker()
+    // Initialize the database
+    Database
+
+    val client = OkHttpClient()
+    val userRepository = UserRepository()
+    val mediaController = MediaController()
+    val userService = UserController(userRepository)
+    val socialController = SocialsController(client, userRepository, userService, mediaController)
+
+    startScheduledPostsChecker(socialController)
+
+
     val port = System.getenv("PORT")?.toInt() ?: 8080
     embeddedServer(Netty, port, host = if (port == 8080) "localhost" else "0.0.0.0", module = Application::module)
         .start(wait = true)
@@ -37,50 +48,23 @@ fun Application.module() {
         }
     }
 
-    // Setting environment variables
-    setEnvVariable("DB_URL", dotenv?.get("DB_URL") ?: System.getenv("DB_URL"))
-    setEnvVariable("DB_USER", dotenv?.get("DB_USER") ?: System.getenv("DB_USER"))
-    setEnvVariable("DB_PASSWORD", dotenv?.get("DB_PASSWORD") ?: System.getenv("DB_PASSWORD"))
-    setEnvVariable("DB_DRIVER", dotenv?.get("DB_DRIVER") ?: System.getenv("DB_DRIVER"))
-    setEnvVariable("DB_MAX_POOL_SIZE", dotenv?.get("DB_MAX_POOL_SIZE") ?: System.getenv("DB_MAX_POOL_SIZE"))
+    // Set environment variables
+    val keys = listOf(
+        "DB_URL", "DB_USER", "DB_PASSWORD", "DB_DRIVER", "DB_MAX_POOL_SIZE",
+        "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_API_KEY", "GOOGLE_REDIRECT_URI",
+        "GOOGLE_TOKEN_URL", "GOOGLE_USER_INFO_URL", "FACEBOOK_CLIENT_ID", "FACEBOOK_CLIENT_SECRET",
+        "FACEBOOK_REDIRECT_URI", "FACEBOOK_TOKEN_URL", "FACEBOOK_USER_INFO_URL", "INSTAGRAM_CLIENT_ID",
+        "INSTAGRAM_CLIENT_SECRET", "INSTAGRAM_REDIRECT_URI", "INSTAGRAM_TOKEN_URL", "INSTAGRAM_USER_INFO_URL",
+        "TWITTER_CLIENT_ID", "TWITTER_CLIENT_SECRET", "TWITTER_REDIRECT_URI", "TWITTER_API_KEY", "TWITTER_API_SECRET",
+        "TWITTER_ACCESS_TOKEN", "TWITTER_ACCESS_TOKEN_SECRET", "LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET",
+        "LINKEDIN_REDIRECT_URI", "LINKEDIN_TOKEN_URL", "LINKEDIN_POST_URL", "LINKEDIN_POST_ANALYTICS",
+        "JWT_SECRET", "JWT_EXPIRATION", "JWT_ISSUER"
+    )
 
-    setEnvVariable("GOOGLE_CLIENT_ID", dotenv?.get("GOOGLE_CLIENT_ID") ?: System.getenv("GOOGLE_CLIENT_ID"))
-    setEnvVariable("GOOGLE_CLIENT_SECRET", dotenv?.get("GOOGLE_CLIENT_SECRET") ?: System.getenv("GOOGLE_CLIENT_SECRET"))
-    setEnvVariable("GOOGLE_API_KEY", dotenv?.get("GOOGLE_API_KEY") ?: System.getenv("GOOGLE_API_KEY"))
-    setEnvVariable("GOOGLE_REDIRECT_URI", dotenv?.get("GOOGLE_REDIRECT_URI") ?: System.getenv("GOOGLE_REDIRECT_URI"))
-    setEnvVariable("GOOGLE_TOKEN_URL", dotenv?.get("GOOGLE_TOKEN_URL") ?: System.getenv("GOOGLE_TOKEN_URL"))
-    setEnvVariable("GOOGLE_USER_INFO_URL", dotenv?.get("GOOGLE_USER_INFO_URL") ?: System.getenv("GOOGLE_USER_INFO_URL"))
 
-    setEnvVariable("FACEBOOK_CLIENT_ID", dotenv?.get("FACEBOOK_CLIENT_ID") ?: System.getenv("FACEBOOK_CLIENT_ID"))
-    setEnvVariable("FACEBOOK_CLIENT_SECRET", dotenv?.get("FACEBOOK_CLIENT_SECRET") ?: System.getenv("FACEBOOK_CLIENT_SECRET"))
-    setEnvVariable("FACEBOOK_REDIRECT_URI", dotenv?.get("FACEBOOK_REDIRECT_URI") ?: System.getenv("FACEBOOK_REDIRECT_URI"))
-    setEnvVariable("FACEBOOK_TOKEN_URL", dotenv?.get("FACEBOOK_TOKEN_URL") ?: System.getenv("FACEBOOK_TOKEN_URL"))
-    setEnvVariable("FACEBOOK_USER_INFO_URL", dotenv?.get("FACEBOOK_USER_INFO_URL") ?: System.getenv("FACEBOOK_USER_INFO_URL"))
-
-    setEnvVariable("INSTAGRAM_CLIENT_ID", dotenv?.get("INSTAGRAM_CLIENT_ID") ?: System.getenv("INSTAGRAM_CLIENT_ID"))
-    setEnvVariable("INSTAGRAM_CLIENT_SECRET", dotenv?.get("INSTAGRAM_CLIENT_SECRET") ?: System.getenv("INSTAGRAM_CLIENT_SECRET"))
-    setEnvVariable("INSTAGRAM_REDIRECT_URI", dotenv?.get("INSTAGRAM_REDIRECT_URI") ?: System.getenv("INSTAGRAM_REDIRECT_URI"))
-    setEnvVariable("INSTAGRAM_TOKEN_URL", dotenv?.get("INSTAGRAM_TOKEN_URL") ?: System.getenv("INSTAGRAM_TOKEN_URL"))
-    setEnvVariable("INSTAGRAM_USER_INFO_URL", dotenv?.get("INSTAGRAM_USER_INFO_URL") ?: System.getenv("INSTAGRAM_USER_INFO_URL"))
-
-    setEnvVariable("TWITTER_CLIENT_ID", dotenv?.get("TWITTER_CLIENT_ID") ?: System.getenv("TWITTER_CLIENT_ID"))
-    setEnvVariable("TWITTER_CLIENT_SECRET", dotenv?.get("TWITTER_CLIENT_SECRET") ?: System.getenv("TWITTER_CLIENT_SECRET"))
-    setEnvVariable("TWITTER_REDIRECT_URI", dotenv?.get("TWITTER_REDIRECT_URI") ?: System.getenv("TWITTER_REDIRECT_URI"))
-    setEnvVariable("TWITTER_API_KEY", dotenv?.get("TWITTER_API_KEY") ?: System.getenv("TWITTER_API_KEY"))
-    setEnvVariable("TWITTER_API_SECRET", dotenv?.get("TWITTER_API_SECRET") ?: System.getenv("TWITTER_API_SECRET"))
-    setEnvVariable("TWITTER_ACCESS_TOKEN", dotenv?.get("TWITTER_ACCESS_TOKEN") ?: System.getenv("TWITTER_ACCESS_TOKEN"))
-    setEnvVariable("TWITTER_ACCESS_TOKEN_SECRET", dotenv?.get("TWITTER_ACCESS_TOKEN_SECRET") ?: System.getenv("TWITTER_ACCESS_TOKEN_SECRET"))
-
-    setEnvVariable("LINKEDIN_CLIENT_ID", dotenv?.get("LINKEDIN_CLIENT_ID") ?: System.getenv("LINKEDIN_CLIENT_ID"))
-    setEnvVariable("LINKEDIN_CLIENT_SECRET", dotenv?.get("LINKEDIN_CLIENT_SECRET") ?: System.getenv("LINKEDIN_CLIENT_SECRET"))
-    setEnvVariable("LINKEDIN_REDIRECT_URI", dotenv?.get("LINKEDIN_REDIRECT_URI") ?: System.getenv("LINKEDIN_REDIRECT_URI"))
-    setEnvVariable("LINKEDIN_TOKEN_URL", dotenv?.get("LINKEDIN_TOKEN_URL") ?: System.getenv("LINKEDIN_TOKEN_URL"))
-    setEnvVariable("LINKEDIN_POST_URL", dotenv?.get("LINKEDIN_POST_URL") ?: System.getenv("LINKEDIN_POST_URL"))
-    setEnvVariable("LINKEDIN_POST_ANALYTICS", dotenv?.get("LINKEDIN_POST_ANALYTICS") ?: System.getenv("LINKEDIN_POST_ANALYTICS"))
-
-    setEnvVariable("JWT_SECRET", dotenv?.get("JWT_SECRET") ?: System.getenv("JWT_SECRET"))
-    setEnvVariable("JWT_EXPIRATION", dotenv?.get("JWT_EXPIRATION") ?: System.getenv("JWT_EXPIRATION"))
-    setEnvVariable("JWT_ISSUER", dotenv?.get("JWT_ISSUER") ?: System.getenv("JWT_ISSUER"))
+    keys.forEach { key ->
+        setEnvVariable(key, dotenv?.get(key) ?: System.getenv(key))
+    }
 
     install(CORS) {
         allowMethod(HttpMethod.Options)
@@ -128,16 +112,16 @@ fun Application.module() {
     // Initialize the database
     Database
 
-    // Create instances of repositories
+    val client = OkHttpClient()
     val userRepository = UserRepository()
-
-    // Create an instance of UserService
+    val mediaController = MediaController()
     val userService = UserController(userRepository)
+    val socialController = SocialsController(client, userRepository, userService, mediaController)
 
     // Pass userService to configureAuthRouting
     configureAuthRouting(userService)
-    configureMediaRouting()
-    configureSocialsRouting(userService)
+    configureMediaRouting(userService, mediaController)
+    configureSocialsRouting(userService, socialController)
 }
 
 data class MySession(val token: String) : Principal

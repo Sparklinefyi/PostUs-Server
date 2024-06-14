@@ -1,7 +1,5 @@
 package postus.workers
 
-import postus.endpoints.MediaController
-import postus.endpoints.SocialsController
 import postus.models.ScheduledPost
 import java.time.Duration
 import java.time.Instant
@@ -10,8 +8,9 @@ import java.time.ZoneOffset
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
+import postus.controllers.SocialsController
 
-class PostWorker(private val scheduledPost: ScheduledPost) {
+class PostWorker(private val scheduledPost: ScheduledPost, private val socialController: SocialsController) {
     private val scheduler = Executors.newScheduledThreadPool(1)
     private var future: ScheduledFuture<*>? = null
 
@@ -32,8 +31,8 @@ class PostWorker(private val scheduledPost: ScheduledPost) {
             when (provider) {
                 "YOUTUBE" -> {
                     try {
-                        val mediaUrl = MediaController.getPresignedUrlFromPath(S3Path)
-                        SocialsController.uploadYoutubeShort(
+                        val mediaUrl = socialController.mediaController.getPresignedUrlFromPath(S3Path)
+                        socialController.youtubeController.uploadYoutubeShort(
                             scheduledPost.schedulePostRequest.youtubePostRequest!!,
                             userId,
                             mediaUrl
@@ -44,15 +43,15 @@ class PostWorker(private val scheduledPost: ScheduledPost) {
                 }
                 "INSTAGRAM" -> {
                     try {
-                        val mediaUrl = MediaController.getPresignedUrlFromPath(S3Path)
+                        val mediaUrl = socialController.mediaController.getPresignedUrlFromPath(S3Path)
                         if (mediaType == "IMAGE") {
-                            SocialsController.uploadPictureToInstagram(
+                            socialController.instagramController.uploadPictureToInstagram(
                                 userId,
                                 mediaUrl,
                                 scheduledPost.schedulePostRequest.instagramPostRequest?.caption,
                             )
                         } else {
-                            SocialsController.uploadVideoToInstagram(
+                            socialController.instagramController.uploadVideoToInstagram(
                                 userId,
                                 mediaUrl,
                                 scheduledPost.schedulePostRequest.instagramPostRequest?.caption,
