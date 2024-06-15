@@ -1,25 +1,29 @@
 package postus.controllers
 
 
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.*
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import postus.repositories.UserRepository
+import postus.models.youtube.PlaylistItemsResponse
 import postus.models.youtube.YoutubeOAuthResponse
 import postus.models.youtube.YoutubeRefreshResponse
 import postus.models.youtube.YoutubeUploadRequest
-import postus.models.youtube.PlaylistItemsResponse
-
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonPrimitive
+import postus.repositories.UserRepository
 
 
-class YouTubeController(client: OkHttpClient, userRepository: UserRepository, userController: UserController, mediaController: MediaController) {
+class YouTubeController(
+    client: OkHttpClient,
+    userRepository: UserRepository,
+    userController: UserController,
+    mediaController: MediaController
+) {
 
     val client = client
     val userRepository = userRepository
@@ -63,10 +67,10 @@ class YouTubeController(client: OkHttpClient, userRepository: UserRepository, us
      * Sample Call:
      * `refreshYouTubeAccessToken("1")`
      */
-    fun refreshYouTubeAccessToken(userId: String): String? {
+    fun refreshYouTubeAccessToken(userId: Int): String? {
         val clientId = System.getProperty("GOOGLE_CLIENT_ID")
         val clientSecret = System.getProperty("GOOGLE_CLIENT_SECRET")
-        val user = userRepository.findById(userId.toInt())
+        val user = userRepository.findById(userId)
             ?: throw Exception("User not found")
         val refreshToken = user.googleRefresh
 
@@ -101,7 +105,7 @@ class YouTubeController(client: OkHttpClient, userRepository: UserRepository, us
      * Sample Call:
      * `uploadYoutubeShort(uploadRequest, "1", "videoUrl")`
      */
-    fun uploadYoutubeShort(uploadRequest: YoutubeUploadRequest, userId: String, videoUrl: String): ResponseBody? {
+    fun uploadYoutubeShort(uploadRequest: YoutubeUploadRequest, userId: Int, videoUrl: String): ResponseBody? {
         refreshYouTubeAccessToken(userId)
         val signedUrl = mediaController.getPresignedUrlFromPath(videoUrl)
         val videoFile = mediaController.downloadVideo(signedUrl)
@@ -200,7 +204,7 @@ class YouTubeController(client: OkHttpClient, userRepository: UserRepository, us
             ?: throw Exception("YouTube Channel ID not found")
         val channelId = user.googleAccountId
         val apiKey = System.getProperty("GOOGLE_API_KEY")
-        val uploadsPlaylistId = getYouTubeUploadsPlaylistId(channelId!!) ?: return null
+        val uploadsPlaylistId = getYouTubeUploadsPlaylistId(userId) ?: return null
 
         val url = "https://www.googleapis.com/youtube/v3/playlistItems".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("part", "snippet")
@@ -311,5 +315,11 @@ class YouTubeController(client: OkHttpClient, userRepository: UserRepository, us
         if (!response.isSuccessful) return null
 
         return response.body?.string()
+    }
+
+    fun getYouTubeVideoDetails(videoIds: List<String>): List<String?> {
+        return videoIds.map { videoId ->
+            getYouTubeVideoAnalytics(videoId)
+        }
     }
 }

@@ -10,8 +10,8 @@ data class YoutubeUploadRequest(
 
 @Serializable
 data class YoutubePostRequest(
-    val token: String?,
-    val videoUrl: String?,
-    val snippet: YoutubeShortSnippet?,
-    val status: YoutubePrivacyStatus?
+    val token: String,
+    val videoUrl: String,
+    val snippet: YoutubeShortSnippet,
+    val status: YoutubePrivacyStatus
 )

@@ -2,11 +2,6 @@ package postus.models.auth
 
 import kotlinx.serialization.Serializable
 
-data class TokenResponse(
-    val accessToken: String,
-    val refreshToken: String,
-)
-
 @Serializable
 data class UpdateUserRequest(
     val token: String,
