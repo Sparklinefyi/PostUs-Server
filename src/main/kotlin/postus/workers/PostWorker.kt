@@ -1,5 +1,7 @@
 package postus.workers
 
+import ScheduleRepository
+import postus.controllers.SocialsController
 import postus.models.ScheduledPost
 import java.time.Duration
 import java.time.Instant
@@ -8,7 +10,6 @@ import java.time.ZoneOffset
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
-import postus.controllers.SocialsController
 
 class PostWorker(private val scheduledPost: ScheduledPost, private val socialController: SocialsController) {
     private val scheduler = Executors.newScheduledThreadPool(1)
@@ -23,7 +24,7 @@ class PostWorker(private val scheduledPost: ScheduledPost, private val socialCon
     }
 
     private fun post() {
-        val userId = scheduledPost.userId.toString()
+        val userId = scheduledPost.userId
         val S3Path = scheduledPost.s3Path
         val mediaType = scheduledPost.mediaType
         for (provider in scheduledPost.schedulePostRequest.providers) {
@@ -41,6 +42,7 @@ class PostWorker(private val scheduledPost: ScheduledPost, private val socialCon
                         println("Failed  to post youtube video:  $e")
                     }
                 }
+
                 "INSTAGRAM" -> {
                     try {
                         val mediaUrl = socialController.mediaController.getPresignedUrlFromPath(S3Path)

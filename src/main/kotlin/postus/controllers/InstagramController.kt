@@ -1,15 +1,21 @@
 package postus.controllers
 
-import okhttp3.*
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
-
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.jsonArray
-
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody
 import postus.repositories.UserRepository
-class InstagramController(client: OkHttpClient, userRepository: UserRepository, userController: UserController, mediaController: MediaController) {
+
+class InstagramController(
+    client: OkHttpClient,
+    userRepository: UserRepository,
+    userController: UserController,
+    mediaController: MediaController
+) {
 
     val client = client
     val userRepository = userRepository
@@ -21,17 +27,18 @@ class InstagramController(client: OkHttpClient, userRepository: UserRepository, 
      * Sample Call:
      * `uploadVideoToInstagram("1", "https://example.com/video.mp4", "Sample Caption")`
      */
-    fun uploadVideoToInstagram(userId: String, videoUrl: String, caption: String? = ""): String {
-        val user = userRepository.findById(userId.toInt())
+    fun uploadVideoToInstagram(userId: Int, videoUrl: String, caption: String? = ""): String {
+        val user = userRepository.findById(userId)
             ?: throw Exception("User not found")
         val accessToken = user.instagramAccessToken
             ?: throw Exception("Instagram access token not found")
         val instagramAccountId = user.instagramAccountId
             ?: throw Exception("Instagram account ID not found")
 
+        val signedUrl = mediaController.getPresignedUrlFromPath(videoUrl)
         val containerUrl = "https://graph.facebook.com/v11.0/$instagramAccountId/media".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("media_type", "REELS")
-            .addQueryParameter("video_url", videoUrl)
+            .addQueryParameter("video_url", signedUrl)
             .addQueryParameter("caption", caption)
             .addQueryParameter("access_token", accessToken)
             .build()
@@ -48,13 +55,14 @@ class InstagramController(client: OkHttpClient, userRepository: UserRepository, 
             return "Failed to create media container"
         }
 
-        val containerId = Json.parseToJsonElement(containerResponse.body?.string() ?: "").jsonObject["id"]?.jsonPrimitive?.content
-            ?: return "Failed to get container ID"
+        val containerId =
+            Json.parseToJsonElement(containerResponse.body?.string() ?: "").jsonObject["id"]?.jsonPrimitive?.content
+                ?: return "Failed to get container ID"
 
         // Wait for media to be ready
         var mediaReady = false
         val maxRetries = 10
-        val retryDelayMillis = 3000L
+        val retryDelayMillis = 30000L
         repeat(maxRetries) {
             Thread.sleep(retryDelayMillis)
             val statusUrl = "https://graph.facebook.com/v11.0/$containerId".toHttpUrlOrNull()!!.newBuilder()
@@ -69,7 +77,9 @@ class InstagramController(client: OkHttpClient, userRepository: UserRepository, 
                 .build()
 
             val statusResponse = client.newCall(statusRequest).execute()
-            val statusCode = Json.parseToJsonElement(statusResponse.body?.string() ?: "").jsonObject["status_code"]?.jsonPrimitive?.content
+            val statusCode = Json.parseToJsonElement(
+                statusResponse.body?.string() ?: ""
+            ).jsonObject["status_code"]?.jsonPrimitive?.content
             if (statusCode == "FINISHED") {
                 mediaReady = true
                 return@repeat
@@ -78,11 +88,12 @@ class InstagramController(client: OkHttpClient, userRepository: UserRepository, 
 
         if (!mediaReady) return "Media was not ready in time"
 
-        val publishUrl = "https://graph.facebook.com/v11.0/$instagramAccountId/media_publish".toHttpUrlOrNull()!!.newBuilder()
-            .addQueryParameter("creation_id", containerId)
-            .addQueryParameter("access_token", accessToken)
-            .build()
-            .toString()
+        val publishUrl =
+            "https://graph.facebook.com/v11.0/$instagramAccountId/media_publish".toHttpUrlOrNull()!!.newBuilder()
+                .addQueryParameter("creation_id", containerId)
+                .addQueryParameter("access_token", accessToken)
+                .build()
+                .toString()
 
         val publishRequest = Request.Builder()
             .url(publishUrl)
@@ -102,9 +113,9 @@ class InstagramController(client: OkHttpClient, userRepository: UserRepository, 
      * Sample Call:
      * `uploadPictureToInstagram("1", "https://example.com/image.jpg", "Sample Caption")`
      */
-    fun uploadPictureToInstagram(userId: String, imageUrl: String, caption: String? = ""): String {
-        val user = userRepository.findById(userId.toInt())
-        refreshInstagramAccessToken(userId.toInt())
+    fun uploadPictureToInstagram(userId: Int, imageUrl: String, caption: String? = ""): String {
+        val user = userRepository.findById(userId)
+        refreshInstagramAccessToken(userId)
         val accessToken = user?.instagramAccessToken ?: throw Exception("User not found")
         val instagramAccountId = user.instagramAccountId ?: throw Exception("Instagram account ID not found")
 
@@ -125,14 +136,16 @@ class InstagramController(client: OkHttpClient, userRepository: UserRepository, 
             println("${containerResponse.body?.string()}")
         }
 
-        val containerId = Json.parseToJsonElement(containerResponse.body?.string() ?: "").jsonObject["id"]?.jsonPrimitive?.content
-            ?: return "Failed to get container ID"
+        val containerId =
+            Json.parseToJsonElement(containerResponse.body?.string() ?: "").jsonObject["id"]?.jsonPrimitive?.content
+                ?: return "Failed to get container ID"
 
-        val publishUrl = "https://graph.facebook.com/v11.0/$instagramAccountId/media_publish".toHttpUrlOrNull()!!.newBuilder()
-            .addQueryParameter("creation_id", containerId)
-            .addQueryParameter("access_token", accessToken)
-            .build()
-            .toString()
+        val publishUrl =
+            "https://graph.facebook.com/v11.0/$instagramAccountId/media_publish".toHttpUrlOrNull()!!.newBuilder()
+                .addQueryParameter("creation_id", containerId)
+                .addQueryParameter("access_token", accessToken)
+                .build()
+                .toString()
 
         val publishRequest = Request.Builder()
             .url(publishUrl)
@@ -179,7 +192,11 @@ class InstagramController(client: OkHttpClient, userRepository: UserRepository, 
      * Sample Call:
      * `exchangeShortLivedTokenForLongLivedToken("clientId", "clientSecret", "shortLivedToken")`
      */
-    fun exchangeShortLivedTokenForLongLivedToken(clientId: String, clientSecret: String, shortLivedToken: String): String? {
+    fun exchangeShortLivedTokenForLongLivedToken(
+        clientId: String,
+        clientSecret: String,
+        shortLivedToken: String
+    ): String? {
         val url = "https://graph.facebook.com/v11.0/oauth/access_token".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("grant_type", "fb_exchange_token")
             .addQueryParameter("client_id", clientId)
@@ -209,7 +226,8 @@ class InstagramController(client: OkHttpClient, userRepository: UserRepository, 
     fun refreshInstagramAccessToken(userId: Int) {
         val clientId = System.getProperty("INSTAGRAM_CLIENT_ID")
         val clientSecret = System.getProperty("INSTAGRAM_CLIENT_SECRET")
-        val refreshToken = userRepository.findById(userId)?.instagramRefresh ?: throw Exception("User or refresh token not found")
+        val refreshToken =
+            userRepository.findById(userId)?.instagramRefresh ?: throw Exception("User or refresh token not found")
         val url = "https://graph.instagram.com/refresh_access_token".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("grant_type", "ig_refresh_token")
             .addQueryParameter("client_id", clientId)
@@ -304,8 +322,9 @@ class InstagramController(client: OkHttpClient, userRepository: UserRepository, 
         val pages = getUserPages(longLivedToken) ?: return null to null
 
         val jsonElement = Json.parseToJsonElement(pages)
-        val pageId = jsonElement.jsonObject["data"]?.jsonArray?.firstOrNull()?.jsonObject?.get("id")?.jsonPrimitive?.content
-            ?: return longLivedToken to null
+        val pageId =
+            jsonElement.jsonObject["data"]?.jsonArray?.firstOrNull()?.jsonObject?.get("id")?.jsonPrimitive?.content
+                ?: return longLivedToken to null
 
         val instagramBusinessAccountId = getInstagramBusinessAccountId(pageId, longLivedToken)
 

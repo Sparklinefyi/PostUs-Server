@@ -1,28 +1,18 @@
 package postus.controllers
 
 
-import com.google.gson.JsonObject
-import com.google.gson.JsonParser
-import io.ktor.client.*
-import io.ktor.client.request.*
-import io.ktor.client.request.forms.*
-import io.ktor.client.statement.*
-import io.ktor.http.*
-import kotlinx.coroutines.runBlocking
-import postus.repositories.*
 import org.mindrot.jbcrypt.BCrypt
-import postus.models.auth.Registration
-import postus.models.auth.TokenResponse
-import postus.models.auth.UserInfo
+import postus.models.auth.RegistrationRequest
 import postus.models.auth.User
+import postus.models.auth.UserInfo
+import postus.repositories.UserRepository
 import postus.utils.JwtHandler
-import java.lang.IllegalArgumentException
 import java.time.LocalDateTime.now
 
 class UserController(
     private val userRepository: UserRepository,
 ) {
-    fun registerUser(request: Registration) {
+    fun registerUser(request: RegistrationRequest) {
         val hashedPassword = BCrypt.hashpw(request.password, BCrypt.gensalt())
         val user = User(
             id = 0,
@@ -65,7 +55,7 @@ class UserController(
             ?.let { userRepository.toUserInfo(it) }
     }
 
-    fun fetchUserDataByTokenWithPlatform(token: String): Pair<String, UserInfo?>? {
+    fun fetchUserDataByTokenWithPlatform(token: String): Pair<String, UserInfo> {
         try {
             val verifier = JwtHandler().makeJwtVerifier(System.getProperty("JWT_ISSUER")!!)
             val decodedJWT = verifier.verify(token)
@@ -74,16 +64,16 @@ class UserController(
             var user = decodedJWT.getClaim("user").asString()!!.removeSurrounding("\"")
             var platform = decodedJWT.getClaim("platform").asString()!!.removeSurrounding("\"")
 
-            val userInfo = fetchUserDataByToken(user) ?: return null
+            val userInfo = fetchUserDataByToken(user) ?: return Pair("", UserInfo(0, "", "", "", "", ""))
 
             return if (userRepository.findById(userInfo.id) != null) {
                 Pair(platform, userInfo)
             } else {
-                null
+                Pair("", UserInfo(0, "", "", "", "", ""))
             }
         } catch (e: Exception) {
             println("Error verifying token: ${e.message}")
-            return null
+            return Pair("", UserInfo(0, "", "", "", "", ""))
         }
     }
 

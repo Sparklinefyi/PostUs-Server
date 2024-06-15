@@ -13,8 +13,7 @@ fun Application.configureAuthRouting(userService: UserController) {
     routing {
         route("/auth") {
             post("/register") {
-                // Convert the request payload to RegistrationRequest
-                val request = call.receive<Registration>()
+                val request = call.receive<RegistrationRequest>()
                 val user = userService.registerUser(request)
 
                 call.respond(HttpStatusCode.Created, user)
@@ -22,15 +21,16 @@ fun Application.configureAuthRouting(userService: UserController) {
 
             post("/signin") {
                 // parse request for json data
-                val request = call.receive<Login>()
+                val request = call.receive<LoginRequest>()
                 val user = userService.authenticateWithEmailPassword(request.email, request.password)
                 if (user != null) {
                     val token = JwtHandler().makeToken(user.id.toString())
-                    val response = UserInfo(user.id, user.email, user.name, user.role, user.createdAt, user.description, token,
-                        user.googleAccountId, user.facebookAccountId, user.twitterAccountId, user.instagramAccountId);
+                    val response = UserInfo(
+                        user.id, user.email, user.name, user.role, user.createdAt, user.description, token,
+                        user.googleAccountId, user.facebookAccountId, user.twitterAccountId, user.instagramAccountId
+                    );
                     call.respond(HttpStatusCode.OK, response)
-                }
-                else
+                } else
                     call.respond(HttpStatusCode.Unauthorized, "Invalid credentials")
             }
 
