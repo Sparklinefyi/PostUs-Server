@@ -25,7 +25,7 @@ object Users : IntIdTable() {
     val instagramAccessToken = varchar("instagram_access_token", 255).nullable()
     val instagramRefresh = varchar("instagram_refresh", 255).nullable()
     val linkedinAccountId = varchar("linkedin_account_id", 255).nullable()
-    val linkedinAccessToken = varchar("linkedin_access_token", 255).nullable()
+    val linkedinAccessToken = varchar("linkedin_access_token", 355).nullable()
     val linkedinRefresh = varchar("linkedin_refresh", 255).nullable()
     val tiktokAccountId = varchar("tiktok_account_id", 255).nullable()
     val tiktokAccessToken = varchar("tiktok_access_token", 255).nullable()

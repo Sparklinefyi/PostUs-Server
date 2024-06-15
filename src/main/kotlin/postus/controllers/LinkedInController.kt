@@ -4,13 +4,7 @@ import kotlinx.serialization.json.Json
 import okhttp3.*
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import postus.models.linkedin.LinkedInPostRequest
-import postus.models.linkedin.LinkedinOAuthResponse
-import postus.models.linkedin.LinkedInAnalyticsResponse
-import postus.models.linkedin.ShareCommentary
-import postus.models.linkedin.ShareContent
-import postus.models.linkedin.SpecificContent
-import postus.models.linkedin.Visibility
+import postus.models.linkedin.*
 import postus.repositories.UserRepository
 
 class LinkedInController (client: OkHttpClient, userRepository: UserRepository, userController: UserController, mediaController: MediaController) {
@@ -18,17 +12,14 @@ class LinkedInController (client: OkHttpClient, userRepository: UserRepository, 
     val client = client
     val userRepository = userRepository
     val userController = userController
-    val mediaController = mediaController
 
-    /**
-     * Get LinkedIn access token.
-     * Sample Call:
-     * `getLinkedInAccessToken(1, "authCode")`
-     */
+
     fun getLinkedInAccessToken(userId: Int, authCode: String): Boolean? {
         val clientId = System.getProperty("LINKEDIN_CLIENT_ID") ?: throw Exception("LinkedIn client ID not found")
-        val clientSecret = System.getProperty("LINKEDIN_CLIENT_SECRET") ?: throw Exception("LinkedIn client secret not found")
-        val redirectUri = System.getProperty("LINKEDIN_REDIRECT_URI") ?: throw Exception("LinkedIn redirect URI not found")
+        val clientSecret =
+            System.getProperty("LINKEDIN_CLIENT_SECRET") ?: throw Exception("LinkedIn client secret not found")
+        val redirectUri =
+            System.getProperty("LINKEDIN_REDIRECT_URI") ?: throw Exception("LinkedIn redirect URI not found")
         val tokenUrl = System.getProperty("LINKEDIN_TOKEN_URL") ?: throw Exception("LinkedIn token URL not found")
 
         val requestBody = FormBody.Builder()
@@ -56,48 +47,7 @@ class LinkedInController (client: OkHttpClient, userRepository: UserRepository, 
             "LINKEDIN",
             accountId,
             linkedInOAuthResponse.accessToken,
-            linkedInOAuthResponse.refreshToken
-        )
-        return true
-    }
-
-    /**
-     * Refresh LinkedIn access token.
-     * Sample Call:
-     * `refreshLinkedInAccessToken(1, "refreshToken")`
-     */
-    fun refreshLinkedInAccessToken(userId: Int, refreshToken: String): Boolean? {
-        val clientId = System.getProperty("LINKEDIN_CLIENT_ID") ?: throw Exception("LinkedIn client ID not found")
-
-        val clientSecret =
-            System.getProperty("LINKEDIN_CLIENT_SECRET") ?: throw Exception("LinkedIn client secret not found")
-
-        val tokenUrl = System.getProperty("LINKEDIN_TOKEN_URL") ?: throw Exception("LinkedIn token URL not found")
-
-        val requestBody = FormBody.Builder()
-            .add("grant_type", "refresh_token")
-            .add("refresh_token", refreshToken)
-            .add("client_id", clientId)
-            .add("client_secret", clientSecret)
-            .build()
-
-        val request = Request.Builder()
-            .url(tokenUrl)
-            .post(requestBody)
-            .build()
-
-        val response = client.newCall(request).execute()
-        val responseBody = response.body?.string() ?: return null
-        if (!response.isSuccessful) return null
-
-        val linkedInOAuthResponse =
-            Json { ignoreUnknownKeys = true }.decodeFromString<LinkedinOAuthResponse>(responseBody)
-        userController.linkAccount(
-            userId,
-            "LINKEDIN",
-            null,
-            linkedInOAuthResponse.accessToken,
-            linkedInOAuthResponse.refreshToken
+            null
         )
         return true
     }
@@ -109,7 +59,7 @@ class LinkedInController (client: OkHttpClient, userRepository: UserRepository, 
      */
     fun linkedInAccountId(accessToken: String): String? {
         val request = Request.Builder()
-            .url("https://api.linkedin.com/v2/me")
+            .url("https://api.linkedin.com/v2/userinfo")
             .addHeader("Authorization", "Bearer $accessToken")
             .build()
 
@@ -118,9 +68,9 @@ class LinkedInController (client: OkHttpClient, userRepository: UserRepository, 
         if (!response.isSuccessful) return null
 
         val json = Json { ignoreUnknownKeys = true }
-        val profileData = json.decodeFromString<Map<String, String>>(responseBody)
+        val profileData = json.decodeFromString<LinkedinUserInfo>(responseBody)
 
-        return profileData["id"]
+        return profileData.sub
     }
 
     /**
@@ -194,6 +144,5 @@ class LinkedInController (client: OkHttpClient, userRepository: UserRepository, 
         if (!response.isSuccessful) return null
 
         return Json { ignoreUnknownKeys = true }.decodeFromString<LinkedInAnalyticsResponse>(responseBody)
-
     }
 }
