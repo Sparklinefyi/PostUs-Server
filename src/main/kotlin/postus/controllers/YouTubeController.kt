@@ -1,6 +1,8 @@
 package postus.controllers
 
 
+import com.google.gson.Gson
+import com.google.gson.JsonObject
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
@@ -11,10 +13,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import postus.models.youtube.PlaylistItemsResponse
-import postus.models.youtube.YoutubeOAuthResponse
-import postus.models.youtube.YoutubeRefreshResponse
-import postus.models.youtube.YoutubeUploadRequest
+import postus.models.youtube.*
 import postus.repositories.UserRepository
 
 
@@ -229,7 +228,7 @@ class YouTubeController(
         }
 
         val playlistItemsResponse = Json.decodeFromString<PlaylistItemsResponse>(responseBody ?: "")
-        return playlistItemsResponse.items.map { it.snippet.resourceId.videoId }
+        return playlistItemsResponse.items?.map { it.snippet!!.resourceId!!.videoId!! }
     }
 
     /**
@@ -263,11 +262,6 @@ class YouTubeController(
         return jsonElement.jsonObject["items"]?.jsonArray?.firstOrNull()?.jsonObject?.get("id")?.jsonPrimitive?.content
     }
 
-    /**
-     * Retrieve YouTube channel analytics.
-     * Sample Call:
-     * `getYouTubeChannelAnalytics("1")`
-     */
     fun getYouTubeChannelAnalytics(userId: String): String? {
         val apiKey = System.getProperty("GOOGLE_API_KEY")
         val user = userRepository.findById(userId.toInt())
@@ -275,8 +269,7 @@ class YouTubeController(
         val channelId = user.googleAccountId
 
         val url = "https://www.googleapis.com/youtube/v3/channels".toHttpUrlOrNull()!!.newBuilder()
-            .addQueryParameter("part", "statistics")
-            .addQueryParameter("part", "snippet")
+            .addQueryParameter("part", "snippet,statistics")
             .addQueryParameter("id", channelId)
             .addQueryParameter("key", apiKey)
             .build()
@@ -293,15 +286,10 @@ class YouTubeController(
         return response.body?.string()
     }
 
-    /**
-     * Retrieve YouTube video analytics.
-     * Sample Call:
-     * `getYouTubeVideoAnalytics("videoId")`
-     */
-    fun getYouTubeVideoAnalytics(videoId: String): String? {
+    fun getYouTubeVideoAnalytics(videoId: String): VideoItemResponse? {
         val apiKey = System.getProperty("GOOGLE_API_KEY")
         val url = "https://www.googleapis.com/youtube/v3/videos".toHttpUrlOrNull()!!.newBuilder()
-            .addQueryParameter("part", "statistics")
+            .addQueryParameter("part", "snippet,statistics")
             .addQueryParameter("id", videoId)
             .addQueryParameter("key", apiKey)
             .build()
@@ -315,12 +303,15 @@ class YouTubeController(
         val response = client.newCall(request).execute()
         if (!response.isSuccessful) return null
 
-        return response.body?.string()
+        val body = response.body?.string() ?: return null
+
+        val gson = Gson()
+        return gson.fromJson(body, VideoItemResponse::class.java)
     }
 
-    fun getYouTubeVideoDetails(videoIds: List<String>): List<String?> {
+    fun getYouTubeVideoDetails(videoIds: List<String>): Array<VideoItemResponse?> {
         return videoIds.map { videoId ->
             getYouTubeVideoAnalytics(videoId)
-        }
+        }.toTypedArray()
     }
 }
