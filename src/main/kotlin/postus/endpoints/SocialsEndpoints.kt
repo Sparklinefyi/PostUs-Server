@@ -148,15 +148,11 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
                         HttpStatusCode.InternalServerError,
                         "Error fetching videos"
                     )
-
                     val videoDetailsList = youtubeController.getYouTubeVideoDetails(videoIds)
                     if (videoDetailsList.any { it == null }) {
                         call.respond(HttpStatusCode.InternalServerError, "Failed to retrieve some video details")
                     } else {
-                        val videoDetails = videoDetailsList.filterNotNull().map { detail ->
-                            Json.parseToJsonElement(detail).jsonObject["items"]?.jsonArray?.firstOrNull()?.jsonObject
-                        }
-                        call.respond(HttpStatusCode.OK, videoDetails)
+                        call.respond(HttpStatusCode.OK, videoDetailsList)
                     }
                 }
 
