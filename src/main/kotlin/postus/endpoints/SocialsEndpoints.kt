@@ -13,7 +13,7 @@ import kotlinx.serialization.json.jsonObject
 import postus.controllers.SocialsController
 import postus.controllers.UserController
 import postus.models.SchedulePostRequest
-import postus.models.auth.OAuthLoginRequest
+import postus.models.auth.UserInfo
 import postus.models.instagram.InstagramPostRequest
 import postus.models.youtube.YoutubePostRequest
 import postus.models.youtube.YoutubeUploadRequest
@@ -224,27 +224,14 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
                 get("instagram") {
                     try {
                         val parameters = call.request.queryParameters
-                        val state = parameters["state"]
                         val code = parameters["code"]
 
-                        if (state == null || code == null) {
-                            call.respond(HttpStatusCode.BadRequest, "Missing required parameters")
-                            return@get
-                        }
-
-                        val info = userService.fetchUserDataByTokenWithPlatform(state)
-                        val platform = info.first
-                        val user = info.second
-
-                        instagramController.getLongLivedAccessTokenAndInstagramBusinessAccountId(user.id, code)
-
-                        if (platform == "web") {
-                            val frontendRedirect = System.getProperty("FRONTEND_REDIRECT") ?: "/"
-                            call.respondRedirect(frontendRedirect)
-                        } else if (platform == "ios") {
-                            // For iOS, you might need to use a custom scheme to notify the app
-                            call.respond(HttpStatusCode.OK, "You can now close this window and return to the app.")
-                        }
+                        val info = processRequest(call, userService) ?: return@get
+                        val validated = instagramController.getLongLivedAccessTokenAndInstagramBusinessAccountId(
+                            info.second.id,
+                            code!!
+                        )
+                        oAuthResponse(call, validated, info.first)
                     } catch (e: Exception) {
                         call.respond(
                             HttpStatusCode.InternalServerError,
@@ -255,30 +242,11 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
                 get("youtube") {
                     try {
                         val parameters = call.request.queryParameters
-                        val state = parameters["state"]
                         val code = parameters["code"]
 
-                        if (state == null || code == null) {
-                            call.respond(HttpStatusCode.BadRequest, "Missing required parameters")
-                            return@get
-                        }
-
-                        val info = userService.fetchUserDataByTokenWithPlatform(state)
-                        val platform = info.first
-                        val user = info.second
-
-                        val validated = youtubeController.fetchYouTubeAccessToken(user.id, code)
-                        if (validated) {
-                            if (platform == "web") {
-                                call.respondRedirect(System.getProperty("FRONTEND_REDIRECT") ?: "/")
-                            } else if (platform == "ios") {
-                                call.respond(HttpStatusCode.OK, "You can now close this window and return to the app.")
-                            } else {
-                                call.respond(HttpStatusCode.BadRequest, "Unknown platform")
-                            }
-                        } else {
-                            call.respond(HttpStatusCode.InternalServerError, "Failed to validate YouTube access token")
-                        }
+                        val info = processRequest(call, userService) ?: return@get
+                        val validated = youtubeController.fetchYouTubeAccessToken(info.second.id, code!!)
+                        oAuthResponse(call, validated, info.first)
                     } catch (e: Exception) {
                         call.respond(
                             HttpStatusCode.InternalServerError,
@@ -287,29 +255,34 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
                     }
                 }
                 get("twitter") {
-                    val token = call.parameters["token"] as String
-                    val userInfo = userService.fetchUserDataByToken(token)!!
-                    val userId = userInfo.id.toString()
-                    val code = call.parameters["code"] ?: return@get call.respond(
-                        HttpStatusCode.BadRequest,
-                        "Missing code parameter"
-                    )
-                    twitterController.fetchTwitterAccessToken(userId, code)
+                    try {
+                        val parameters = call.request.queryParameters
+                        val code = parameters["code"]
 
-                    call.respond(200)
+                        val info = processRequest(call, userService) ?: return@get
+                        val validated = twitterController.fetchTwitterAccessToken(info.second.id, code!!)
+                        oAuthResponse(call, validated, info.first)
+                    } catch (e: Exception) {
+                        call.respond(
+                            HttpStatusCode.InternalServerError,
+                            "An error occurred while processing the request"
+                        )
+                    }
                 }
                 get("linkedin") {
-                    val userId = call.parameters["userId"] ?: return@get call.respond(
-                        HttpStatusCode.BadRequest,
-                        "Missing userId"
-                    )
-                    val code = call.parameters["code"] ?: return@get call.respond(
-                        HttpStatusCode.BadRequest,
-                        "Missing code parameter"
-                    )
-                    val token = linkedinController.getLinkedInAccessToken(userId.toInt(), code)
+                    try {
+                        val parameters = call.request.queryParameters
+                        val code = parameters["code"]
 
-                    call.respond(200)
+                        val info = processRequest(call, userService) ?: return@get
+                        val validated = linkedinController.fetchLinkedInAccessToken(info.second.id, code!!)
+                        oAuthResponse(call, validated, info.first)
+                    } catch (e: Exception) {
+                        call.respond(
+                            HttpStatusCode.InternalServerError,
+                            "An error occurred while processing the request"
+                        )
+                    }
                 }
             }
             get("test") {
@@ -365,4 +338,33 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
             }
         }
     }
+}
+
+suspend fun oAuthResponse(call: ApplicationCall, validated: Boolean?, platform: String?) {
+    if (validated!!) {
+        if (platform == "web") {
+            call.respondRedirect(System.getProperty("FRONTEND_REDIRECT") ?: "/")
+        } else if (platform == "ios") {
+            call.respond(HttpStatusCode.OK, "You can now close this window and return to the app.")
+        } else {
+            call.respond(HttpStatusCode.BadRequest, "Unknown platform")
+        }
+    } else {
+        call.respond(HttpStatusCode.InternalServerError, "Failed to validate YouTube access token")
+    }
+}
+
+suspend fun processRequest(call: ApplicationCall, userService: UserController): Pair<String, UserInfo>? {
+    val parameters = call.request.queryParameters
+    val state = parameters["state"]
+    val code = parameters["code"]
+
+    if (state == null || code == null) {
+        call.respond(HttpStatusCode.BadRequest, "Missing required parameters")
+        return null
+    }
+
+    val info = userService.fetchUserDataByTokenWithPlatform(state)
+
+    return info
 }

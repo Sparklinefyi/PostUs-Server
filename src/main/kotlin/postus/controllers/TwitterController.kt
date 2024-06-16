@@ -9,7 +9,12 @@ import postus.models.twitter.TwitterAuthenticatedUserResponse
 import postus.models.twitter.TwitterOAuthResponse
 import postus.repositories.UserRepository
 
-class TwitterController (client: OkHttpClient, userRepository: UserRepository, userController: UserController, mediaController: MediaController) {
+class TwitterController(
+    client: OkHttpClient,
+    userRepository: UserRepository,
+    userController: UserController,
+    mediaController: MediaController
+) {
 
     val client = client
     val userRepository = userRepository
@@ -21,7 +26,7 @@ class TwitterController (client: OkHttpClient, userRepository: UserRepository, u
      * Sample Call:
      * `fetchTwitterAccessToken("1", "authCode")`
      */
-    fun fetchTwitterAccessToken(userId: String, code: String): String? {
+    fun fetchTwitterAccessToken(userId: Int, code: String): Boolean? {
         val clientId = System.getProperty("TWITTER_CLIENT_ID") ?: throw Error("Missing Twitter client ID")
         val clientSecret = System.getProperty("TWITTER_CLIENT_SECRET") ?: throw Error("Missing Twitter client secret")
         val redirectUri = System.getProperty("TWITTER_REDIRECT_URI") ?: throw Error("Missing Twitter redirect URI")
@@ -46,10 +51,18 @@ class TwitterController (client: OkHttpClient, userRepository: UserRepository, u
             return null
         }
 
-        val twitterOAuthResponse = Json { ignoreUnknownKeys = true }.decodeFromString<TwitterOAuthResponse>(responseBody)
-        val accountID = getAuthenticatedTwitterAccountId(twitterOAuthResponse.access_token) ?: throw Exception("Error getting Twitter account ID")
-        userController.linkAccount(userId.toInt(), "TWITTER", accountID, twitterOAuthResponse.access_token, twitterOAuthResponse.refresh_token)
-        return twitterOAuthResponse.access_token
+        val twitterOAuthResponse =
+            Json { ignoreUnknownKeys = true }.decodeFromString<TwitterOAuthResponse>(responseBody)
+        val accountID = getAuthenticatedTwitterAccountId(twitterOAuthResponse.access_token)
+            ?: throw Exception("Error getting Twitter account ID")
+        userController.linkAccount(
+            userId,
+            "TWITTER",
+            accountID,
+            twitterOAuthResponse.access_token,
+            twitterOAuthResponse.refresh_token
+        )
+        return true
     }
 
     /**
@@ -81,8 +94,15 @@ class TwitterController (client: OkHttpClient, userRepository: UserRepository, u
             return null
         }
 
-        val twitterOAuthResponse = Json { ignoreUnknownKeys = true }.decodeFromString<TwitterOAuthResponse>(responseBody)
-        userController.linkAccount(userId.toInt(), "TWITTER", null, twitterOAuthResponse.access_token, twitterOAuthResponse.refresh_token)
+        val twitterOAuthResponse =
+            Json { ignoreUnknownKeys = true }.decodeFromString<TwitterOAuthResponse>(responseBody)
+        userController.linkAccount(
+            userId.toInt(),
+            "TWITTER",
+            null,
+            twitterOAuthResponse.access_token,
+            twitterOAuthResponse.refresh_token
+        )
         return twitterOAuthResponse.access_token
     }
 
@@ -104,7 +124,8 @@ class TwitterController (client: OkHttpClient, userRepository: UserRepository, u
             return null
         }
 
-        val twitterUserResponse = Json { ignoreUnknownKeys = true }.decodeFromString<TwitterAuthenticatedUserResponse>(responseBody)
+        val twitterUserResponse =
+            Json { ignoreUnknownKeys = true }.decodeFromString<TwitterAuthenticatedUserResponse>(responseBody)
         return twitterUserResponse.data.id
     }
 

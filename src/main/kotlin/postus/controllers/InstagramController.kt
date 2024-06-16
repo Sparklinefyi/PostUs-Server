@@ -310,27 +310,27 @@ class InstagramController(
      * Sample Call:
      * `getLongLivedAccessTokenAndInstagramBusinessAccountId(1, "authCode")`
      */
-    fun getLongLivedAccessTokenAndInstagramBusinessAccountId(userId: Int, code: String): Pair<String?, String?> {
+    fun getLongLivedAccessTokenAndInstagramBusinessAccountId(userId: Int, code: String): Boolean {
         val clientId = System.getProperty("INSTAGRAM_CLIENT_ID")
         val clientSecret = System.getProperty("INSTAGRAM_CLIENT_SECRET")
         val redirectUri = System.getProperty("INSTAGRAM_REDIRECT_URI")
         val shortLivedToken = exchangeCodeForAccessToken(clientId!!, clientSecret!!, redirectUri!!, code)
-            ?: return null to null
+            ?: return false
 
         val longLivedToken = exchangeShortLivedTokenForLongLivedToken(clientId, clientSecret, shortLivedToken)
-            ?: return null to null
-        val pages = getUserPages(longLivedToken) ?: return null to null
+            ?: return false
+        val pages = getUserPages(longLivedToken) ?: return false
 
         val jsonElement = Json.parseToJsonElement(pages)
         val pageId =
             jsonElement.jsonObject["data"]?.jsonArray?.firstOrNull()?.jsonObject?.get("id")?.jsonPrimitive?.content
-                ?: return longLivedToken to null
+                ?: return false
 
         val instagramBusinessAccountId = getInstagramBusinessAccountId(pageId, longLivedToken)
 
         userController.linkAccount(userId, "INSTAGRAM", instagramBusinessAccountId, longLivedToken, longLivedToken)
 
-        return longLivedToken to instagramBusinessAccountId
+        return true
     }
 
     /**
