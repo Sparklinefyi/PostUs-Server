@@ -27,20 +27,7 @@ application {
     mainClass.set("postus.ApplicationKt")
 
     val isDevelopment: Boolean = project.ext.has("development")
-    applicationDefaultJvmArgs = listOf(
-        "-Dio.ktor.development=$isDevelopment",
-        "-XX:+UseG1GC",
-        "-XX:MaxGCPauseMillis=200",
-        "-XX:+PrintGCDetails",
-        "-XX:+PrintGCDateStamps"
-    ) + if (isDevelopment) {
-        listOf(
-            "-Xms512m", // Set initial heap size to 512MB
-            "-Xmx1024m" // Set maximum heap size to 1024MB (1GB)
-        )
-    } else {
-        emptyList()
-    }
+    applicationDefaultJvmArgs = listOf("-Dio.ktor.development=$isDevelopment")
 }
 
 repositories {
