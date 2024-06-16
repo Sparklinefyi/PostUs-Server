@@ -276,6 +276,7 @@ class YouTubeController(
 
         val url = "https://www.googleapis.com/youtube/v3/channels".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("part", "statistics")
+            .addQueryParameter("part", "snippet")
             .addQueryParameter("id", channelId)
             .addQueryParameter("key", apiKey)
             .build()

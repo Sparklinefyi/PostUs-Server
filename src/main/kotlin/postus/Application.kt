@@ -33,7 +33,7 @@ fun main() {
     startScheduledPostsChecker(socialController)
 
     val port = System.getenv("PORT")?.toInt() ?: 8080
-    embeddedServer(Netty, port, host = if (port == 8080) "localhost" else "0.0.0.0", module = Application::module)
+    embeddedServer(Netty, port, module = Application::module)
         .start(wait = true)
 }
 
@@ -41,27 +41,10 @@ fun Application.module() {
     val isProduction = System.getenv("ENVIRONMENT") == "prod"
     val dotenv = if (!isProduction) Dotenv.load() else null
 
-    fun setEnvVariable(key: String, value: String?) {
-        if (value != null) {
-            System.setProperty(key, value)
+    dotenv?.let {
+        it.entries().forEach { entry ->
+            System.setProperty(entry.key, entry.value)
         }
-    }
-
-    // Set environment variables
-    val keys = listOf(
-        "DB_URL", "DB_USER", "DB_PASSWORD", "DB_DRIVER", "DB_MAX_POOL_SIZE", "FRONTEND_REDIRECT",
-        "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_API_KEY", "GOOGLE_REDIRECT_URI",
-        "GOOGLE_TOKEN_URL", "GOOGLE_USER_INFO_URL", "FACEBOOK_CLIENT_ID", "FACEBOOK_CLIENT_SECRET",
-        "FACEBOOK_REDIRECT_URI", "FACEBOOK_TOKEN_URL", "FACEBOOK_USER_INFO_URL", "INSTAGRAM_CLIENT_ID",
-        "INSTAGRAM_CLIENT_SECRET", "INSTAGRAM_REDIRECT_URI", "INSTAGRAM_TOKEN_URL", "INSTAGRAM_USER_INFO_URL",
-        "TWITTER_CLIENT_ID", "TWITTER_CLIENT_SECRET", "TWITTER_REDIRECT_URI", "TWITTER_API_KEY", "TWITTER_API_SECRET",
-        "TWITTER_ACCESS_TOKEN", "TWITTER_ACCESS_TOKEN_SECRET", "LINKEDIN_CLIENT_ID", "LINKEDIN_CLIENT_SECRET",
-        "LINKEDIN_REDIRECT_URI", "LINKEDIN_TOKEN_URL", "LINKEDIN_POST_URL", "LINKEDIN_POST_ANALYTICS",
-        "JWT_SECRET", "JWT_EXPIRATION", "JWT_ISSUER"
-    )
-
-    keys.forEach { key ->
-        setEnvVariable(key, dotenv?.get(key) ?: System.getenv(key))
     }
 
     install(CORS) {
@@ -117,7 +100,7 @@ fun Application.module() {
     val userService = UserController(userRepository)
     val socialController = SocialsController(client, userRepository, userService, mediaController)
 
-    // Pass userService to configureAuthRouting
+    // Configure routes
     configureAuthRouting(userService)
     configureMediaRouting(userService, mediaController)
     configureSocialsRouting(userService, socialController)
