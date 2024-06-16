@@ -9,8 +9,6 @@ import io.ktor.server.auth.jwt.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import postus.models.media.*
-import postus.models.auth.*
 import postus.controllers.UserController
 import postus.controllers.MediaController
 

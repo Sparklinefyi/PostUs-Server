@@ -86,6 +86,7 @@ dependencies {
     testImplementation("io.ktor:ktor-client-content-negotiation:$ktor_version")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     implementation("io.github.cdimascio:java-dotenv:5.2.2")
+    implementation("org.json:json:20210307")
 }
 
 tasks.withType<KotlinCompile> {
