@@ -11,14 +11,19 @@ import postus.models.linkedin.*
 import postus.repositories.UserRepository
 import java.io.IOException
 
-class LinkedInController (client: OkHttpClient, userRepository: UserRepository, userController: UserController, mediaController: MediaController) {
+class LinkedInController(
+    client: OkHttpClient,
+    userRepository: UserRepository,
+    userController: UserController,
+    mediaController: MediaController
+) {
 
     val client = client
     val userRepository = userRepository
     val userController = userController
 
 
-    fun getLinkedInAccessToken(userId: Int, authCode: String): Boolean? {
+    fun fetchLinkedInAccessToken(userId: Int, authCode: String): Boolean? {
         val clientId = System.getProperty("LINKEDIN_CLIENT_ID") ?: throw Exception("LinkedIn client ID not found")
         val clientSecret =
             System.getProperty("LINKEDIN_CLIENT_SECRET") ?: throw Exception("LinkedIn client secret not found")
@@ -140,7 +145,13 @@ class LinkedInController (client: OkHttpClient, userRepository: UserRepository, 
         return Json { ignoreUnknownKeys = true }.decodeFromString<LinkedInAnalyticsResponse>(responseBody)
     }
 
-    fun createPostData(authorURN: String, text: String, mediaUrls: List<String> = emptyList(), mediaType: String = "IMAGE", visibility: String = "PUBLIC"): String {
+    fun createPostData(
+        authorURN: String,
+        text: String,
+        mediaUrls: List<String> = emptyList(),
+        mediaType: String = "IMAGE",
+        visibility: String = "PUBLIC"
+    ): String {
         val mediaObjects = mediaUrls.map { url ->
             Media(
                 status = "READY",
@@ -169,7 +180,7 @@ class LinkedInController (client: OkHttpClient, userRepository: UserRepository, 
         return Json.encodeToString(postData)
     }
 
-    fun uploadLinkedInMedia(accessToken: String, accountId:String, mediaUrl: String): String {
+    fun uploadLinkedInMedia(accessToken: String, accountId: String, mediaUrl: String): String {
         val linkedInUploadUrl = "https://api.linkedin.com/v2/assets?action=registerUpload"
 
         val registrationRequestJson = """
@@ -198,7 +209,8 @@ class LinkedInController (client: OkHttpClient, userRepository: UserRepository, 
 
         val responseBody = response.body?.string() ?: throw IOException("Empty response body")
         val jsonResponse = JSONObject(responseBody)
-        val uploadUrl = jsonResponse.getJSONObject("value").getJSONObject("uploadMechanism").getJSONObject("com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest").getString("uploadUrl")
+        val uploadUrl = jsonResponse.getJSONObject("value").getJSONObject("uploadMechanism")
+            .getJSONObject("com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest").getString("uploadUrl")
         val asset = jsonResponse.getJSONObject("value").getString("asset")
 
         // Upload the media
