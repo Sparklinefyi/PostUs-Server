@@ -24,14 +24,12 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
     val youtubeController = socialController.youtubeController
     val twitterController = socialController.twitterController
     val linkedinController = socialController.linkedinController
+    val tiktokController = socialController.tiktokController
 
     routing {
         route("socials") {
             route("publish") {
                 route("image") {
-                    post("tiktok") {
-
-                    }
                     post("instagram") {
                         val token = call.parameters["token"] as String
                         val userInfo = userService.fetchUserDataByToken(token)!!
@@ -50,7 +48,17 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
                 }
                 route("video") {
                     post("tiktok") {
-
+                        val userId = call.parameters["userId"] ?: return@post call.respond(
+                            HttpStatusCode.BadRequest,
+                            "Missing userId"
+                        )
+                        val description = call.parameters["description"]
+                        val videoUrl = call.parameters["videoUrl"] ?: return@post call.respond(
+                            HttpStatusCode.BadRequest,
+                            "Missing videoUrl"
+                        )
+                        val response = tiktokController.postToTikTok(userId.toInt(), videoUrl, description)
+                        call.respond(HttpStatusCode.OK, response)
                     }
                     post("instagram") {
                         val request = call.receive<InstagramPostRequest>()
@@ -192,6 +200,44 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
                     val analytics = instagramController.getInstagramPostAnalytics(userId, postId)
                     if (analytics == null) {
                         call.respond(HttpStatusCode.InternalServerError, "Failed to retrieve Instagram Post Analytics")
+                    } else {
+                        call.respond(analytics)
+                    }
+                }
+                get("tiktok/page"){
+                    val token = call.request.headers["Authorization"]
+                        ?.removePrefix("Bearer ")
+                        ?.trim('"')
+                        ?: return@get call.respond(
+                            HttpStatusCode.BadRequest,
+                            "Missing or invalid Authorization header"
+                        )
+                    val userInfo = userService.fetchUserDataByToken(token)!!
+                    val userId = userInfo.id.toString()
+                    val analytics = tiktokController.getTikTokChannelAnalytics(userId.toInt())
+                    if (analytics == null) {
+                        call.respond(HttpStatusCode.InternalServerError, "Failed to retrieve TikTok Channel Analytics")
+                    } else {
+                        call.respond(analytics)
+                    }
+                }
+                get("tiktok/post"){
+                    val token = call.request.headers["Authorization"]
+                        ?.removePrefix("Bearer ")
+                        ?.trim('"')
+                        ?: return@get call.respond(
+                            HttpStatusCode.BadRequest,
+                            "Missing or invalid Authorization header"
+                        )
+                    val userInfo = userService.fetchUserDataByToken(token)!!
+                    val userId = userInfo.id.toString()
+                    val videoId = call.parameters["videoId"] ?: return@get call.respond(
+                        HttpStatusCode.BadRequest,
+                        "Missing videoId parameter"
+                    )
+                    val analytics = tiktokController.getTikTokPostAnalytics(userId.toInt(), videoId)
+                    if (analytics == null) {
+                        call.respond(HttpStatusCode.InternalServerError, "Failed to retrieve TikTok Post Analytics")
                     } else {
                         call.respond(analytics)
                     }

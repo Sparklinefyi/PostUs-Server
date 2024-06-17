@@ -16,6 +16,7 @@ class SocialsController(client: OkHttpClient, userRepository: UserRepository, us
     val youtubeController = YouTubeController(client, userRepository, userController, mediaController)
     val twitterController = TwitterController(client, userRepository, userController, mediaController)
     val linkedinController = LinkedInController(client, userRepository, userController, mediaController)
+    val tiktokController = TikTokController(client, userRepository, userController, mediaController)
 
     fun schedulePost(userId: String, postTime: String, mediaUrl: ByteArray, schedulePostRequest: SchedulePostRequest): Boolean {
         val mediaType = schedulePostRequest.mediaType

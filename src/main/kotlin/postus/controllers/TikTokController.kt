@@ -73,7 +73,7 @@ class TikTokController(
         return JSONObject(responseBody).getJSONObject("data").getString("open_id")
     }
 
-    fun postToTikTok(userId: Int, videoPath: String, description: String): String {
+    fun postToTikTok(userId: Int, videoPath: String, description: String?): String {
         val user = userRepository.findById(userId)
         val accessToken = user?.tiktokAccessToken ?: throw Exception("User does not have a TikTok account linked")
         val uploadUrl = "https://open-api.tiktok.com/video/upload/"
@@ -81,6 +81,8 @@ class TikTokController(
         val videoFile = mediaController.downloadVideo(videoPath)
         val mediaType = "video/mp4".toMediaTypeOrNull()
         val videoRequestBody = videoFile.asRequestBody(mediaType)
+
+        val description = description ?: ""
 
         val multipartBody = MultipartBody.Builder().setType(MultipartBody.FORM)
             .addFormDataPart("video", videoFile.name, videoRequestBody)
@@ -99,8 +101,11 @@ class TikTokController(
         return JSONObject(responseBody).getJSONObject("data").getString("video_id")
     }
 
-    fun getTikTokChannelAnalytics(accessToken: String): String {
+    fun getTikTokChannelAnalytics(userId: Int): String {
         val url = "https://open-api.tiktok.com/analytics/channels/"
+
+        val user = userRepository.findById(userId)
+        val accessToken = user?.tiktokAccessToken ?: throw Exception("User does not have a TikTok account linked")
 
         val request = Request.Builder()
             .url(url)
@@ -111,8 +116,11 @@ class TikTokController(
         return response.body?.string() ?: throw IOException("Empty response body")
     }
 
-    fun getTikTokPostAnalytics(accessToken: String, videoId: String): String {
+    fun getTikTokPostAnalytics(userId: Int, videoId: String): String {
         val url = "https://open-api.tiktok.com/analytics/posts/$videoId"
+
+        val user = userRepository.findById(userId)
+        val accessToken = user?.tiktokAccessToken ?: throw Exception("User does not have a TikTok account linked")
 
         val request = Request.Builder()
             .url(url)
