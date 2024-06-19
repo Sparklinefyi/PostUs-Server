@@ -46,7 +46,8 @@ data class UserInfo(
     val googleAccountId: String = "",
     val facebookAccountId: String = "",
     val twitterAccountId: String = "",
-    val instagramAccountId: String = ""
+    val instagramAccountId: String = "",
+    val linkedInAccountId: String = "",
 )
 
 @Serializable

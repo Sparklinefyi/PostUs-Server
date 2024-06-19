@@ -302,7 +302,7 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
                         val code = parameters["code"]
 
                         val info = processRequest(call, userService) ?: return@get
-                        val validated = twitterController.fetchTwitterAccessToken(info.second.id, code!!)
+                        val validated = twitterController.fetchTwitterAccessToken(info.second.id, code!!, info.third!!)
                         oAuthResponse(call, validated, info.first)
                     } catch (e: Exception) {
                         call.respond(
@@ -385,7 +385,7 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
 suspend fun oAuthResponse(call: ApplicationCall, validated: Boolean?, platform: String?) {
     if (validated!!) {
         if (platform == "web") {
-            call.respondRedirect(System.getProperty("FRONTEND_REDIRECT") ?: "/")
+            call.respondRedirect(System.getProperty("FRONTEND_REDIRECT"))
         } else if (platform == "ios") {
             call.respond(HttpStatusCode.OK, "You can now close this window and return to the app.")
         } else {
@@ -396,17 +396,16 @@ suspend fun oAuthResponse(call: ApplicationCall, validated: Boolean?, platform: 
     }
 }
 
-suspend fun processRequest(call: ApplicationCall, userService: UserController): Pair<String, UserInfo>? {
+suspend fun processRequest(call: ApplicationCall, userService: UserController): Triple<String, UserInfo, String?> {
     val parameters = call.request.queryParameters
     val state = parameters["state"]
     val code = parameters["code"]
 
     if (state == null || code == null) {
         call.respond(HttpStatusCode.BadRequest, "Missing required parameters")
-        return null
+        return Triple("", UserInfo(0, "", "", "", "", ""), "")
     }
 
     val info = userService.fetchUserDataByTokenWithPlatform(state)
-
     return info
 }

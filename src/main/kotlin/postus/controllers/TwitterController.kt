@@ -21,22 +21,26 @@ class TwitterController(
     val userController = userController
     val mediaController = mediaController
 
+
     /**
      * Fetch Twitter access token.
      * Sample Call:
      * `fetchTwitterAccessToken("1", "authCode")`
      */
-    fun fetchTwitterAccessToken(userId: Int, code: String): Boolean? {
+    fun fetchTwitterAccessToken(userId: Int, code: String, codeVerifier: String): Boolean? {
         val clientId = System.getProperty("TWITTER_CLIENT_ID") ?: throw Error("Missing Twitter client ID")
         val clientSecret = System.getProperty("TWITTER_CLIENT_SECRET") ?: throw Error("Missing Twitter client secret")
         val redirectUri = System.getProperty("TWITTER_REDIRECT_URI") ?: throw Error("Missing Twitter redirect URI")
+
         val requestBody = FormBody.Builder()
             .add("grant_type", "authorization_code")
             .add("client_id", clientId)
             .add("redirect_uri", redirectUri)
             .add("code", code)
-            .add("code_verifier", "1") // Use the plain code verifier here
+            .add("code_verifier", codeVerifier)
             .build()
+
+        println(requestBody)
 
         val request = Request.Builder()
             .url("https://api.twitter.com/2/oauth2/token")

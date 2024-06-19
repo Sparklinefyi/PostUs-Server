@@ -24,10 +24,10 @@ fun Application.configureAuthRouting(userService: UserController) {
                 val request = call.receive<LoginRequest>()
                 val user = userService.authenticateWithEmailPassword(request.email, request.password)
                 if (user != null) {
-                    val token = JwtHandler().makeToken(user.id.toString())
+                    val token = JwtHandler().makeToken(user.id.toInt())
                     val response = UserInfo(
                         user.id, user.email, user.name, user.role, user.createdAt, user.description, token,
-                        user.googleAccountId, user.facebookAccountId, user.twitterAccountId, user.instagramAccountId
+                        user.googleAccountId, user.facebookAccountId, user.twitterAccountId, user.instagramAccountId, user.linkedInAccountId
                     );
                     call.respond(HttpStatusCode.OK, response)
                 } else
@@ -41,7 +41,7 @@ fun Application.configureAuthRouting(userService: UserController) {
         route("/user") {
 
             post("/info") {
-                val request = call.receive<UserInfoRequest>()
+                val request = call.receive<TokenRequest>()
                 val userInfo = userService.fetchUserDataByToken(request.token)
                     ?: throw IllegalArgumentException("Invalid token")
 

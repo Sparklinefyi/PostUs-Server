@@ -14,11 +14,11 @@ class JwtHandler {
             .build()
     }
 
-    fun makeToken(userId: String): String {
+    fun makeToken(userId: Int): String {
         val algorithm = Algorithm.HMAC256(System.getProperty("JWT_SECRET")!!)
         return JWT.create()
             .withIssuer(System.getProperty("JWT_ISSUER")!!)
-            .withSubject(userId)
+            .withSubject(userId.toString())
             .withExpiresAt(Date(System.currentTimeMillis() + 1 * 1000 * 60 * 60 * 72)) // 3 days
             .sign(algorithm)
     }
