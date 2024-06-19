@@ -1,6 +1,7 @@
 package postus.controllers
 
 
+import com.auth0.jwt.interfaces.Claim
 import org.mindrot.jbcrypt.BCrypt
 import postus.models.auth.RegistrationRequest
 import postus.models.auth.User
@@ -8,6 +9,7 @@ import postus.models.auth.UserInfo
 import postus.repositories.UserRepository
 import postus.utils.JwtHandler
 import java.time.LocalDateTime.now
+
 
 class UserController(
     private val userRepository: UserRepository,
@@ -55,32 +57,44 @@ class UserController(
             ?.let { userRepository.toUserInfo(it) }
     }
 
-    fun fetchUserDataByTokenWithPlatform(token: String): Pair<String, UserInfo> {
+    fun fetchUserDataByTokenWithPlatform(token: String): Triple<String, UserInfo, String?> {
         try {
             val verifier = JwtHandler().makeJwtVerifier(System.getProperty("JWT_ISSUER")!!)
             val decodedJWT = verifier.verify(token)
 
-            // Strip surrounding quotes
-            var user = decodedJWT.getClaim("user").asString()!!.removeSurrounding("\"")
-            var platform = decodedJWT.getClaim("platform").asString()!!.removeSurrounding("\"")
-
-            val userInfo = fetchUserDataByToken(user) ?: return Pair("", UserInfo(0, "", "", "", "", ""))
-
-            return if (userRepository.findById(userInfo.id) != null) {
-                Pair(platform, userInfo)
+            val userClaim: Claim = decodedJWT.getClaim("user")
+            val user = if (!userClaim.isNull) {
+                userRepository.toUserInfo(userRepository.findById(userClaim.asInt()))
             } else {
-                Pair("", UserInfo(0, "", "", "", "", ""))
+                return Triple("", UserInfo(0, "", "", "", "", ""), "")
             }
+
+            // Safely access "platform" claim
+            val platformClaim: Claim = decodedJWT.getClaim("platform")
+            val platform = if (!platformClaim.isNull) {
+                platformClaim.asString().removeSurrounding("\"")
+            } else {
+                return Triple("", user, "")
+            }
+
+            // Access other claims as needed
+            val codeVerifierClaim: Claim = decodedJWT.getClaim("code_verifier")
+            val codeVerifier = if (!codeVerifierClaim.isNull) {
+               codeVerifierClaim.asString().removeSurrounding("\"")
+            } else {
+                return Triple(platform.toString(), user, "")
+            }
+
+            return Triple(platform.toString(), user, codeVerifier.toString())
         } catch (e: Exception) {
             println("Error verifying token: ${e.message}")
-            return Pair("", UserInfo(0, "", "", "", "", ""))
+            return Triple("", UserInfo(0, "", "", "", "", ""), "")
         }
     }
 
     fun authenticateWithEmailPassword(email: String, password: String): UserInfo? {
         val user = userRepository.findByEmail(email) ?: return null
         if (!BCrypt.checkpw(password, user.passwordHash)) return null
-
         return userRepository.toUserInfo(user)
     }
 
@@ -113,5 +127,4 @@ class UserController(
 
         userRepository.update(updatedUser)
     }
-
 }

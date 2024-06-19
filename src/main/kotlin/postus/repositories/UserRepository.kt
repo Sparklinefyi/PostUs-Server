@@ -120,18 +120,19 @@ class UserRepository {
         )
     }
 
-    fun toUserInfo(user: User): UserInfo {
+    fun toUserInfo(user: User?): UserInfo {
         return UserInfo(
-            id = user.id,
-            email = user.email,
-            name = user.name,
-            role = user.role,
-            createdAt = user.createdAt,
-            description = user.description,
-            googleAccountId = user.googleAccountId?: "",
-            facebookAccountId = user.facebookAccountId?: "",
-            twitterAccountId = user.twitterAccountId?: "",
-            instagramAccountId = user.instagramAccountId?: "",
+            id = user!!.id,
+            email = user!!.email,
+            name = user!!.name,
+            role = user!!.role,
+            createdAt = user!!.createdAt,
+            description = user!!.description,
+            googleAccountId = user!!.googleAccountId?: "",
+            facebookAccountId = user!!.facebookAccountId?: "",
+            twitterAccountId = user!!.twitterAccountId?: "",
+            instagramAccountId = user!!.instagramAccountId?: "",
+            linkedInAccountId = user!!.linkedinAccountId?: "",
         )
     }
 }
