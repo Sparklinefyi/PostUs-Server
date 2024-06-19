@@ -289,7 +289,7 @@ class YouTubeController(
     fun getYouTubeVideoAnalytics(videoId: String): VideoItemResponse? {
         val apiKey = System.getProperty("GOOGLE_API_KEY")
         val url = "https://www.googleapis.com/youtube/v3/videos".toHttpUrlOrNull()!!.newBuilder()
-            .addQueryParameter("part", "snippet,statistics")
+            .addQueryParameter("part", "snippet,statistics,contentDetails")
             .addQueryParameter("id", videoId)
             .addQueryParameter("key", apiKey)
             .build()

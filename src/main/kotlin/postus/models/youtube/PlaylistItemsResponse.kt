@@ -3,6 +3,14 @@ package postus.models.youtube
 import kotlinx.serialization.Serializable
 
 @Serializable
+data class PlaylistItem(
+    val kind: String?,
+    val etag: String?,
+    val id: String?,
+    val snippet: Snippet?,
+)
+
+@Serializable
 data class PlaylistItemsResponse(
     val kind: String?,
     val etag: String?,
@@ -11,13 +19,14 @@ data class PlaylistItemsResponse(
 )
 
 @Serializable
-data class PlaylistItem(
+data class VideoItem(
     val kind: String?,
     val etag: String?,
     val id: String?,
     val snippet: Snippet?,
+    val statistics: Statistics?,
+    val contentDetails: ContentDetails? // Add statistics here
 )
-
 
 @Serializable
 data class VideoItemResponse(
@@ -28,12 +37,10 @@ data class VideoItemResponse(
 )
 
 @Serializable
-data class VideoItem(
-    val kind: String?,
-    val etag: String?,
-    val id: String?,
-    val snippet: Snippet?,
-    val statistics: Statistics? // Add statistics here
+data class ContentDetails(
+    val duration: String?,
+    val dimension: String?,
+    val definition: String?
 )
 
 @Serializable
@@ -52,19 +59,19 @@ data class Snippet(
 )
 
 @Serializable
+data class Thumbnail(
+    val url: String?,
+    val width: Int?,
+    val height: Int?
+)
+
+@Serializable
 data class Thumbnails(
     val default: Thumbnail?,
     val medium: Thumbnail?,
     val high: Thumbnail?,
     val standard: Thumbnail? = null,
     val maxres: Thumbnail? = null
-)
-
-@Serializable
-data class Thumbnail(
-    val url: String?,
-    val width: Int?,
-    val height: Int?
 )
 
 @Serializable
