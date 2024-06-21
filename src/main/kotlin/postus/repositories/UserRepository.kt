@@ -1,5 +1,4 @@
 package postus.repositories
-import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.sql.*
 import postus.models.auth.Users
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -81,10 +80,12 @@ class UserRepository {
         }
     }
 
-    suspend fun updateUserDescription(userId: Int, description: String) {
+    suspend fun updateUser(userId: Int, newDescription: String?, newPasword: String?) {
         transaction {
             Users.update({ Users.id eq userId }) {
-                it[Users.description] = description
+                it[description] = description!!
+                it[passwordHash] = newPasword!!
+
             }
         }
     }
