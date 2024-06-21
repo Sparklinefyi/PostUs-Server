@@ -54,7 +54,7 @@ fun Application.configureAuthRouting(userService: UserController) {
                     ?: throw IllegalArgumentException("Invalid token")
 
                 // Update the user information
-                userService.updateUser(userInfo.id, request.description)
+                userService.updateUser(userInfo.id, request.description, request.currentPassword, request.newPassword)
                 call.respond(HttpStatusCode.OK, userInfo)
             }
         }

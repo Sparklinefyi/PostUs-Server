@@ -47,8 +47,14 @@ class UserController(
         userRepository.save(user)
     }
 
-    suspend fun updateUser(userId: Int, description: String) {
-        userRepository.updateUserDescription(userId, description)
+    suspend fun updateUser(userId: Int, description: String?, currentPassword: String?, newPassword: String?) {
+        val user = userRepository.findById(userId) ?: return
+        val encryptedPassword = if (BCrypt.checkpw(currentPassword, user.passwordHash)) {
+            BCrypt.hashpw(newPassword, BCrypt.gensalt())
+        } else
+            null
+
+        userRepository.updateUser(userId, description!!, encryptedPassword!!)
     }
 
     fun fetchUserDataByToken(token: String): UserInfo? {
@@ -82,10 +88,10 @@ class UserController(
             val codeVerifier = if (!codeVerifierClaim.isNull) {
                codeVerifierClaim.asString().removeSurrounding("\"")
             } else {
-                return Triple(platform.toString(), user, "")
+                return Triple(platform, user, "")
             }
 
-            return Triple(platform.toString(), user, codeVerifier.toString())
+            return Triple(platform, user, codeVerifier)
         } catch (e: Exception) {
             println("Error verifying token: ${e.message}")
             return Triple("", UserInfo(0, "", "", "", "", ""), "")
