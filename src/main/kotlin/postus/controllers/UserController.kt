@@ -49,10 +49,10 @@ class UserController(
 
     suspend fun updateUser(userId: Int, description: String?, currentPassword: String?, newPassword: String?) {
         val user = userRepository.findById(userId) ?: return
-        val encryptedPassword = if (BCrypt.checkpw(currentPassword, user.passwordHash)) {
+        val encryptedPassword = if (currentPassword!!.isNotEmpty() && newPassword!!.isNotEmpty() && BCrypt.checkpw(currentPassword, user.passwordHash)) {
             BCrypt.hashpw(newPassword, BCrypt.gensalt())
         } else
-            null
+            ""
 
         userRepository.updateUser(userId, description!!, encryptedPassword!!)
     }
