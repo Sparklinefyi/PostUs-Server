@@ -80,11 +80,13 @@ class UserRepository {
         }
     }
 
-    suspend fun updateUser(userId: Int, newDescription: String?, newPasword: String?) {
+    suspend fun updateUser(userId: Int, newDescription: String?, newPassword: String?) {
         transaction {
             Users.update({ Users.id eq userId }) {
-                it[description] = description!!
-                it[passwordHash] = newPasword!!
+                it[description] = newDescription!!
+
+                if (newPassword!!.isNotEmpty())
+                    it[passwordHash] = newPassword
 
             }
         }
