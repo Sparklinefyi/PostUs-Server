@@ -84,7 +84,6 @@ class MediaController {
             .build()
 
         val fileName = generateFileName() + ".mp4"
-
         val objectKey = "$userId/videos/$fileName"
 
         val request = PutObjectRequest.builder()
@@ -119,6 +118,7 @@ class MediaController {
             .region(region)
             .credentialsProvider(credentials)
             .build()
+
         val getObjectRequest = GetObjectPresignRequest.builder()
             .getObjectRequest { builder ->
                 builder.bucket(bucketName).key(key)

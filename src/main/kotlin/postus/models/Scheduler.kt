@@ -1,5 +1,6 @@
 package postus.models
 
+import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.dao.id.IntIdTable
 
 object Schedules : IntIdTable(
@@ -21,4 +22,10 @@ data class ScheduledPost(
     val mediaType: String,
     val schedulePostRequest: SchedulePostRequest,
     val posted: Boolean
+)
+
+@Serializable
+data class TokenAndVideoUrl(
+    val token: String,
+    val videoUrl: String
 )

@@ -2,7 +2,6 @@ package postus.controllers
 
 
 import com.google.gson.Gson
-import com.google.gson.JsonObject
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
@@ -13,6 +12,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
 import postus.models.youtube.*
 import postus.repositories.UserRepository
 
@@ -94,7 +94,7 @@ class YouTubeController(
         }
 
         val oauthResponse = Json { ignoreUnknownKeys = true }.decodeFromString<YoutubeRefreshResponse>(responseBody)
-        userController.linkAccount(userId.toInt(), "GOOGLE", null, oauthResponse.access_token, null)
+        userController.linkAccount(userId, "GOOGLE", null, oauthResponse.access_token, null)
 
         return oauthResponse.access_token
     }
@@ -104,11 +104,11 @@ class YouTubeController(
      * Sample Call:
      * `uploadYoutubeShort(uploadRequest, "1", "videoUrl")`
      */
-    fun uploadYoutubeShort(uploadRequest: YoutubeUploadRequest, userId: Int, videoUrl: String): ResponseBody? {
+    fun uploadYoutubeShort(uploadRequest: YoutubePostRequest, userId: Int, videoUrl: String): String? {
         refreshYouTubeAccessToken(userId)
         val signedUrl = mediaController.getPresignedUrlFromPath(videoUrl)
         val videoFile = mediaController.downloadVideo(signedUrl)
-        val user = userRepository.findById(userId.toInt())
+        val user = userRepository.findById(userId)
             ?: throw Exception("User not found")
         val accessToken = user.googleAccessToken
 
@@ -131,11 +131,14 @@ class YouTubeController(
             .addHeader("Authorization", "Bearer $accessToken")
             .build()
 
-
         val response = client.newCall(request).execute()
         val responseBody = response.body ?: throw Exception("No response body")
 
-        return responseBody
+        responseBody.use { body ->
+            val jsonResponse = body.string()
+            val jsonObject = JSONObject(jsonResponse)
+            return jsonObject.getString("id")
+        }
     }
 
     /**
@@ -149,7 +152,7 @@ class YouTubeController(
         val accessToken = user.googleAccessToken
         val channelId = getAuthenticatedUserChannelId(accessToken!!)
             ?: throw Exception("Error getting channel ID")
-        val videoId = getLast10YouTubeVideos(channelId)?.first()
+        val videoId = getLast50YoutubeVideos(channelId)?.first()
             ?: throw Exception("No videos found")
         println(getYouTubeVideoAnalytics(videoId))
     }
@@ -198,17 +201,14 @@ class YouTubeController(
      * Sample Call:
      * `getLast10YouTubeVideos("1")`
      */
-    fun getLast10YouTubeVideos(userId: String): List<String>? {
-        val user = userRepository.findById(userId.toInt())
-            ?: throw Exception("YouTube Channel ID not found")
-        val channelId = user.googleAccountId
+    fun getLast50YoutubeVideos(userId: String): List<String>? {
         val apiKey = System.getProperty("GOOGLE_API_KEY")
         val uploadsPlaylistId = getYouTubeUploadsPlaylistId(userId) ?: return null
 
         val url = "https://www.googleapis.com/youtube/v3/playlistItems".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("part", "snippet")
             .addQueryParameter("playlistId", uploadsPlaylistId)
-            .addQueryParameter("maxResults", "10")
+            .addQueryParameter("maxResults", "50")
             .addQueryParameter("key", apiKey)
             .build()
             .toString()

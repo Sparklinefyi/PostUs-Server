@@ -13,8 +13,9 @@ enum class YoutubePrivacyStatuses {
     PRIVATE,
 
     @SerialName("unlisted")
-    UNLISTED
+    UNLISTED,
 }
+
 @Serializable
 data class YoutubePrivacyStatus(
     val privacyStatus: YoutubePrivacyStatuses

@@ -1,10 +1,10 @@
 package postus.models.instagram
 
 import kotlinx.serialization.Serializable
+import postus.models.TokenAndVideoUrl
 
 @Serializable
 data class InstagramPostRequest(
-    val token: String,
-    val videoUrl: String,
-    val caption: String
+    val postMetaData: TokenAndVideoUrl?,
+    val caption: String?
 )
