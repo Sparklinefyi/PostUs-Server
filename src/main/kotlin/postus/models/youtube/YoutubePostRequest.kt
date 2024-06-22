@@ -1,17 +1,11 @@
 package postus.models.youtube
 
 import kotlinx.serialization.Serializable
-
-@Serializable
-data class YoutubeUploadRequest(
-    val snippet: YoutubeShortSnippet,
-    val status: YoutubePrivacyStatus
-)
+import postus.models.TokenAndVideoUrl
 
 @Serializable
 data class YoutubePostRequest(
-    val token: String,
-    val videoUrl: String,
+    val tokenAndVideoUrl: TokenAndVideoUrl?,
     val snippet: YoutubeShortSnippet,
     val status: YoutubePrivacyStatus
 )

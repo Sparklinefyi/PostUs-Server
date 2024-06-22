@@ -1,22 +1,18 @@
 package postus.endpoints
 
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import io.ktor.http.*
-import io.ktor.http.content.*
 import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
 import postus.controllers.SocialsController
 import postus.controllers.UserController
 import postus.models.SchedulePostRequest
 import postus.models.auth.UserInfo
-import postus.models.instagram.InstagramPostRequest
-import postus.models.youtube.YoutubePostRequest
-import postus.models.youtube.YoutubeUploadRequest
+import postus.models.youtube.*
+import postus.models.instagram.*
 
 fun Application.configureSocialsRouting(userService: UserController, socialController: SocialsController) {
 
@@ -62,30 +58,29 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
                     }
                     post("instagram") {
                         val request = call.receive<InstagramPostRequest>()
-                        val userInfo = userService.fetchUserDataByToken(request.token)
+                        val userInfo = userService.fetchUserDataByToken(request.postMetaData!!.token)
                             ?: throw IllegalArgumentException("Invalid token")
 
                         try {
                             val result = instagramController.uploadVideoToInstagram(
                                 userInfo.id,
-                                request.videoUrl,
+                                request.postMetaData!!.videoUrl,
                                 request.caption
                             )
                             call.respond(HttpStatusCode.OK, result)
                         } catch (e: Exception) {
-                            call.respond(e)
+                            call.respond(HttpStatusCode.InternalServerError, e.message ?: "An error occurred")
                         }
                     }
+
                     post("youtube") {
                         val request = call.receive<YoutubePostRequest>()
-                        val userInfo = userService.fetchUserDataByToken(request.token)
+                        val userInfo = userService.fetchUserDataByToken(request.tokenAndVideoUrl!!.token)
                             ?: throw IllegalArgumentException("Invalid token")
 
-                        val uploadRequest = YoutubeUploadRequest(request.snippet, request.status)
                         try {
-                            val result =
-                                youtubeController.uploadYoutubeShort(uploadRequest, userInfo.id, request.videoUrl)
-                            call.respond(HttpStatusCode.OK)
+                            val result = youtubeController.uploadYoutubeShort(request, userInfo.id, request.tokenAndVideoUrl!!.videoUrl)
+                            call.respond(HttpStatusCode.OK, result!!)
                         } catch (e: Exception) {
                             call.respond(HttpStatusCode.InternalServerError, e.message ?: "An error occurred")
                         }
@@ -137,7 +132,6 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
                         call.respond(HttpStatusCode.OK, analytics)
                     }
                 }
-
                 get("youtube/post") {
                     val token = call.request.headers["Authorization"]
                         ?.removePrefix("Bearer ")
@@ -152,7 +146,7 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
                     )
 
                     val userId = userInfo.id.toString()
-                    val videoIds = youtubeController.getLast10YouTubeVideos(userId) ?: return@get call.respond(
+                    val videoIds = youtubeController.getLast50YoutubeVideos(userId) ?: return@get call.respond(
                         HttpStatusCode.InternalServerError,
                         "Error fetching videos"
                     )
@@ -163,7 +157,6 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
                         call.respond(HttpStatusCode.OK, videoDetailsList)
                     }
                 }
-
                 get("instagram/page") {
                     val token = call.request.headers["Authorization"]
                         ?.removePrefix("Bearer ")
@@ -327,56 +320,23 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
                     }
                 }
             }
-            get("test") {
-                val token = call.parameters["token"] as String
-                val userInfo = userService.fetchUserDataByToken(token)!!
-                val userId = userInfo.id.toString()
-                youtubeController.testYoutube(userId)
-                call.respond(200)
-            }
             post("schedule") {
-                val multipart = call.receiveMultipart()
-                var json: String? = null
-                var fileBytes: ByteArray? = null
 
-                multipart.forEachPart { part ->
-                    when (part) {
-                        is PartData.FormItem -> {
-                            if (part.name == "json") {
-                                json = part.value
-                            }
-                        }
+                val gson: Gson = GsonBuilder().create()
 
-                        is PartData.FileItem -> {
-                            if (part.name == "file") {
-                                fileBytes = part.streamProvider().readBytes()
-                            }
-                        }
+                val jsonString = call.receiveText()
+                val request = gson.fromJson(jsonString, SchedulePostRequest::class.java)
 
-                        else -> Unit
-                    }
-                    part.dispose()
-                }
-                if (json == null || fileBytes == null) {
-                    return@post call.respond(HttpStatusCode.BadRequest, "Missing scheduledetails or media")
-                }
-                val userId = call.parameters["userId"] ?: return@post call.respond(
-                    HttpStatusCode.BadRequest,
-                    "Missing accessToken parameter"
-                )
-                val postTime = call.parameters["postTime"] ?: return@post call.respond(
-                    HttpStatusCode.BadRequest,
-                    "Missing accessToken parameter"
-                )
-                val schedulePostRequest = Gson().fromJson(json, SchedulePostRequest::class.java)
-                val mediaByteArray = fileBytes!!
-                val posted = socialController.schedulePost(userId, postTime, mediaByteArray, schedulePostRequest)
+                val userInfo = userService.fetchUserDataByToken(request.token)
+                    ?: throw IllegalArgumentException("Invalid token")
+
+                val posted = socialController.schedulePost(userInfo.id, request)
                 if (posted) {
                     call.respond(HttpStatusCode.OK, posted)
                 } else {
                     call.respond(HttpStatusCode.InternalServerError, "Post could not be scheduled")
                 }
-                call.respond(schedulePostRequest)
+                call.respond(request)
             }
         }
     }

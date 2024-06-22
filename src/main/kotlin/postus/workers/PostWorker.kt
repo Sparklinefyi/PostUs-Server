@@ -7,6 +7,7 @@ import java.time.Duration
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
@@ -16,8 +17,15 @@ class PostWorker(private val scheduledPost: ScheduledPost, private val socialCon
     private var future: ScheduledFuture<*>? = null
 
     fun schedule() {
-        val postTime: Instant = LocalDateTime.parse(scheduledPost.postTime).toInstant(ZoneOffset.UTC)
-        val delay = Duration.between(LocalDateTime.now().toInstant(ZoneOffset.UTC), postTime).toMillis()
+        val dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        val postTimeLocalDateTime: LocalDateTime = LocalDateTime.parse(scheduledPost.postTime, dateTimeFormatter)
+        val postTimeInstant: Instant = postTimeLocalDateTime.toInstant(ZoneOffset.UTC)
+
+        val currentInstant: Instant = Instant.now()
+        println("Current Instant: $currentInstant") // Debugging statement
+        println("Post Time Instant: $postTimeInstant") // Debugging statement
+
+        val delay = Duration.between(currentInstant, postTimeInstant).toHours()
         future = scheduler.schedule({
             post()
         }, delay, TimeUnit.MILLISECONDS)
@@ -50,13 +58,13 @@ class PostWorker(private val scheduledPost: ScheduledPost, private val socialCon
                             socialController.instagramController.uploadPictureToInstagram(
                                 userId,
                                 mediaUrl,
-                                scheduledPost.schedulePostRequest.instagramPostRequest?.caption,
+                                scheduledPost.schedulePostRequest.instagramPostRequest!!.caption,
                             )
                         } else {
                             socialController.instagramController.uploadVideoToInstagram(
                                 userId,
                                 mediaUrl,
-                                scheduledPost.schedulePostRequest.instagramPostRequest?.caption,
+                                scheduledPost.schedulePostRequest.instagramPostRequest!!.caption,
                             )
                         }
                     } catch (e: Exception) {

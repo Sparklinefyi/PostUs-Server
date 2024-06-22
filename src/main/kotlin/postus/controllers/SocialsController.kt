@@ -10,6 +10,7 @@ import java.time.ZoneOffset
 
 import postus.workers.PostWorker
 import postus.repositories.UserRepository
+import java.time.format.DateTimeFormatter
 
 class SocialsController(client: OkHttpClient, userRepository: UserRepository, userController: UserController, val mediaController: MediaController) {
     val instagramController = InstagramController(client, userRepository, userController, mediaController)
@@ -18,36 +19,36 @@ class SocialsController(client: OkHttpClient, userRepository: UserRepository, us
     val linkedinController = LinkedInController(client, userRepository, userController, mediaController)
     val tiktokController = TikTokController(client, userRepository, userController, mediaController)
 
-    fun schedulePost(userId: String, postTime: String, mediaUrl: ByteArray, schedulePostRequest: SchedulePostRequest): Boolean {
-        val mediaType = schedulePostRequest.mediaType
-        val s3Path: String
-        when (mediaType) {
-            "IMAGE" -> {
-                s3Path = mediaController.uploadImage(userId, mediaUrl)
-            }
-            "VIDEO" -> {
-                s3Path = mediaController.uploadVideo(userId, mediaUrl)
-            }
-            else -> {
-                throw Exception("Not a supported media type (VIDEO or IMAGE)")
-            }
-        }
-        val postTimeInstant: Instant = LocalDateTime.parse(postTime).toInstant(ZoneOffset.UTC)
-        val delay = Duration.between(LocalDateTime.now().toInstant(ZoneOffset.UTC), postTimeInstant).toHours()
+    fun schedulePost(userId: Int, schedulePostRequest: SchedulePostRequest): Boolean {
+        val dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        val postTimeLocalDateTime: LocalDateTime = LocalDateTime.parse(schedulePostRequest.postTime, dateTimeFormatter)
+        val postTimeInstant: Instant = postTimeLocalDateTime.toInstant(ZoneOffset.UTC)
+
+        val currentInstant: Instant = Instant.now()
+        println("Current Instant: $currentInstant") // Debugging statement
+        println("Post Time Instant: $postTimeInstant") // Debugging statement
+
+        val delay = Duration.between(currentInstant, postTimeInstant).toHours()
         if (delay < 3) {
             val post = ScheduledPost(
                 0,
-                userId.toInt(),
-                s3Path,
-                postTime,
-                mediaType,
+                userId,
+                schedulePostRequest.contentUrl,
+                schedulePostRequest.postTime,
+                schedulePostRequest.mediaType,
                 schedulePostRequest,
                 false
             )
             PostWorker(post, this).schedule()
             return true
         }
-        val scheduled = ScheduleRepository.addSchedule(userId.toInt(), s3Path, postTime, mediaType, schedulePostRequest)
-        return scheduled
+
+        return ScheduleRepository.addSchedule(
+            userId,
+            schedulePostRequest.contentUrl,
+            schedulePostRequest.postTime,
+            schedulePostRequest.mediaType,
+            schedulePostRequest
+        )
     }
 }
