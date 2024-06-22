@@ -104,7 +104,7 @@ class YouTubeController(
      * Sample Call:
      * `uploadYoutubeShort(uploadRequest, "1", "videoUrl")`
      */
-    fun uploadYoutubeShort(uploadRequest: YoutubePostRequest, userId: Int, videoUrl: String): String? {
+    fun uploadYoutubeShort(uploadRequest: YoutubePostRequest, userId: Int, videoUrl: String): JSONObject? {
         refreshYouTubeAccessToken(userId)
         val signedUrl = mediaController.getPresignedUrlFromPath(videoUrl)
         val videoFile = mediaController.downloadVideo(signedUrl)
@@ -136,8 +136,7 @@ class YouTubeController(
 
         responseBody.use { body ->
             val jsonResponse = body.string()
-            val jsonObject = JSONObject(jsonResponse)
-            return jsonObject.getString("id")
+            return JSONObject(jsonResponse)
         }
     }
 

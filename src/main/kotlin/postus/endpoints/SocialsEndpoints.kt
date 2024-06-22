@@ -72,7 +72,6 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
                             call.respond(HttpStatusCode.InternalServerError, e.message ?: "An error occurred")
                         }
                     }
-
                     post("youtube") {
                         val request = call.receive<YoutubePostRequest>()
                         val userInfo = userService.fetchUserDataByToken(request.tokenAndVideoUrl!!.token)
@@ -80,9 +79,21 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
 
                         try {
                             val result = youtubeController.uploadYoutubeShort(request, userInfo.id, request.tokenAndVideoUrl!!.videoUrl)
-                            call.respond(HttpStatusCode.OK, result!!)
+
+                            if (result!!.has("error")) {
+                                val errorObject = result.getJSONObject("error")
+
+                                // Check if the "reason" key exists in the "error" object
+                                if (errorObject.has("reason") && errorObject.getString("reason") == "quotaExceeded") {
+                                    call.respond(HttpStatusCode.Forbidden, mapOf("error" to "You have exceeded your YouTube API quota. Please try again later."))
+                                } else {
+                                    call.respond(HttpStatusCode.InternalServerError, mapOf("error" to errorObject.optString("message", "An error occurred")))
+                                }
+                            } else {
+                                call.respond(HttpStatusCode.OK, mapOf("videoId" to "TempVideoId"))
+                            }
                         } catch (e: Exception) {
-                            call.respond(HttpStatusCode.InternalServerError, e.message ?: "An error occurred")
+                            call.respond(HttpStatusCode.InternalServerError, mapOf("error" to (e.message ?: "An error occurred")))
                         }
                     }
                 }
