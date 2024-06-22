@@ -63,7 +63,7 @@ class InstagramController(
         // Wait for media to be ready
         var mediaReady = false
         val maxRetries = 10
-        val retryDelayMillis = 30000L
+        val retryDelayMillis = 3000L
         repeat(maxRetries) {
             Thread.sleep(retryDelayMillis)
             val statusUrl = "https://graph.facebook.com/v11.0/$containerId".toHttpUrlOrNull()!!.newBuilder()
