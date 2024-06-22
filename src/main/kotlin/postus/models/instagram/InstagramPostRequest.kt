@@ -5,6 +5,6 @@ import postus.models.TokenAndVideoUrl
 
 @Serializable
 data class InstagramPostRequest(
-    val postMetaData: TokenAndVideoUrl?,
+    val tokenAndVideoUrl: TokenAndVideoUrl?,
     val caption: String?
 )

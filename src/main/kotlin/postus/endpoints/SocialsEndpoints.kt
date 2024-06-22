@@ -58,18 +58,30 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
                     }
                     post("instagram") {
                         val request = call.receive<InstagramPostRequest>()
-                        val userInfo = userService.fetchUserDataByToken(request.postMetaData!!.token)
+                        val userInfo = userService.fetchUserDataByToken(request.tokenAndVideoUrl!!.token)
                             ?: throw IllegalArgumentException("Invalid token")
 
                         try {
                             val result = instagramController.uploadVideoToInstagram(
                                 userInfo.id,
-                                request.postMetaData!!.videoUrl,
+                                request.tokenAndVideoUrl!!.videoUrl,
                                 request.caption
                             )
-                            call.respond(HttpStatusCode.OK, result)
+
+                            if (result!!.has("error")) {
+                                val errorObject = result.getJSONObject("error")
+
+                                // Check if the "reason" key exists in the "error" object
+                                if (errorObject.has("reason") && errorObject.getString("reason") == "quotaExceeded") {
+                                    call.respond(HttpStatusCode.Forbidden, mapOf("error" to "You have exceeded your YouTube API quota. Please try again later."))
+                                } else {
+                                    call.respond(HttpStatusCode.InternalServerError, mapOf("error" to errorObject.optString("message", "An error occurred")))
+                                }
+                            } else {
+                                call.respond(HttpStatusCode.OK, mapOf("videoId" to "TempVideoId"))
+                            }
                         } catch (e: Exception) {
-                            call.respond(HttpStatusCode.InternalServerError, e.message ?: "An error occurred")
+                            call.respond(HttpStatusCode.InternalServerError, mapOf("error" to (e.message ?: "An error occurred")))
                         }
                     }
                     post("youtube") {

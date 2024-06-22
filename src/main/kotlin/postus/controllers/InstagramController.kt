@@ -8,6 +8,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
+import org.json.JSONObject
 import postus.repositories.UserRepository
 
 class InstagramController(
@@ -27,7 +28,7 @@ class InstagramController(
      * Sample Call:
      * `uploadVideoToInstagram("1", "https://example.com/video.mp4", "Sample Caption")`
      */
-    fun uploadVideoToInstagram(userId: Int, videoUrl: String, caption: String? = ""): String {
+    fun uploadVideoToInstagram(userId: Int, videoUrl: String, caption: String? = ""): JSONObject? {
         val user = userRepository.findById(userId)
             ?: throw Exception("User not found")
         val accessToken = user.instagramAccessToken
@@ -52,12 +53,12 @@ class InstagramController(
         val containerResponse = client.newCall(containerRequest).execute()
         if (!containerResponse.isSuccessful) {
             println("Container Response Body: ${containerResponse.body?.string()}")
-            return "Failed to create media container"
+            return JSONObject("{'error': 'Failed to get container ID'}")
         }
 
         val containerId =
             Json.parseToJsonElement(containerResponse.body?.string() ?: "").jsonObject["id"]?.jsonPrimitive?.content
-                ?: return "Failed to get container ID"
+                ?: return JSONObject("{'error': 'Failed to get container ID'}")
 
         // Wait for media to be ready
         var mediaReady = false
@@ -86,7 +87,9 @@ class InstagramController(
             }
         }
 
-        if (!mediaReady) return "Media was not ready in time"
+        if (!mediaReady) {
+            return JSONObject("{'error': 'Media not ready'}")
+        }
 
         val publishUrl =
             "https://graph.facebook.com/v11.0/$instagramAccountId/media_publish".toHttpUrlOrNull()!!.newBuilder()
@@ -102,9 +105,9 @@ class InstagramController(
 
         val publishResponse = client.newCall(publishRequest).execute()
         return if (publishResponse.isSuccessful) {
-            "Publish Response Body: ${publishResponse.body?.string()}"
+            JSONObject("{'success': 'Publish Request Successful'}")
         } else {
-            "INSTAGRAM FAILURE ${publishResponse.body?.string() ?: "Publish Request Failed"}"
+            JSONObject("{'error': 'Publish Request Failed'}")
         }
     }
 
