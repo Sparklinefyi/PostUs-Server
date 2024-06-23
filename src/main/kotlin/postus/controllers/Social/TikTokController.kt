@@ -1,4 +1,4 @@
-package postus.controllers
+package postus.controllers.Social
 
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -9,6 +9,8 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import postus.controllers.MediaController
+import postus.controllers.UserController
 import postus.models.tiktok.TikTokRefreshTokenRequest
 import postus.models.tiktok.TiktokAuthRequest
 import postus.repositories.UserRepository
@@ -75,7 +77,8 @@ class TikTokController(
 
     fun postToTikTok(userId: Int, videoPath: String, description: String?): String {
         val user = userRepository.findById(userId)
-        val accessToken = user?.tiktokAccessToken ?: throw Exception("User does not have a TikTok account linked")
+        val accessToken = user?.accounts?.find { it.provider == "TIKTOK" }?.accessToken
+
         val uploadUrl = "https://open-api.tiktok.com/video/upload/"
 
         val videoFile = mediaController.downloadVideo(videoPath)
@@ -105,7 +108,7 @@ class TikTokController(
         val url = "https://open-api.tiktok.com/analytics/channels/"
 
         val user = userRepository.findById(userId)
-        val accessToken = user?.tiktokAccessToken ?: throw Exception("User does not have a TikTok account linked")
+        val accessToken = user?.accounts?.find { it.provider == "TIKTOK" }?.accessToken
 
         val request = Request.Builder()
             .url(url)
@@ -120,7 +123,7 @@ class TikTokController(
         val url = "https://open-api.tiktok.com/analytics/posts/$videoId"
 
         val user = userRepository.findById(userId)
-        val accessToken = user?.tiktokAccessToken ?: throw Exception("User does not have a TikTok account linked")
+        val accessToken = user?.accounts?.find { it.provider == "TIKTOK" }?.accessToken
 
         val request = Request.Builder()
             .url(url)

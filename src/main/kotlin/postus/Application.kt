@@ -19,6 +19,7 @@ import postus.utils.JwtHandler
 import postus.workers.startScheduledPostsChecker
 import io.github.cdimascio.dotenv.Dotenv
 import okhttp3.OkHttpClient
+import postus.controllers.Social.SocialsController
 
 fun main() {
     // Initialize the database
@@ -40,7 +41,6 @@ fun main() {
 fun Application.module() {
     val isProduction = System.getenv("ENVIRONMENT") == "prod"
     val dotenv = if (!isProduction) Dotenv.load() else null
-
 
     fun setEnvVariable(key: String, value: String?) {
         if (value != null) {

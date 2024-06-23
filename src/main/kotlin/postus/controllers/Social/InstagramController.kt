@@ -1,4 +1,4 @@
-package postus.controllers
+package postus.controllers.Social
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
@@ -9,6 +9,8 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import org.json.JSONObject
+import postus.controllers.MediaController
+import postus.controllers.UserController
 import postus.repositories.UserRepository
 
 class InstagramController(
@@ -31,13 +33,13 @@ class InstagramController(
     fun uploadVideoToInstagram(userId: Int, videoUrl: String, caption: String? = ""): JSONObject? {
         val user = userRepository.findById(userId)
             ?: throw Exception("User not found")
-        val accessToken = user.instagramAccessToken
+        val accessToken = user.accounts.find { it.type == "INSTAGRAM" }?.accessToken
             ?: throw Exception("Instagram access token not found")
-        val instagramAccountId = user.instagramAccountId
+        val accountId = user.accounts.find { it.type == "INSTAGRAM" }?.accountId
             ?: throw Exception("Instagram account ID not found")
 
         val signedUrl = mediaController.getPresignedUrlFromPath(videoUrl)
-        val containerUrl = "https://graph.facebook.com/v11.0/$instagramAccountId/media".toHttpUrlOrNull()!!.newBuilder()
+        val containerUrl = "https://graph.facebook.com/v11.0/$accountId/media".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("media_type", "REELS")
             .addQueryParameter("video_url", signedUrl)
             .addQueryParameter("caption", caption)
@@ -92,7 +94,7 @@ class InstagramController(
         }
 
         val publishUrl =
-            "https://graph.facebook.com/v11.0/$instagramAccountId/media_publish".toHttpUrlOrNull()!!.newBuilder()
+            "https://graph.facebook.com/v11.0/$accountId/media_publish".toHttpUrlOrNull()!!.newBuilder()
                 .addQueryParameter("creation_id", containerId)
                 .addQueryParameter("access_token", accessToken)
                 .build()
@@ -119,10 +121,14 @@ class InstagramController(
     fun uploadPictureToInstagram(userId: Int, imageUrl: String, caption: String? = ""): String {
         val user = userRepository.findById(userId)
         refreshInstagramAccessToken(userId)
-        val accessToken = user?.instagramAccessToken ?: throw Exception("User not found")
-        val instagramAccountId = user.instagramAccountId ?: throw Exception("Instagram account ID not found")
 
-        val containerUrl = "https://graph.facebook.com/v11.0/$instagramAccountId/media".toHttpUrlOrNull()!!.newBuilder()
+        val accessToken = user?.accounts?.find { it.type == "INSTAGRAM" }?.accessToken
+            ?: throw Exception("Instagram access token not found")
+
+        val accountId = user?.accounts?.find { it.type == "INSTAGRAM" }?.accountId
+            ?: throw Exception("Instagram access token not found")
+
+        val containerUrl = "https://graph.facebook.com/v11.0/$accessToken/media".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("image_url", imageUrl)
             .addQueryParameter("caption", caption)
             .addQueryParameter("access_token", accessToken)
@@ -144,7 +150,7 @@ class InstagramController(
                 ?: return "Failed to get container ID"
 
         val publishUrl =
-            "https://graph.facebook.com/v11.0/$instagramAccountId/media_publish".toHttpUrlOrNull()!!.newBuilder()
+            "https://graph.facebook.com/v11.0/$accountId/media_publish".toHttpUrlOrNull()!!.newBuilder()
                 .addQueryParameter("creation_id", containerId)
                 .addQueryParameter("access_token", accessToken)
                 .build()
@@ -229,8 +235,9 @@ class InstagramController(
     fun refreshInstagramAccessToken(userId: Int) {
         val clientId = System.getProperty("INSTAGRAM_CLIENT_ID")
         val clientSecret = System.getProperty("INSTAGRAM_CLIENT_SECRET")
-        val refreshToken =
-            userRepository.findById(userId)?.instagramRefresh ?: throw Exception("User or refresh token not found")
+        val refreshToken =  userRepository.findById(userId)?.accounts?.find { it.type == "INSTAGRAM" }?.refreshToken
+            ?: throw Exception("Instagram access token not found")
+
         val url = "https://graph.instagram.com/refresh_access_token".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("grant_type", "ig_refresh_token")
             .addQueryParameter("client_id", clientId)
@@ -344,9 +351,9 @@ class InstagramController(
     fun getInstagramPageAnalytics(userId: String): String? {
         val user = userRepository.findById(userId.toInt())
             ?: throw Exception("User not found")
-        val accessToken = user.instagramAccessToken
+        val accessToken = user.accounts.find { it.type == "INSTAGRAM" }?.accessToken
             ?: throw Exception("Instagram access token not found")
-        val instagramAccountId = user.instagramAccountId
+        val instagramAccountId = user.accounts.find { it.type == "INSTAGRAM" }?.accountId
             ?: throw Exception("Instagram account ID not found")
 
         val url = "https://graph.facebook.com/v11.0/$instagramAccountId/insights".toHttpUrlOrNull()!!.newBuilder()
@@ -382,7 +389,7 @@ class InstagramController(
     fun getInstagramPostAnalytics(userId: String, postId: String): String? {
         val user = userRepository.findById(userId.toInt())
             ?: throw Exception("User not found")
-        val accessToken = user.instagramAccessToken
+        val accessToken = user.accounts.find { it.type == "INSTAGRAM" }?.accessToken
             ?: throw Exception("Instagram access token not found")
 
         val url = "https://graph.facebook.com/v11.0/$postId/insights".toHttpUrlOrNull()!!.newBuilder()
@@ -411,12 +418,12 @@ class InstagramController(
     fun getInstagramMediaIds(userId: String): String? {
         val user = userRepository.findById(userId.toInt())
             ?: throw Exception("User not found")
-        val accessToken = user.instagramAccessToken
+        val accessToken = user.accounts.find { it.type == "INSTAGRAM" }?.accessToken
             ?: throw Exception("Instagram access token not found")
-        val instagramAccountId = user.instagramAccountId
+        val accountId = user.accounts.find { it.type == "INSTAGRAM" }?.accountId
             ?: throw Exception("Instagram account ID not found")
 
-        val url = "https://graph.facebook.com/v11.0/$instagramAccountId/media".toHttpUrlOrNull()!!.newBuilder()
+        val url = "https://graph.facebook.com/v11.0/$accountId/media".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("fields", "id,media_type")
             .addQueryParameter("access_token", accessToken)
             .build()
@@ -448,7 +455,7 @@ class InstagramController(
     fun getInstagramMediaDetails(userId: String, postId: String): String {
         val user = userRepository.findById(userId.toInt())
             ?: throw Exception("User not found")
-        val accessToken = user.instagramAccessToken
+        val accessToken = user.accounts.find { it.type == "INSTAGRAM" }?.accessToken
             ?: throw Exception("Instagram access token not found")
 
         val url = "https://graph.facebook.com/v11.0/$postId".toHttpUrlOrNull()!!.newBuilder()

@@ -1,7 +1,7 @@
 package postus.workers
 
 import ScheduleRepository
-import postus.controllers.SocialsController
+import postus.controllers.Social.SocialsController
 import postus.models.ScheduledPost
 import java.time.Duration
 import java.time.Instant

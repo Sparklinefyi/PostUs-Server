@@ -2,7 +2,7 @@ package postus.workers
 
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import postus.controllers.SocialsController
+import postus.controllers.Social.SocialsController
 
 class ScheduleCheckWorker(private val socialController: SocialsController) : Runnable {
     override fun run() {

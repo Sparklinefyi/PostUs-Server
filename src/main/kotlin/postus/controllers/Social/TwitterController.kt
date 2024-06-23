@@ -1,10 +1,12 @@
-package postus.controllers
+package postus.controllers.Social
 
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
+import postus.controllers.MediaController
+import postus.controllers.UserController
 import postus.models.twitter.TwitterAuthenticatedUserResponse
 import postus.models.twitter.TwitterOAuthResponse
 import postus.repositories.UserRepository
@@ -77,7 +79,9 @@ class TwitterController(
     fun refreshTwitterAccessToken(userId: String): String? {
         val user = userRepository.findById(userId.toInt())
             ?: throw Exception("User not found")
-        val refreshToken = user.twitterRefresh
+        val refreshToken = user.accounts.find { it.provider == "TWITTER" }?.refreshToken
+            ?: throw Exception("User not linked with Twitter")
+
         val clientId = System.getProperty("TWITTER_CLIENT_ID") ?: throw Error("Missing Twitter client ID")
         val clientSecret = System.getProperty("TWITTER_CLIENT_SECRET") ?: throw Error("Missing Twitter client secret")
         val requestBody = FormBody.Builder()

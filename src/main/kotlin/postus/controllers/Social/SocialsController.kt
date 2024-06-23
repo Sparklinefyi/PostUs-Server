@@ -1,6 +1,8 @@
-package postus.controllers
+package postus.controllers.Social
 
 import okhttp3.OkHttpClient
+import postus.controllers.MediaController
+import postus.controllers.UserController
 import postus.models.SchedulePostRequest
 import postus.models.ScheduledPost
 import java.time.Duration

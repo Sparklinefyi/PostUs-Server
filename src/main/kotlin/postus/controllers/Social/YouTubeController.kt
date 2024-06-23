@@ -1,4 +1,4 @@
-package postus.controllers
+package postus.controllers.Social
 
 
 import com.google.gson.Gson
@@ -13,6 +13,8 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import postus.controllers.MediaController
+import postus.controllers.UserController
 import postus.models.youtube.*
 import postus.repositories.UserRepository
 
@@ -71,7 +73,8 @@ class YouTubeController(
         val clientSecret = System.getProperty("GOOGLE_CLIENT_SECRET")
         val user = userRepository.findById(userId)
             ?: throw Exception("User not found")
-        val refreshToken = user.googleRefresh
+
+        val refreshToken = user.accounts.find { it.provider == "GOOGLE" }?.refreshToken
 
         val requestBody = FormBody.Builder()
             .add("client_id", clientId!!)
@@ -110,7 +113,7 @@ class YouTubeController(
         val videoFile = mediaController.downloadVideo(signedUrl)
         val user = userRepository.findById(userId)
             ?: throw Exception("User not found")
-        val accessToken = user.googleAccessToken
+        val accessToken = user.accounts.find { it.provider == "GOOGLE" }?.accessToken
 
         val json = Json { encodeDefaults = true }
         val metadataJson = json.encodeToString(uploadRequest)
@@ -148,7 +151,7 @@ class YouTubeController(
     fun testYoutube(userId: String) {
         val user = userRepository.findById(userId.toInt())
             ?: throw Exception("User not found")
-        val accessToken = user.googleAccessToken
+        val accessToken = user.accounts.find { it.provider == "GOOGLE" }?.accessToken
         val channelId = getAuthenticatedUserChannelId(accessToken!!)
             ?: throw Exception("Error getting channel ID")
         val videoId = getLast50YoutubeVideos(channelId)?.first()
@@ -165,7 +168,7 @@ class YouTubeController(
         val apiKey = System.getProperty("GOOGLE_API_KEY")
         val user = userRepository.findById(userId.toInt())
             ?: throw Exception("YouTube Channel ID not found")
-        val channelId = user.googleAccountId
+        val channelId = user.accounts.find { it.provider == "GOOGLE" }?.accountId
 
         val url = "https://www.googleapis.com/youtube/v3/channels".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("part", "contentDetails")
@@ -265,7 +268,7 @@ class YouTubeController(
         val apiKey = System.getProperty("GOOGLE_API_KEY")
         val user = userRepository.findById(userId.toInt())
             ?: throw Exception("YouTube Channel ID not found")
-        val channelId = user.googleAccountId
+        val channelId = user.accounts.find { it.provider == "GOOGLE" }?.accountId
 
         val url = "https://www.googleapis.com/youtube/v3/channels".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("part", "snippet,statistics")

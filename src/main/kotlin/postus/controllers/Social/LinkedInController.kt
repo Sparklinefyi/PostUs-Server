@@ -1,4 +1,4 @@
-package postus.controllers
+package postus.controllers.Social
 
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -7,6 +7,8 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import postus.controllers.MediaController
+import postus.controllers.UserController
 import postus.models.linkedin.*
 import postus.repositories.UserRepository
 import java.io.IOException
@@ -89,14 +91,14 @@ class LinkedInController(
      */
     fun postToLinkedIn(userId: Int, content: String, mediaUrls: List<String> = emptyList()): Boolean {
         val user = userRepository.findById(userId)
-        val accessToken = user?.linkedinAccessToken ?: throw Exception("User not found")
-        val accountId = user.linkedinAccountId ?: throw Exception("LinkedIn account ID not found")
+        val accessToken = user?.accounts?.find { it.provider == "LINKEDIN" }?.accessToken
+        val accountId = user?.accounts?.find { it.provider == "LINKEDIN" }?.accountId
         val postUrl = System.getProperty("LINKEDIN_POST_URL") ?: throw Exception("LinkedIn post URL not found")
 
         // Upload each media to LinkedIn and get the URNs
-        val mediaURNs = mediaUrls.map { uploadLinkedInMedia(accessToken, accountId, it) }
+        val mediaURNs = mediaUrls.map { uploadLinkedInMedia(accessToken!!, accountId!!, it) }
 
-        val postBody = createPostData(accountId, content, mediaURNs)
+        val postBody = createPostData(accountId!!, content, mediaURNs)
 
         val mediaTypeHeader = "application/json".toMediaTypeOrNull()
         val requestBody = RequestBody.create(mediaTypeHeader, postBody)

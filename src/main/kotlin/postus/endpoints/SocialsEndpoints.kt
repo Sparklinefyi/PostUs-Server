@@ -7,12 +7,13 @@ import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import postus.controllers.SocialsController
+import postus.controllers.Social.SocialsController
 import postus.controllers.UserController
 import postus.models.SchedulePostRequest
 import postus.models.auth.UserInfo
 import postus.models.youtube.*
 import postus.models.instagram.*
+import postus.repositories.UserRole
 
 fun Application.configureSocialsRouting(userService: UserController, socialController: SocialsController) {
 
@@ -386,7 +387,7 @@ suspend fun processRequest(call: ApplicationCall, userService: UserController): 
 
     if (state == null || code == null) {
         call.respond(HttpStatusCode.BadRequest, "Missing required parameters")
-        return Triple("", UserInfo(0, "", "", "", "", ""), "")
+        return Triple("", UserInfo(0, "", "", UserRole.USER, "", ""), "")
     }
 
     val info = userService.fetchUserDataByTokenWithPlatform(state)
