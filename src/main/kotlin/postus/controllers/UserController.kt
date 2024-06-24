@@ -2,7 +2,7 @@ package postus.controllers
 
 
 import com.auth0.jwt.interfaces.Claim
-import org.mindrot.jbcrypt.BCrypt
+import com.password4j.Password
 import postus.models.auth.AccountInfoModel
 import postus.models.auth.RegistrationRequest
 import postus.models.auth.UserModel
@@ -16,6 +16,30 @@ import java.time.LocalDateTime.now
 class UserController(
     private val userRepository: UserRepository,
 ) {
+
+    fun registerUser(request: RegistrationRequest): UserInfo {
+        val hashedPassword = Password.hash(request.password).addRandomSalt(10).withBcrypt().result
+        val user = UserModel(
+            id = 0,
+            email = request.email,
+            name = request.name,
+            password = hashedPassword.toString(),
+            role = UserRole.USER,
+            createdAt = now().toString(),
+            emailVerified = now(),
+            image = null
+        )
+
+        val userId = userRepository.create(user)
+        return user.toUserInfo()!!.copy(id = userId)
+    }
+
+    fun authenticateWithEmailPassword(email: String, password: String): UserModel? {
+        val user = userRepository.findByEmail(email) ?: return null
+        val test = Password.hash(password).withBcrypt().result
+        println(test)
+        return if (Password.check(password, user.password!!).withBcrypt()) user else null
+    }
 
     fun fetchUserDataByToken(token: String): UserModel? {
         val userId = JwtHandler().validateTokenAndGetUserId(token) ?: return null
@@ -80,5 +104,24 @@ class UserController(
         }
 
         userRepository.update(updatedUser)
+    }
+
+    fun updateUser(id: Int, description: String?, currentPassword: String?, newPassword: String?) {
+        val user = userRepository.findById(id) ?: throw IllegalArgumentException("User not found")
+        if (description != null) {
+            user.copy(name = description)
+        }
+
+        if (currentPassword != null && newPassword != null) {
+            if (Password.check(currentPassword, user.password!!).withBcrypt()) {
+                val hashedPassword = Password.hash(newPassword).addRandomSalt(10).withBcrypt().result
+                user.copy(password = hashedPassword.toString())
+            } else {
+                throw IllegalArgumentException("Invalid password")
+            }
+
+        }
+
+        userRepository.update(user)
     }
 }

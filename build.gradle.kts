@@ -57,6 +57,8 @@ dependencies {
     implementation("io.ktor:ktor-server-sessions:$ktor_version")
     implementation("oauth.signpost:signpost-core:1.2.1.2")
     implementation("oauth.signpost:signpost-commonshttp4:1.2.1.2")
+    implementation("com.password4j:password4j:1.8.2")
+
 
     implementation("io.ktor:ktor-server-host-common:2.0.0")
     implementation("io.ktor:ktor-server-content-negotiation:$ktor_version")

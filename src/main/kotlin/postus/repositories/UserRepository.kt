@@ -7,6 +7,7 @@ import org.jetbrains.exposed.dao.*
 import org.jetbrains.exposed.dao.id.*
 import org.jetbrains.exposed.sql.javatime.*
 import postus.models.auth.AccountInfoModel
+import java.time.LocalDateTime.now
 
 class UserRepository {
 
@@ -28,33 +29,58 @@ class UserRepository {
             user.image = updatedUser.image
         }
     }
+
+    fun findByEmail(email: String): UserModel? {
+        return transaction {
+            User.find { UserTable.email eq email }.firstOrNull()?.toUserModel()
+        }
+    }
+
+    fun create(user: UserModel): Int {
+        return transaction {
+            User.new {
+                email = user.email
+                name = user.name
+                password = user.password
+                role = user.role
+                createdAt = user.createdAt
+                emailVerified = user.emailVerified
+                image = user.image
+            }.id.value
+        }
+    }
 }
 
-// Enums
-enum class UserRole {
-    USER, ADMIN
-}
-
-// Tables
-object Users : IntIdTable() {
+object UserTable : IntIdTable(
+    "\"User\""
+) {
     val name = varchar("name", 255).nullable()
     val email = varchar("email", 255).uniqueIndex().nullable()
     val emailVerified = datetime("emailVerified").nullable()
     val image = varchar("image", 255).nullable()
     val password = varchar("password", 255).nullable()
-    val role = enumeration("role", UserRole::class).default(UserRole.USER)
-    val createdAt = varchar("createdAt", 255).default(CurrentDateTime.toString())
+
+    val role = customEnumeration(
+        "role", "UserRole",
+        { value -> UserRole.valueOf(value as String) },
+        { it.name }
+    ).default(UserRole.USER)
+
+    val createdAt = varchar("createdAt", 255).default(now().toString())
 
     init {
         uniqueIndex(email)
     }
 }
 
-object Accounts : IntIdTable() {
-    val userId = reference("id", Users)
+object AccountTable : IntIdTable(
+    "\"Account\""
+) {
+
+    val userId = reference("userId", UserTable.id, onDelete = ReferenceOption.CASCADE)
     val type = varchar("type", 255)
     val provider = varchar("provider", 255)
-    val accountId = varchar("account_id", 255)
+    val accountId = varchar("providerAccountId", 255)
     val refreshToken = text("refresh_token").nullable()
     val accessToken = text("access_token").nullable()
     val expiresAt = integer("expires_at").nullable()
@@ -68,7 +94,9 @@ object Accounts : IntIdTable() {
     }
 }
 
-object VerificationTokens : IntIdTable() {
+object VerificationTokenTable : IntIdTable(
+    "\"VerificationToken\""
+) {
     val email = varchar("email", 255)
     val token = varchar("token", 255).uniqueIndex()
     val expires = datetime("expires")
@@ -78,7 +106,9 @@ object VerificationTokens : IntIdTable() {
     }
 }
 
-object PasswordResetTokens : IntIdTable() {
+object PasswordResetTokenTable : IntIdTable(
+    "\"PasswordResetToken\""
+) {
     val email = varchar("email", 255)
     val token = varchar("token", 255).uniqueIndex()
     val expires = datetime("expires")
@@ -88,26 +118,37 @@ object PasswordResetTokens : IntIdTable() {
     }
 }
 
-object UserSubscriptions : IntIdTable() {
-    val userId = reference("userId", Users).uniqueIndex()
+object UserSubscriptionTable : IntIdTable(
+    "\"UserSubscription\""
+) {
+    val userId = reference("userId", UserTable).uniqueIndex()
     val stripeCustomerId = varchar("stripe_customer_id", 255).uniqueIndex().nullable()
     val stripeSubscriptionId = varchar("stripe_subscription_id", 255).uniqueIndex().nullable()
     val stripePriceId = varchar("stripe_price_id", 255).uniqueIndex().nullable()
     val stripeCurrentPeriodEnd = datetime("stripe_current_period_end").uniqueIndex().nullable()
 }
 
-object Purchases : IntIdTable() {
-    val userId = reference("userId", Users)
+object PurchaseTable : IntIdTable(
+    "\"Purchase\""
+) {
+    val userId = reference("userId", UserTable)
     val amount = float("amount")
     val createdAt = datetime("createdAt").defaultExpression(CurrentDateTime)
     val updatedAt = datetime("updatedAt").defaultExpression(CurrentDateTime)
 }
 
-object StripeCustomers : IntIdTable() {
-    val userId = reference("userId", Users).uniqueIndex()
+object StripeCustomerTable : IntIdTable(
+    name = "StripeCustomer"
+) {
+    val userId = reference("userId", UserTable).uniqueIndex()
     val stripeCustomerId = varchar("stripeCustomerId", 255).uniqueIndex()
     val createdAt = datetime("createdAt").defaultExpression(CurrentDateTime)
     val updatedAt = datetime("updatedAt").defaultExpression(CurrentDateTime)
+}
+
+// Enums
+enum class UserRole {
+    USER, ADMIN
 }
 
 // Entity classes
@@ -126,17 +167,17 @@ class User(id: EntityID<Int>) : IntEntity(id) {
         )
     }
 
-    companion object : IntEntityClass<User>(Users)
-    var name by Users.name
-    var email by Users.email
-    var emailVerified by Users.emailVerified
-    var image by Users.image
-    var password by Users.password
-    var role by Users.role
-    var createdAt by Users.createdAt
-    val accounts by Account referrersOn Accounts.userId
-    val subscriptions by UserSubscription referrersOn UserSubscriptions.userId
-    val purchases by Purchase referrersOn Purchases.userId
+    companion object : IntEntityClass<User>(UserTable)
+    var name by UserTable.name
+    var email by UserTable.email
+    var emailVerified by UserTable.emailVerified
+    var image by UserTable.image
+    var password by UserTable.password
+    var role by UserTable.role
+    var createdAt by UserTable.createdAt
+    val accounts by Account referrersOn AccountTable.userId
+    val subscriptions by UserSubscription referrersOn UserSubscriptionTable.userId
+    val purchases by Purchase referrersOn PurchaseTable.userId
 }
 
 class Account(id: EntityID<Int>) : IntEntity(id) {
@@ -156,61 +197,61 @@ class Account(id: EntityID<Int>) : IntEntity(id) {
         )
     }
 
-    companion object : IntEntityClass<Account>(Accounts)
+    companion object : IntEntityClass<Account>(AccountTable)
 
-    val userId by User referrersOn Accounts.userId
-    var type by Accounts.type
-    var provider by Accounts.provider
-    var accountId by Accounts.accountId
-    var refreshToken by Accounts.refreshToken
-    var accessToken by Accounts.accessToken
-    var expiresAt by Accounts.expiresAt
-    var tokenType by Accounts.tokenType
-    var scope by Accounts.scope
-    var idToken by Accounts.idToken
-    var sessionState by Accounts.sessionState
+    val userId by User referrersOn AccountTable.userId
+    var type by AccountTable.type
+    var provider by AccountTable.provider
+    var accountId by AccountTable.accountId
+    var refreshToken by AccountTable.refreshToken
+    var accessToken by AccountTable.accessToken
+    var expiresAt by AccountTable.expiresAt
+    var tokenType by AccountTable.tokenType
+    var scope by AccountTable.scope
+    var idToken by AccountTable.idToken
+    var sessionState by AccountTable.sessionState
 }
 
 class VerificationToken(id: EntityID<Int>) : IntEntity(id) {
-    companion object : IntEntityClass<VerificationToken>(VerificationTokens)
+    companion object : IntEntityClass<VerificationToken>(VerificationTokenTable)
 
-    var email by VerificationTokens.email
-    var token by VerificationTokens.token
-    var expires by VerificationTokens.expires
+    var email by VerificationTokenTable.email
+    var token by VerificationTokenTable.token
+    var expires by VerificationTokenTable.expires
 }
 
 class PasswordResetToken(id: EntityID<Int>) : IntEntity(id) {
-    companion object : IntEntityClass<PasswordResetToken>(PasswordResetTokens)
+    companion object : IntEntityClass<PasswordResetToken>(PasswordResetTokenTable)
 
-    var email by PasswordResetTokens.email
-    var token by PasswordResetTokens.token
-    var expires by PasswordResetTokens.expires
+    var email by PasswordResetTokenTable.email
+    var token by PasswordResetTokenTable.token
+    var expires by PasswordResetTokenTable.expires
 }
 
 class UserSubscription(id: EntityID<Int>) : IntEntity(id) {
-    companion object : IntEntityClass<UserSubscription>(UserSubscriptions)
+    companion object : IntEntityClass<UserSubscription>(UserSubscriptionTable)
 
-    val userId by User referrersOn UserSubscriptions.userId
-    var stripeCustomerId by UserSubscriptions.stripeCustomerId
-    var stripeSubscriptionId by UserSubscriptions.stripeSubscriptionId
-    var stripePriceId by UserSubscriptions.stripePriceId
-    var stripeCurrentPeriodEnd by UserSubscriptions.stripeCurrentPeriodEnd
+    val userId by User referrersOn UserSubscriptionTable.userId
+    var stripeCustomerId by UserSubscriptionTable.stripeCustomerId
+    var stripeSubscriptionId by UserSubscriptionTable.stripeSubscriptionId
+    var stripePriceId by UserSubscriptionTable.stripePriceId
+    var stripeCurrentPeriodEnd by UserSubscriptionTable.stripeCurrentPeriodEnd
 }
 
 class Purchase(id: EntityID<Int>) : IntEntity(id) {
-    companion object : IntEntityClass<Purchase>(Purchases)
+    companion object : IntEntityClass<Purchase>(PurchaseTable)
 
-    var userId by User referencedOn Purchases.userId
-    var amount by Purchases.amount
-    var createdAt by Purchases.createdAt
-    var updatedAt by Purchases.updatedAt
+    var userId by User referencedOn PurchaseTable.userId
+    var amount by PurchaseTable.amount
+    var createdAt by PurchaseTable.createdAt
+    var updatedAt by PurchaseTable.updatedAt
 }
 
 class StripeCustomer(id: EntityID<Int>) : IntEntity(id) {
-    companion object : IntEntityClass<StripeCustomer>(StripeCustomers)
+    companion object : IntEntityClass<StripeCustomer>(StripeCustomerTable)
 
-    var userId by User referencedOn StripeCustomers.userId
-    var stripeCustomerId by StripeCustomers.stripeCustomerId
-    var createdAt by StripeCustomers.createdAt
-    var updatedAt by StripeCustomers.updatedAt
+    var userId by User referencedOn StripeCustomerTable.userId
+    var stripeCustomerId by StripeCustomerTable.stripeCustomerId
+    var createdAt by StripeCustomerTable.createdAt
+    var updatedAt by StripeCustomerTable.updatedAt
 }
