@@ -1,5 +1,7 @@
 package postus.controllers.Social
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -14,23 +16,18 @@ import postus.controllers.UserController
 import postus.repositories.UserRepository
 
 class InstagramController(
-    client: OkHttpClient,
-    userRepository: UserRepository,
-    userController: UserController,
-    mediaController: MediaController
+    private val client: OkHttpClient,
+    private val userRepository: UserRepository,
+    private val userController: UserController,
+    private val mediaController: MediaController
 ) {
-
-    val client = client
-    val userRepository = userRepository
-    val userController = userController
-    val mediaController = mediaController
 
     /**
      * Upload a video to Instagram.
      * Sample Call:
      * `uploadVideoToInstagram("1", "https://example.com/video.mp4", "Sample Caption")`
      */
-    fun uploadVideoToInstagram(userId: Int, videoUrl: String, caption: String? = ""): JSONObject? {
+    suspend fun uploadVideoToInstagram(userId: Int, videoUrl: String, caption: String? = ""): JSONObject? = withContext(Dispatchers.IO) {
         val user = userRepository.findById(userId)
             ?: throw Exception("User not found")
         val accessToken = user.accounts.find { it.type == "INSTAGRAM" }?.accessToken
@@ -55,12 +52,12 @@ class InstagramController(
         val containerResponse = client.newCall(containerRequest).execute()
         if (!containerResponse.isSuccessful) {
             println("Container Response Body: ${containerResponse.body?.string()}")
-            return JSONObject("{'error': 'Failed to get container ID'}")
+            return@withContext JSONObject("{'error': 'Failed to get container ID'}")
         }
 
         val containerId =
             Json.parseToJsonElement(containerResponse.body?.string() ?: "").jsonObject["id"]?.jsonPrimitive?.content
-                ?: return JSONObject("{'error': 'Failed to get container ID'}")
+                ?: return@withContext JSONObject("{'error': 'Failed to get container ID'}")
 
         // Wait for media to be ready
         var mediaReady = false
@@ -90,7 +87,7 @@ class InstagramController(
         }
 
         if (!mediaReady) {
-            return JSONObject("{'error': 'Media not ready'}")
+            return@withContext JSONObject("{'error': 'Media not ready'}")
         }
 
         val publishUrl =
@@ -106,7 +103,7 @@ class InstagramController(
             .build()
 
         val publishResponse = client.newCall(publishRequest).execute()
-        return if (publishResponse.isSuccessful) {
+        return@withContext if (publishResponse.isSuccessful) {
             JSONObject("{'success': 'Publish Request Successful'}")
         } else {
             JSONObject("{'error': 'Publish Request Failed'}")
@@ -118,7 +115,7 @@ class InstagramController(
      * Sample Call:
      * `uploadPictureToInstagram("1", "https://example.com/image.jpg", "Sample Caption")`
      */
-    fun uploadPictureToInstagram(userId: Int, imageUrl: String, caption: String? = ""): String {
+    suspend fun uploadPictureToInstagram(userId: Int, imageUrl: String, caption: String? = ""): String = withContext(Dispatchers.IO) {
         val user = userRepository.findById(userId)
         refreshInstagramAccessToken(userId)
 
@@ -128,7 +125,7 @@ class InstagramController(
         val accountId = user?.accounts?.find { it.type == "INSTAGRAM" }?.accountId
             ?: throw Exception("Instagram access token not found")
 
-        val containerUrl = "https://graph.facebook.com/v11.0/$accessToken/media".toHttpUrlOrNull()!!.newBuilder()
+        val containerUrl = "https://graph.facebook.com/v11.0/$accountId/media".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("image_url", imageUrl)
             .addQueryParameter("caption", caption)
             .addQueryParameter("access_token", accessToken)
@@ -147,7 +144,7 @@ class InstagramController(
 
         val containerId =
             Json.parseToJsonElement(containerResponse.body?.string() ?: "").jsonObject["id"]?.jsonPrimitive?.content
-                ?: return "Failed to get container ID"
+                ?: return@withContext "Failed to get container ID"
 
         val publishUrl =
             "https://graph.facebook.com/v11.0/$accountId/media_publish".toHttpUrlOrNull()!!.newBuilder()
@@ -162,7 +159,7 @@ class InstagramController(
             .build()
 
         val publishResponse = client.newCall(publishRequest).execute()
-        return if (publishResponse.isSuccessful) {
+        return@withContext if (publishResponse.isSuccessful) {
             "Publish Response Body: ${publishResponse.body?.string()}"
         } else {
             "Publish Response Body: ${publishResponse.body?.string()}"
@@ -174,7 +171,7 @@ class InstagramController(
      * Sample Call:
      * `exchangeCodeForAccessToken("clientId", "clientSecret", "http://example.com/redirect", "authCode")`
      */
-    fun exchangeCodeForAccessToken(clientId: String, clientSecret: String, redirectUri: String, code: String): String? {
+    suspend fun exchangeCodeForAccessToken(clientId: String, clientSecret: String, redirectUri: String, code: String): String? = withContext(Dispatchers.IO) {
         val url = "https://graph.facebook.com/v11.0/oauth/access_token".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("client_id", clientId)
             .addQueryParameter("redirect_uri", redirectUri)
@@ -189,11 +186,11 @@ class InstagramController(
             .build()
 
         val response = client.newCall(request).execute()
-        val responseBody = response.body?.string() ?: return null
-        if (!response.isSuccessful) return null
+        val responseBody = response.body?.string() ?: return@withContext null
+        if (!response.isSuccessful) return@withContext null
 
         val jsonElement = Json.parseToJsonElement(responseBody)
-        return jsonElement.jsonObject["access_token"]?.jsonPrimitive?.content
+        return@withContext jsonElement.jsonObject["access_token"]?.jsonPrimitive?.content
     }
 
     /**
@@ -201,11 +198,11 @@ class InstagramController(
      * Sample Call:
      * `exchangeShortLivedTokenForLongLivedToken("clientId", "clientSecret", "shortLivedToken")`
      */
-    fun exchangeShortLivedTokenForLongLivedToken(
+    suspend fun exchangeShortLivedTokenForLongLivedToken(
         clientId: String,
         clientSecret: String,
         shortLivedToken: String
-    ): String? {
+    ): String? = withContext(Dispatchers.IO) {
         val url = "https://graph.facebook.com/v11.0/oauth/access_token".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("grant_type", "fb_exchange_token")
             .addQueryParameter("client_id", clientId)
@@ -220,19 +217,14 @@ class InstagramController(
             .build()
 
         val response = client.newCall(request).execute()
-        if (!response.isSuccessful) return null
+        if (!response.isSuccessful) return@withContext null
 
-        val responseBody = response.body?.string() ?: return null
+        val responseBody = response.body?.string() ?: return@withContext null
         val jsonElement = Json.parseToJsonElement(responseBody)
-        return jsonElement.jsonObject["access_token"]?.jsonPrimitive?.content
+        return@withContext jsonElement.jsonObject["access_token"]?.jsonPrimitive?.content
     }
 
-    /**
-     * Refresh Instagram access token.
-     * Sample Call:
-     * `refreshInstagramAccessToken(1)`
-     */
-    fun refreshInstagramAccessToken(userId: Int) {
+    suspend fun refreshInstagramAccessToken(userId: Int) = withContext(Dispatchers.IO) {
         val clientId = System.getProperty("INSTAGRAM_CLIENT_ID")
         val clientSecret = System.getProperty("INSTAGRAM_CLIENT_SECRET")
         val refreshToken =  userRepository.findById(userId)?.accounts?.find { it.type == "INSTAGRAM" }?.refreshToken
@@ -253,8 +245,8 @@ class InstagramController(
 
         try {
             val response = client.newCall(request).execute()
-            val responseBody = response.body?.string() ?: return
-            if (!response.isSuccessful) return
+            val responseBody = response.body?.string() ?: return@withContext
+            if (!response.isSuccessful) return@withContext
 
             val jsonElement = Json.parseToJsonElement(responseBody)
             val newAccessToken = jsonElement.jsonObject["access_token"]?.jsonPrimitive?.content
@@ -273,7 +265,7 @@ class InstagramController(
      * Sample Call:
      * `getUserPages("accessToken")`
      */
-    fun getUserPages(accessToken: String): String? {
+    suspend fun getUserPages(accessToken: String): String? = withContext(Dispatchers.IO) {
         val url = "https://graph.facebook.com/v11.0/me/accounts".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("access_token", accessToken)
             .build()
@@ -285,9 +277,9 @@ class InstagramController(
             .build()
 
         val response = client.newCall(request).execute()
-        if (!response.isSuccessful) return null
+        if (!response.isSuccessful) return@withContext null
 
-        return response.body?.string()
+        return@withContext response.body?.string()
     }
 
     /**
@@ -295,7 +287,7 @@ class InstagramController(
      * Sample Call:
      * `getInstagramBusinessAccountId("pageId", "accessToken")`
      */
-    fun getInstagramBusinessAccountId(pageId: String, accessToken: String): String? {
+    suspend fun getInstagramBusinessAccountId(pageId: String, accessToken: String): String? = withContext(Dispatchers.IO) {
         val url = "https://graph.facebook.com/v11.0/$pageId".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("fields", "instagram_business_account")
             .addQueryParameter("access_token", accessToken)
@@ -308,11 +300,11 @@ class InstagramController(
             .build()
 
         val response = client.newCall(request).execute()
-        if (!response.isSuccessful) return null
+        if (!response.isSuccessful) return@withContext null
 
-        val responseBody = response.body?.string() ?: return null
+        val responseBody = response.body?.string() ?: return@withContext null
         val jsonElement = Json.parseToJsonElement(responseBody)
-        return jsonElement.jsonObject["instagram_business_account"]?.jsonObject?.get("id")?.jsonPrimitive?.content
+        return@withContext jsonElement.jsonObject["instagram_business_account"]?.jsonObject?.get("id")?.jsonPrimitive?.content
     }
 
     /**
@@ -320,27 +312,27 @@ class InstagramController(
      * Sample Call:
      * `getLongLivedAccessTokenAndInstagramBusinessAccountId(1, "authCode")`
      */
-    fun getLongLivedAccessTokenAndInstagramBusinessAccountId(userId: Int, code: String): Boolean {
+    suspend fun getLongLivedAccessTokenAndInstagramBusinessAccountId(userId: Int, code: String): Boolean = withContext(Dispatchers.IO) {
         val clientId = System.getProperty("INSTAGRAM_CLIENT_ID")
         val clientSecret = System.getProperty("INSTAGRAM_CLIENT_SECRET")
         val redirectUri = System.getProperty("INSTAGRAM_REDIRECT_URI")
         val shortLivedToken = exchangeCodeForAccessToken(clientId!!, clientSecret!!, redirectUri!!, code)
-            ?: return false
+            ?: return@withContext false
 
         val longLivedToken = exchangeShortLivedTokenForLongLivedToken(clientId, clientSecret, shortLivedToken)
-            ?: return false
-        val pages = getUserPages(longLivedToken) ?: return false
+            ?: return@withContext false
+        val pages = getUserPages(longLivedToken) ?: return@withContext false
 
         val jsonElement = Json.parseToJsonElement(pages)
         val pageId =
             jsonElement.jsonObject["data"]?.jsonArray?.firstOrNull()?.jsonObject?.get("id")?.jsonPrimitive?.content
-                ?: return false
+                ?: return@withContext false
 
         val instagramBusinessAccountId = getInstagramBusinessAccountId(pageId, longLivedToken)
 
         userController.linkAccount(userId, "INSTAGRAM", instagramBusinessAccountId, longLivedToken, longLivedToken)
 
-        return true
+        return@withContext true
     }
 
     /**
@@ -348,7 +340,7 @@ class InstagramController(
      * Sample Call:
      * `getInstagramPageAnalytics("1")`
      */
-    fun getInstagramPageAnalytics(userId: String): String? {
+    suspend fun getInstagramPageAnalytics(userId: String): String? = withContext(Dispatchers.IO) {
         val user = userRepository.findById(userId.toInt())
             ?: throw Exception("User not found")
         val accessToken = user.accounts.find { it.type == "INSTAGRAM" }?.accessToken
@@ -374,11 +366,11 @@ class InstagramController(
         if (!response.isSuccessful) {
             println("Error: ${response.code}")
             println("Response Body: $responseBody")
-            return null
+            return@withContext null
         }
         getInstagramMediaIds(userId)
 
-        return responseBody
+        return@withContext responseBody
     }
 
     /**
@@ -386,7 +378,7 @@ class InstagramController(
      * Sample Call:
      * `getInstagramPostAnalytics("1", "postId")`
      */
-    fun getInstagramPostAnalytics(userId: String, postId: String): String? {
+    suspend fun getInstagramPostAnalytics(userId: String, postId: String): String? = withContext(Dispatchers.IO) {
         val user = userRepository.findById(userId.toInt())
             ?: throw Exception("User not found")
         val accessToken = user.accounts.find { it.type == "INSTAGRAM" }?.accessToken
@@ -405,9 +397,9 @@ class InstagramController(
             .build()
 
         val response = client.newCall(request).execute()
-        if (!response.isSuccessful) return null
+        if (!response.isSuccessful) return@withContext null
 
-        return response.body?.string()
+        return@withContext response.body?.string()
     }
 
     /**
@@ -415,7 +407,7 @@ class InstagramController(
      * Sample Call:
      * `getInstagramMediaIds("1")`
      */
-    fun getInstagramMediaIds(userId: String): String? {
+    suspend fun getInstagramMediaIds(userId: String): String? = withContext(Dispatchers.IO) {
         val user = userRepository.findById(userId.toInt())
             ?: throw Exception("User not found")
         val accessToken = user.accounts.find { it.type == "INSTAGRAM" }?.accessToken
@@ -440,11 +432,11 @@ class InstagramController(
         if (!response.isSuccessful) {
             println("Error: ${response.code}")
             println("Response Body: $responseBody")
-            return null
+            return@withContext null
         }
         println(responseBody)
         // VIDEO TYPE is REELS, IMAGE and CAROUSEL_ALBUM are other 2 types
-        return null
+        return@withContext responseBody
     }
 
     /**
@@ -452,7 +444,7 @@ class InstagramController(
      * Sample Call:
      * `getInstagramMediaDetails("1", "postId")`
      */
-    fun getInstagramMediaDetails(userId: String, postId: String): String {
+    suspend fun getInstagramMediaDetails(userId: String, postId: String): String = withContext(Dispatchers.IO) {
         val user = userRepository.findById(userId.toInt())
             ?: throw Exception("User not found")
         val accessToken = user.accounts.find { it.type == "INSTAGRAM" }?.accessToken
@@ -475,11 +467,11 @@ class InstagramController(
         if (!response.isSuccessful) {
             println("Error: ${response.code}")
             println("Response Body: $responseBody")
-            return ""
+            return@withContext ""
         }
 
         println("Response Body: $responseBody")
         val jsonResponse = Json.parseToJsonElement(responseBody ?: "").jsonObject
-        return jsonResponse["media_url"]?.jsonPrimitive?.content ?: ""
+        return@withContext jsonResponse["media_url"]?.jsonPrimitive?.content ?: ""
     }
 }
