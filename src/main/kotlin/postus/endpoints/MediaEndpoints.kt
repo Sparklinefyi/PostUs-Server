@@ -9,7 +9,8 @@ import io.ktor.server.auth.jwt.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import postus.models.auth.TokenRequest
 import postus.models.media.ResourceRequest
 import postus.models.media.UploadRequest
@@ -23,26 +24,20 @@ fun Application.configureMediaRouting(userService: UserController, mediaControll
             // Upload image or video
             route("/upload") {
                 post("image") {
-                    var request = call.receive<UploadRequest>()
-                    val userInfo = userService.fetchUserDataByToken(request.token) ?: return@post call.respond(
-                        HttpStatusCode.BadRequest,
-                        "Invalid token"
-                    )
+                    val request = call.receive<UploadRequest>()
+                    val userInfo = withContext(Dispatchers.IO) { userService.fetchUserDataByToken(request.token) }
+                        ?: return@post call.respond(HttpStatusCode.BadRequest, "Invalid token")
 
-                    val response = mediaController.uploadImage(userInfo.id.toString(), request.byteArray)
+                    val response = withContext(Dispatchers.IO) { mediaController.uploadImage(userInfo.id.toString(), request.byteArray) }
                     call.respond(response)
                 }
                 post("video") {
                     val request = call.receive<UploadRequest>()
-                    // Process the upload request
-                    val userInfo = userService.fetchUserDataByToken(request.token) ?: return@post call.respond(
-                        HttpStatusCode.BadRequest,
-                        "Invalid token"
-                    )
+                    val userInfo = withContext(Dispatchers.IO) { userService.fetchUserDataByToken(request.token) }
+                        ?: return@post call.respond(HttpStatusCode.BadRequest, "Invalid token")
 
-                    val response = mediaController.uploadVideo(userInfo.id.toString(), request.byteArray)
+                    val response = withContext(Dispatchers.IO) { mediaController.uploadVideo(userInfo.id.toString(), request.byteArray) }
                     call.respond(response)
-
                 }
             }
 
@@ -50,22 +45,19 @@ fun Application.configureMediaRouting(userService: UserController, mediaControll
             route("/list") {
                 get("images") {
                     val request = call.receive<TokenRequest>()
-                    val userInfo = userService.fetchUserDataByToken(request.token) ?: return@get call.respond(
-                        HttpStatusCode.BadRequest,
-                        "Invalid token"
-                    )
+                    val userInfo = withContext(Dispatchers.IO) { userService.fetchUserDataByToken(request.token) }
+                        ?: return@get call.respond(HttpStatusCode.BadRequest, "Invalid token")
 
-                    val response = mediaController.getImageList(userInfo.id.toString())
+                    val response = withContext(Dispatchers.IO) { mediaController.getImageList(userInfo.id.toString()) }
                     call.respond(response)
                 }
 
                 get("videos") {
                     val request = call.receive<TokenRequest>()
-                    val userInfo = userService.fetchUserDataByToken(request.token) ?: return@get call.respond(
-                        HttpStatusCode.BadRequest,
-                        "Invalid token"
-                    )
-                    val response = mediaController.getVideoList(userInfo.id.toString())
+                    val userInfo = withContext(Dispatchers.IO) { userService.fetchUserDataByToken(request.token) }
+                        ?: return@get call.respond(HttpStatusCode.BadRequest, "Invalid token")
+
+                    val response = withContext(Dispatchers.IO) { mediaController.getVideoList(userInfo.id.toString()) }
                     call.respond(response)
                 }
             }
@@ -74,31 +66,26 @@ fun Application.configureMediaRouting(userService: UserController, mediaControll
             route("/resource") {
                 get("image") {
                     val request = call.receive<ResourceRequest>()
-                    val userInfo = userService.fetchUserDataByToken(request.token) ?: return@get call.respond(
-                        HttpStatusCode.BadRequest,
-                        "Invalid token"
-                    )
+                    val userInfo = withContext(Dispatchers.IO) { userService.fetchUserDataByToken(request.token) }
+                        ?: return@get call.respond(HttpStatusCode.BadRequest, "Invalid token")
+
                     val key = request.key
-                    //val response = mediaController.getImage(userInfo.id.toString(), key)
+                    //val response = withContext(Dispatchers.IO) { mediaController.getImage(userInfo.id.toString(), key) }
                     //call.respond(response)
                 }
 
                 get("video") {
                     val request = call.receive<ResourceRequest>()
-                    val userInfo = userService.fetchUserDataByToken(request.token) ?: return@get call.respond(
-                        HttpStatusCode.BadRequest,
-                        "Invalid token"
-                    )
+                    val userInfo = withContext(Dispatchers.IO) { userService.fetchUserDataByToken(request.token) }
+                        ?: return@get call.respond(HttpStatusCode.BadRequest, "Invalid token")
+
                     val key = request.key
-                    //val response = mediaController.getVideo(userInfo.id.toString(), key)
+                    //val response = withContext(Dispatchers.IO) { mediaController.getVideo(userInfo.id.toString(), key) }
                     //call.respond(response)
                 }
                 get("media") {
-                    val path = call.parameters["path"] ?: return@get call.respond(
-                        HttpStatusCode.BadRequest,
-                        "Missing path to media"
-                    )
-                    val response = mediaController.getPresignedUrlFromPath(path)
+                    val path = call.parameters["path"] ?: return@get call.respond(HttpStatusCode.BadRequest, "Missing path to media")
+                    val response = withContext(Dispatchers.IO) { mediaController.getPresignedUrlFromPath(path) }
                     call.respond(response)
                 }
             }
