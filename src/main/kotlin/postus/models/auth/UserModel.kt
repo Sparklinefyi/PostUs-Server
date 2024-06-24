@@ -1,7 +1,10 @@
 package postus.models.auth
 
+import kotlinx.serialization.Contextual
 import kotlinx.serialization.Serializable
+import org.jetbrains.exposed.sql.javatime.datetime
 import postus.repositories.UserRole
+import java.time.LocalDateTime
 
 @Serializable
 data class UserInfo(
@@ -10,7 +13,8 @@ data class UserInfo(
     val name: String?,
     val role: UserRole,
     val createdAt: String,
-    val emailVerified: String? = null,
+    @Contextual
+    val emailVerified: LocalDateTime? = null,
     val image: String? = null,
     val accounts: List<String> = emptyList(),
 )
@@ -23,7 +27,8 @@ data class UserModel(
     val password: String?,
     val createdAt: String,
     val role: UserRole,
-    val emailVerified: String? = null,
+    @Contextual
+    val emailVerified: LocalDateTime? = null,
     val image: String? = null,
     val accounts: List<AccountInfoModel> = emptyList()
 ) {

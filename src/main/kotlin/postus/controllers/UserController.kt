@@ -29,9 +29,9 @@ class UserController(
 
             val userClaim: Claim = decodedJWT.getClaim("userId")
             val user = if (!userClaim.isNull) {
-                userRepository.findById(userClaim.asInt())?.toUserInfo() ?: UserInfo(0, "", "", UserRole.USER, now().toString(), "", "")
+                userRepository.findById(userClaim.asInt())?.toUserInfo() ?: UserInfo(0, "", "", UserRole.USER, now().toString(), now(), "")
             } else {
-                UserInfo(userClaim.asInt(), "", "", UserRole.USER, now().toString(), "", "")
+                UserInfo(userClaim.asInt(), "", "", UserRole.USER, now().toString(), now(), "")
             }
 
             // Safely access "platform" claim
@@ -53,7 +53,7 @@ class UserController(
             return Triple(platform, user, codeVerifier)
         } catch (e: Exception) {
             println("Error verifying token: ${e.message}")
-            return Triple("", UserInfo(0, "", "", UserRole.USER, now().toString(), "", ""), "")
+            return Triple("", UserInfo(0, "", "", UserRole.USER, now().toString(), now(), ""), "")
         }
     }
 

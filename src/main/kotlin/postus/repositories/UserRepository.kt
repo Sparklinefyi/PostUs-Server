@@ -39,7 +39,7 @@ enum class UserRole {
 object Users : IntIdTable() {
     val name = varchar("name", 255).nullable()
     val email = varchar("email", 255).uniqueIndex().nullable()
-    val emailVerified = varchar("emailVerified", 255).nullable()
+    val emailVerified = datetime("emailVerified").nullable()
     val image = varchar("image", 255).nullable()
     val password = varchar("password", 255).nullable()
     val role = enumeration("role", UserRole::class).default(UserRole.USER)

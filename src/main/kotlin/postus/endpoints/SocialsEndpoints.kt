@@ -14,6 +14,7 @@ import postus.models.auth.UserInfo
 import postus.models.youtube.*
 import postus.models.instagram.*
 import postus.repositories.UserRole
+import java.time.LocalDateTime.now
 
 fun Application.configureSocialsRouting(userService: UserController, socialController: SocialsController) {
 
@@ -387,7 +388,7 @@ suspend fun processRequest(call: ApplicationCall, userService: UserController): 
 
     if (state == null || code == null) {
         call.respond(HttpStatusCode.BadRequest, "Missing required parameters")
-        return Triple("", UserInfo(0, "", "", UserRole.USER, "", ""), "")
+        return Triple("", UserInfo(0, "", "", UserRole.USER, "", now()), "")
     }
 
     val info = userService.fetchUserDataByTokenWithPlatform(state)
