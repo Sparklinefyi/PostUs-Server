@@ -53,7 +53,7 @@ data class UserModel(
     val image: String? = null,
     val accounts: List<AccountInfoModel> = emptyList()
 ) {
-    fun toUserInfo(): UserInfo? {
+    fun toUserInfo(): UserInfo {
         return UserInfo(
             id,
             email,
