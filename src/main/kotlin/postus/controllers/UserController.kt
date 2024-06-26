@@ -52,10 +52,10 @@ class UserController(
             val decodedJWT = verifier.verify(token)
 
             val userClaim: Claim = decodedJWT.getClaim("userId")
-            val user = if (!userClaim.isNull) {
-                userRepository.findById(userClaim.asInt())?.toUserInfo() ?: UserInfo(0, "", "", UserRole.USER, now().toString(), now(), "")
+            val userId = if (!userClaim.isNull) {
+                userClaim.asString().removeSurrounding("\"").toInt()
             } else {
-                UserInfo(userClaim.asInt(), "", "", UserRole.USER, now().toString(), now(), "")
+                0
             }
 
             // Safely access "platform" claim
@@ -74,6 +74,7 @@ class UserController(
                 ""
             }
 
+            val user = userRepository.findById(userId)!!.toUserInfo()
             return Triple(platform, user, codeVerifier)
         } catch (e: Exception) {
             println("Error verifying token: ${e.message}")

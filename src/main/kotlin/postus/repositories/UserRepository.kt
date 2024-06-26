@@ -5,6 +5,7 @@ import postus.models.auth.UserModel
 
 import org.jetbrains.exposed.dao.*
 import org.jetbrains.exposed.dao.id.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.javatime.*
 import postus.models.auth.AccountInfoModel
 import java.time.LocalDateTime.now
@@ -13,10 +14,9 @@ class UserRepository {
 
     fun findById(id: Int): UserModel? {
         return transaction {
-            User.findById(id)?.toUserModel()
+            User.find(UserTable.id eq id).firstOrNull()?.toUserModel()
         }
     }
-
     fun update(updatedUser: UserModel) {
         return transaction {
             val user = User.findById(updatedUser.id) ?: throw IllegalArgumentException("User not found")
@@ -27,6 +27,34 @@ class UserRepository {
             user.createdAt = updatedUser.createdAt
             user.emailVerified = updatedUser.emailVerified
             user.image = updatedUser.image
+
+            // Check if the updatedUser has accounts and update/save them
+            updatedUser.accounts?.forEach { updatedAccount ->
+                val account = Account.find { AccountTable.accountId eq updatedAccount.accountId }.singleOrNull() ?: Account.new {
+                    // If the account doesn't exist, create a new one
+                    this.userId = user
+                    this.type = updatedAccount.type
+                    this.provider = updatedAccount.provider
+                    this.accountId = updatedAccount.accountId
+                    this.refreshToken = updatedAccount.refreshToken
+                    this.accessToken = updatedAccount.accessToken
+                    this.expiresAt = updatedAccount.expiresAt
+                    this.tokenType = updatedAccount.tokenType
+                    this.scope = updatedAccount.scope
+                    this.idToken = updatedAccount.idToken
+                    this.sessionState = updatedAccount.sessionState
+                }
+                // If the account exists, update its fields
+                account.type = updatedAccount.type
+                account.provider = updatedAccount.provider
+                account.refreshToken = updatedAccount.refreshToken
+                account.accessToken = updatedAccount.accessToken
+                account.expiresAt = updatedAccount.expiresAt
+                account.tokenType = updatedAccount.tokenType
+                account.scope = updatedAccount.scope
+                account.idToken = updatedAccount.idToken
+                account.sessionState = updatedAccount.sessionState
+            }
         }
     }
 
@@ -199,7 +227,7 @@ class Account(id: EntityID<Int>) : IntEntity(id) {
 
     companion object : IntEntityClass<Account>(AccountTable)
 
-    val userId by User referrersOn AccountTable.userId
+    var userId by User referencedOn AccountTable.userId
     var type by AccountTable.type
     var provider by AccountTable.provider
     var accountId by AccountTable.accountId
