@@ -1,18 +1,26 @@
 package postus.endpoints
 
+import TokenService.generateVerificationToken
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import postus.controllers.UserController
 import io.ktor.server.request.*
-import postus.models.HashedPasswordRequest
+import postus.controllers.EmailController
 import postus.models.auth.*
-import postus.utils.JwtHandler
 
 fun Application.configureAuthRouting(userService: UserController) {
     routing {
         route("/auth") {
+            post("/register") {
+                val request = call.receive<RegistrationRequest>()
+                val user = userService.registerUser(request)
+                val verificationToken = generateVerificationToken(user.email!!)
+                EmailController().sendVerificationEmail("re_ETUfKnjr_8vjfqCfZo9ybix6Gk9LxCbM7", user.email, verificationToken.token)
+                call.respond(HttpStatusCode.OK, "User registered successfully, verification email sent)")
+            }
+
             post("/signin") {
                 val request = call.receive<LoginRequest>()
                 val user = userService.authenticateWithEmailPassword(request.email, request.password)
@@ -20,12 +28,14 @@ fun Application.configureAuthRouting(userService: UserController) {
                     if (user.emailVerified != null) {
                         val response = user.toUserInfo()
                         call.respond(HttpStatusCode.OK, response)
+                    } else {
+                        val verificationToken = generateVerificationToken(user.email!!)
+                        EmailController().sendVerificationEmail("re_ETUfKnjr_8vjfqCfZo9ybix6Gk9LxCbM7", user.email, verificationToken.token)
+                        call.respond(HttpStatusCode.OK, "Email not verified, resending confirmation email")
                     }
-                    else {
-                        call.respond(HttpStatusCode.Accepted, "Verify Email")
-                    }
-                } else
+                } else {
                     call.respond(HttpStatusCode.Unauthorized, "Invalid credentials")
+                }
             }
 
             post("/signout") {
