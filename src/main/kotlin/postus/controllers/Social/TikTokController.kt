@@ -1,4 +1,4 @@
-package postus.controllers
+package postus.controllers.Social
 
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -9,10 +9,14 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import postus.controllers.MediaController
+import postus.controllers.UserController
 import postus.models.tiktok.TikTokRefreshTokenRequest
 import postus.models.tiktok.TiktokAuthRequest
 import postus.repositories.UserRepository
 import java.io.IOException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class TikTokController(
     client: OkHttpClient,
@@ -21,12 +25,12 @@ class TikTokController(
     mediaController: MediaController
 ) {
 
-        val client = client
-        val userRepository = userRepository
-        val userController = userController
-        val mediaController = mediaController
+    val client = client
+    val userRepository = userRepository
+    val userController = userController
+    val mediaController = mediaController
 
-    fun exchangeAuthorizationCodeForTokens(userId: Int, clientId: String, clientSecret: String, code: String, redirectUri: String): Boolean {
+    suspend fun exchangeAuthorizationCodeForTokens(userId: Int, clientId: String, clientSecret: String, code: String, redirectUri: String): Boolean {
         val tokenUrl = "https://open-api.tiktok.com/oauth/access_token"
         val authRequest = TiktokAuthRequest(client_key = clientId, client_secret = clientSecret, code = code, redirect_uri = redirectUri)
         val requestBody = Json.encodeToString(authRequest)
@@ -36,7 +40,7 @@ class TikTokController(
             .post(requestBody.toRequestBody("application/json".toMediaTypeOrNull()))
             .build()
 
-        val response = client.newCall(request).execute()
+        val response = withContext(Dispatchers.IO) { client.newCall(request).execute() }
         val responseBody = response.body?.string() ?: throw IOException("Empty response body")
 
         if (!response.isSuccessful) {
@@ -59,7 +63,7 @@ class TikTokController(
         return true
     }
 
-    fun getTikTokAccountId(accessToken: String): String {
+    suspend fun getTikTokAccountId(accessToken: String): String {
         val url = "https://open-api.tiktok.com/oauth/userinfo/"
 
         val request = Request.Builder()
@@ -67,18 +71,19 @@ class TikTokController(
             .addHeader("Authorization", "Bearer $accessToken")
             .build()
 
-        val response = client.newCall(request).execute()
+        val response = withContext(Dispatchers.IO) { client.newCall(request).execute() }
         val responseBody = response.body?.string() ?: throw IOException("Empty response body")
 
         return JSONObject(responseBody).getJSONObject("data").getString("open_id")
     }
 
-    fun postToTikTok(userId: Int, videoPath: String, description: String?): String {
+    suspend fun postToTikTok(userId: Int, videoPath: String, description: String?): String {
         val user = userRepository.findById(userId)
-        val accessToken = user?.tiktokAccessToken ?: throw Exception("User does not have a TikTok account linked")
+        val accessToken = user?.accounts?.find { it.provider == "TIKTOK" }?.accessToken
+
         val uploadUrl = "https://open-api.tiktok.com/video/upload/"
 
-        val videoFile = mediaController.downloadVideo(videoPath)
+        val videoFile = withContext(Dispatchers.IO) { mediaController.downloadVideo(videoPath) }
         val mediaType = "video/mp4".toMediaTypeOrNull()
         val videoRequestBody = videoFile.asRequestBody(mediaType)
 
@@ -95,44 +100,43 @@ class TikTokController(
             .addHeader("Authorization", "Bearer $accessToken")
             .build()
 
-        val response = client.newCall(request).execute()
+        val response = withContext(Dispatchers.IO) { client.newCall(request).execute() }
         val responseBody = response.body?.string() ?: throw IOException("Empty response body")
 
         return JSONObject(responseBody).getJSONObject("data").getString("video_id")
     }
 
-    fun getTikTokChannelAnalytics(userId: Int): String {
+    suspend fun getTikTokChannelAnalytics(userId: Int): String {
         val url = "https://open-api.tiktok.com/analytics/channels/"
 
         val user = userRepository.findById(userId)
-        val accessToken = user?.tiktokAccessToken ?: throw Exception("User does not have a TikTok account linked")
+        val accessToken = user?.accounts?.find { it.provider == "TIKTOK" }?.accessToken
 
         val request = Request.Builder()
             .url(url)
             .addHeader("Authorization", "Bearer $accessToken")
             .build()
 
-        val response = client.newCall(request).execute()
+        val response = withContext(Dispatchers.IO) { client.newCall(request).execute() }
         return response.body?.string() ?: throw IOException("Empty response body")
     }
 
-    fun getTikTokPostAnalytics(userId: Int, videoId: String): String {
+    suspend fun getTikTokPostAnalytics(userId: Int, videoId: String): String {
         val url = "https://open-api.tiktok.com/analytics/posts/$videoId"
 
         val user = userRepository.findById(userId)
-        val accessToken = user?.tiktokAccessToken ?: throw Exception("User does not have a TikTok account linked")
+        val accessToken = user?.accounts?.find { it.provider == "TIKTOK" }?.accessToken
 
         val request = Request.Builder()
             .url(url)
             .addHeader("Authorization", "Bearer $accessToken")
             .build()
 
-        val response = client.newCall(request).execute()
+        val response = withContext(Dispatchers.IO) { client.newCall(request).execute() }
         return response.body?.string() ?: throw IOException("Empty response body")
     }
 
-
-    fun refreshAccessToken(userId: Int, clientId: String, clientSecret: String, refreshToken: String): Boolean {
+    suspend fun refreshAccessToken(userId: Int, clientId: String, clientSecret: String, refreshToken: String): Boolean {
         val tokenUrl = "https://open.tiktokapis.com/v2/oauth/token/"
         val authRequest = TikTokRefreshTokenRequest(client_key = clientId, client_secret = clientSecret, refresh_token = refreshToken)
         val requestBody = Json.encodeToString(authRequest)
@@ -142,7 +146,7 @@ class TikTokController(
             .post(requestBody.toRequestBody("application/json".toMediaTypeOrNull()))
             .build()
 
-        val response = client.newCall(request).execute()
+        val response = withContext(Dispatchers.IO) { client.newCall(request).execute() }
         val responseBody = response.body?.string() ?: throw IOException("Empty response body")
         if (!response.isSuccessful) {
             println("Failed to refresh access token: $responseBody")

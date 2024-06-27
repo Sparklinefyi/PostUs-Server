@@ -2,15 +2,19 @@ package postus.workers
 
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import postus.controllers.SocialsController
+import kotlinx.coroutines.*
+import postus.controllers.Social.SocialsController
 
 class ScheduleCheckWorker(private val socialController: SocialsController) : Runnable {
+    @OptIn(DelicateCoroutinesApi::class)
     override fun run() {
         try {
             println("Running ScheduleCheckWorker Job")
             val posts = ScheduleRepository.getPostsScheduledWithinNextHours(3)
             for (post in posts) {
-                PostWorker(post, socialController).schedule()
+                GlobalScope.launch {
+                    PostWorker(post, socialController).schedule()
+                }
             }
             println("Completed ScheduleCheckWorker Job")
         } catch (e: Exception) {

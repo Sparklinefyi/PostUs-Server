@@ -1,5 +1,7 @@
 package postus.controllers
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
@@ -30,7 +32,7 @@ data class ImageListResponse(
 )
 
 class MediaController {
-    fun uploadImage(userId: String, image : ByteArray) : String {
+    suspend fun uploadImage(userId: String, image: ByteArray): String = withContext(Dispatchers.IO) {
         val bucketName = "postus-user-media"
         val region = Region.US_EAST_1
         val production = System.getProperty("production")
@@ -64,10 +66,10 @@ class MediaController {
         val presignedUrl = presignedRequest.url()
 
         val imageUrl = uploadFileToS3(presignedUrl.toString(), image, "image/jpeg")
-        return imageUrl
+        imageUrl
     }
 
-    fun uploadVideo(userId: String, video: ByteArray): String {
+    suspend fun uploadVideo(userId: String, video: ByteArray): String = withContext(Dispatchers.IO) {
         val bucketName = "postus-user-media"
         val region = Region.US_EAST_1
 
@@ -100,10 +102,10 @@ class MediaController {
         val presignedUrl = presignedRequest.url().toString()
 
         val videoUrl = uploadFileToS3(presignedUrl, video, "video/mp4")
-        return videoUrl
+        videoUrl
     }
 
-    fun getPresignedUrlFromKey(key: String): String {
+    suspend fun getPresignedUrlFromKey(key: String): String = withContext(Dispatchers.IO) {
         val bucketName = "postus-user-media"
         val region = Region.US_EAST_1
         val production = System.getProperty("production")
@@ -127,15 +129,15 @@ class MediaController {
             .build()
 
         val presignedRequest = presigner.presignGetObject(getObjectRequest)
-        return presignedRequest.url().toString()
+        presignedRequest.url().toString()
     }
 
-    fun getPresignedUrlFromPath(path: String): String {
+    suspend fun getPresignedUrlFromPath(path: String): String {
         val s3Key = path.substring(path.indexOf("/", 10) + 1)
         return getPresignedUrlFromKey(s3Key)
     }
 
-    fun getImageList(userId: String) : ImageListResponse {
+    suspend fun getImageList(userId: String): ImageListResponse = withContext(Dispatchers.IO) {
         val bucketName = "postus-user-media"
 
         val production = System.getProperty("production")
@@ -158,10 +160,10 @@ class MediaController {
 
         val listResponse = s3Client.listObjectsV2(listRequest)
         val videoKeys = listResponse.contents().map { getPresignedUrlFromKey(it.key()) }
-        return ImageListResponse(videoKeys)
+        ImageListResponse(videoKeys)
     }
 
-    fun getVideoList(userId: String) : VideoListResponse {
+    suspend fun getVideoList(userId: String): VideoListResponse = withContext(Dispatchers.IO) {
         val bucketName = "postus-user-media"
 
         val production = System.getProperty("production")
@@ -184,7 +186,7 @@ class MediaController {
 
         val listResponse = s3Client.listObjectsV2(listRequest)
         val videoKeys = listResponse.contents().map { getPresignedUrlFromKey(it.key()) }
-        return VideoListResponse(videoKeys)
+        VideoListResponse(videoKeys)
     }
 
     private fun generateFileName(): String {
@@ -192,7 +194,7 @@ class MediaController {
         return uuid.toString().replace("-", "")
     }
 
-    fun downloadVideo(videoUrl: String): File {
+    suspend fun downloadVideo(videoUrl: String): File = withContext(Dispatchers.IO) {
 
         val client = OkHttpClient()
         val request = Request.Builder().url(videoUrl).build()
@@ -206,11 +208,11 @@ class MediaController {
                 response.body?.byteStream()?.copyTo(fileOut)
             }
 
-            return tempFile
+            tempFile
         }
     }
 
-    fun downloadImage(imageUrl: String): File {
+    suspend fun downloadImage(imageUrl: String): File = withContext(Dispatchers.IO) {
         val client = OkHttpClient()
         val request = Request.Builder().url(imageUrl).build()
 
@@ -223,21 +225,22 @@ class MediaController {
                 response.body?.byteStream()?.copyTo(fileOut)
             }
 
-            return tempFile
+            tempFile
         }
     }
 
-    private fun uploadFileToS3(presignedUrl: String, fileByteArray: ByteArray, mediaType: String): String {
-        val client = OkHttpClient()
-        val requestBody = fileByteArray.toRequestBody(mediaType.toMediaTypeOrNull())
-        val request = Request.Builder()
-            .url(presignedUrl)
-            .put(requestBody)
-            .build()
+    private suspend fun uploadFileToS3(presignedUrl: String, fileByteArray: ByteArray, mediaType: String): String =
+        withContext(Dispatchers.IO) {
+            val client = OkHttpClient()
+            val requestBody = fileByteArray.toRequestBody(mediaType.toMediaTypeOrNull())
+            val request = Request.Builder()
+                .url(presignedUrl)
+                .put(requestBody)
+                .build()
 
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) throw IOException("Unexpected code $response")
-            return presignedUrl.split("?")[0] // Return the URL without query parameters
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) throw IOException("Unexpected code $response")
+                presignedUrl.split("?")[0] // Return the URL without query parameters
+            }
         }
-    }
 }

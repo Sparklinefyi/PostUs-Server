@@ -1,5 +1,4 @@
-package postus.controllers
-
+package postus.controllers.Social
 
 import com.google.gson.Gson
 import kotlinx.serialization.encodeToString
@@ -13,28 +12,26 @@ import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import postus.controllers.MediaController
+import postus.controllers.UserController
 import postus.models.youtube.*
 import postus.repositories.UserRepository
-
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class YouTubeController(
-    client: OkHttpClient,
-    userRepository: UserRepository,
-    userController: UserController,
-    mediaController: MediaController
+    private val client: OkHttpClient,
+    private val userRepository: UserRepository,
+    private val userController: UserController,
+    private val mediaController: MediaController
 ) {
-
-    val client = client
-    val userRepository = userRepository
-    val userController = userController
-    val mediaController = mediaController
 
     /**
      * Fetch YouTube access token.
      * Sample Call:
      * `fetchYouTubeAccessToken(1, "authCode")`
      */
-    fun fetchYouTubeAccessToken(userId: Int, code: String): Boolean {
+    suspend fun fetchYouTubeAccessToken(userId: Int, code: String): Boolean = withContext(Dispatchers.IO) {
         val clientId = System.getProperty("GOOGLE_CLIENT_ID")
         val clientSecret = System.getProperty("GOOGLE_CLIENT_SECRET")
         val redirectUri = System.getProperty("GOOGLE_REDIRECT_URI")
@@ -52,13 +49,13 @@ class YouTubeController(
             .build()
 
         val response = client.newCall(request).execute()
-        val responseBody = response.body?.string() ?: return false
-        if (!response.isSuccessful) return false
+        val responseBody = response.body?.string() ?: return@withContext false
+        if (!response.isSuccessful) return@withContext false
 
         val youtubeTokens = Json { ignoreUnknownKeys = true }.decodeFromString<YoutubeOAuthResponse>(responseBody)
         val channelId = getAuthenticatedUserChannelId(youtubeTokens.access_token)
         userController.linkAccount(userId, "GOOGLE", channelId, youtubeTokens.access_token, youtubeTokens.refresh_token)
-        return true
+        true
     }
 
     /**
@@ -66,12 +63,12 @@ class YouTubeController(
      * Sample Call:
      * `refreshYouTubeAccessToken("1")`
      */
-    fun refreshYouTubeAccessToken(userId: Int): String? {
+    suspend fun refreshYouTubeAccessToken(userId: Int): String? = withContext(Dispatchers.IO) {
         val clientId = System.getProperty("GOOGLE_CLIENT_ID")
         val clientSecret = System.getProperty("GOOGLE_CLIENT_SECRET")
-        val user = userRepository.findById(userId)
-            ?: throw Exception("User not found")
-        val refreshToken = user.googleRefresh
+        val user = userRepository.findById(userId) ?: return@withContext null
+
+        val refreshToken = user.accounts.find { it.provider == "GOOGLE" }?.refreshToken
 
         val requestBody = FormBody.Builder()
             .add("client_id", clientId!!)
@@ -86,17 +83,17 @@ class YouTubeController(
             .build()
 
         val response = client.newCall(request).execute()
-        val responseBody = response.body?.string() ?: return null
+        val responseBody = response.body?.string() ?: return@withContext null
 
         if (!response.isSuccessful) {
             println("Error: $responseBody")
-            return null
+            return@withContext null
         }
 
         val oauthResponse = Json { ignoreUnknownKeys = true }.decodeFromString<YoutubeRefreshResponse>(responseBody)
         userController.linkAccount(userId, "GOOGLE", null, oauthResponse.access_token, null)
 
-        return oauthResponse.access_token
+        oauthResponse.access_token
     }
 
     /**
@@ -104,13 +101,12 @@ class YouTubeController(
      * Sample Call:
      * `uploadYoutubeShort(uploadRequest, "1", "videoUrl")`
      */
-    fun uploadYoutubeShort(uploadRequest: YoutubePostRequest, userId: Int, videoUrl: String): JSONObject? {
+    suspend fun uploadYoutubeShort(uploadRequest: YoutubePostRequest, userId: Int, videoUrl: String): JSONObject? = withContext(Dispatchers.IO) {
         refreshYouTubeAccessToken(userId)
         val signedUrl = mediaController.getPresignedUrlFromPath(videoUrl)
         val videoFile = mediaController.downloadVideo(signedUrl)
-        val user = userRepository.findById(userId)
-            ?: throw Exception("User not found")
-        val accessToken = user.googleAccessToken
+        val user = userRepository.findById(userId) ?: throw Exception("User not found")
+        val accessToken = user.accounts.find { it.provider == "GOOGLE" }?.accessToken
 
         val json = Json { encodeDefaults = true }
         val metadataJson = json.encodeToString(uploadRequest)
@@ -136,7 +132,7 @@ class YouTubeController(
 
         responseBody.use { body ->
             val jsonResponse = body.string()
-            return JSONObject(jsonResponse)
+            return@withContext JSONObject(jsonResponse)
         }
     }
 
@@ -145,14 +141,11 @@ class YouTubeController(
      * Sample Call:
      * `testYoutube("1")`
      */
-    fun testYoutube(userId: String) {
-        val user = userRepository.findById(userId.toInt())
-            ?: throw Exception("User not found")
-        val accessToken = user.googleAccessToken
-        val channelId = getAuthenticatedUserChannelId(accessToken!!)
-            ?: throw Exception("Error getting channel ID")
-        val videoId = getLast50YoutubeVideos(channelId)?.first()
-            ?: throw Exception("No videos found")
+    suspend fun testYoutube(userId: String) = withContext(Dispatchers.IO) {
+        val user = userRepository.findById(userId.toInt()) ?: throw Exception("User not found")
+        val accessToken = user.accounts.find { it.provider == "GOOGLE" }?.accessToken
+        val channelId = getAuthenticatedUserChannelId(accessToken!!) ?: throw Exception("Error getting channel ID")
+        val videoId = getLast50YoutubeVideos(channelId)?.first() ?: throw Exception("No videos found")
         println(getYouTubeVideoAnalytics(videoId))
     }
 
@@ -161,11 +154,10 @@ class YouTubeController(
      * Sample Call:
      * `getYouTubeUploadsPlaylistId("1")`
      */
-    fun getYouTubeUploadsPlaylistId(userId: String): String? {
+    suspend fun getYouTubeUploadsPlaylistId(userId: String): String? = withContext(Dispatchers.IO) {
         val apiKey = System.getProperty("GOOGLE_API_KEY")
-        val user = userRepository.findById(userId.toInt())
-            ?: throw Exception("YouTube Channel ID not found")
-        val channelId = user.googleAccountId
+        val user = userRepository.findById(userId.toInt()) ?: throw Exception("YouTube Channel ID not found")
+        val channelId = user.accounts.find { it.provider == "GOOGLE" }?.accountId
 
         val url = "https://www.googleapis.com/youtube/v3/channels".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("part", "contentDetails")
@@ -185,24 +177,24 @@ class YouTubeController(
         if (!response.isSuccessful) {
             println("Error: ${response.code}")
             println("Response Body: $responseBody")
-            return null
+            return@withContext null
         }
 
         val jsonElement = Json.parseToJsonElement(responseBody ?: "")
-        return jsonElement.jsonObject["items"]?.jsonArray?.firstOrNull()
+        return@withContext jsonElement.jsonObject["items"]?.jsonArray?.firstOrNull()
             ?.jsonObject?.get("contentDetails")?.jsonObject
             ?.get("relatedPlaylists")?.jsonObject
             ?.get("uploads")?.jsonPrimitive?.content
     }
 
     /**
-     * Retrieve last 10 YouTube videos.
+     * Retrieve last 50 YouTube videos.
      * Sample Call:
-     * `getLast10YouTubeVideos("1")`
+     * `getLast50YouTubeVideos("1")`
      */
-    fun getLast50YoutubeVideos(userId: String): List<String>? {
+    suspend fun getLast50YoutubeVideos(userId: String): List<String>? = withContext(Dispatchers.IO) {
         val apiKey = System.getProperty("GOOGLE_API_KEY")
-        val uploadsPlaylistId = getYouTubeUploadsPlaylistId(userId) ?: return null
+        val uploadsPlaylistId = getYouTubeUploadsPlaylistId(userId) ?: return@withContext null
 
         val url = "https://www.googleapis.com/youtube/v3/playlistItems".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("part", "snippet")
@@ -223,11 +215,11 @@ class YouTubeController(
         if (!response.isSuccessful) {
             println("Error: ${response.code}")
             println("Response Body: $responseBody")
-            return null
+            return@withContext null
         }
 
         val playlistItemsResponse = Json.decodeFromString<PlaylistItemsResponse>(responseBody ?: "")
-        return playlistItemsResponse.items?.map { it.snippet!!.resourceId!!.videoId!! }
+        return@withContext playlistItemsResponse.items?.map { it.snippet!!.resourceId!!.videoId!! }
     }
 
     /**
@@ -235,7 +227,7 @@ class YouTubeController(
      * Sample Call:
      * `getAuthenticatedUserChannelId("accessToken")`
      */
-    fun getAuthenticatedUserChannelId(accessToken: String): String? {
+    suspend fun getAuthenticatedUserChannelId(accessToken: String): String? = withContext(Dispatchers.IO) {
         val url = "https://www.googleapis.com/youtube/v3/channels".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("part", "id")
             .addQueryParameter("mine", "true")
@@ -254,18 +246,18 @@ class YouTubeController(
         if (!response.isSuccessful) {
             println("Error: ${response.code}")
             println("Response Body: $responseBody")
-            return null
+            return@withContext null
         }
 
         val jsonElement = Json.parseToJsonElement(responseBody ?: "")
-        return jsonElement.jsonObject["items"]?.jsonArray?.firstOrNull()?.jsonObject?.get("id")?.jsonPrimitive?.content
+        return@withContext jsonElement.jsonObject["items"]?.jsonArray?.firstOrNull()?.jsonObject?.get("id")?.jsonPrimitive?.content
     }
 
-    fun getYouTubeChannelAnalytics(userId: String): String? {
+    suspend fun getYouTubeChannelAnalytics(userId: String): String? = withContext(Dispatchers.IO) {
         val apiKey = System.getProperty("GOOGLE_API_KEY")
         val user = userRepository.findById(userId.toInt())
             ?: throw Exception("YouTube Channel ID not found")
-        val channelId = user.googleAccountId
+        val channelId = user.accounts.find { it.provider == "GOOGLE" }?.accountId
 
         val url = "https://www.googleapis.com/youtube/v3/channels".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("part", "snippet,statistics")
@@ -280,12 +272,12 @@ class YouTubeController(
             .build()
 
         val response = client.newCall(request).execute()
-        if (!response.isSuccessful) return null
+        if (!response.isSuccessful) return@withContext null
 
-        return response.body?.string()
+        return@withContext response.body?.string()
     }
 
-    fun getYouTubeVideoAnalytics(videoId: String): VideoItemResponse? {
+    suspend fun getYouTubeVideoAnalytics(videoId: String): VideoItemResponse? = withContext(Dispatchers.IO) {
         val apiKey = System.getProperty("GOOGLE_API_KEY")
         val url = "https://www.googleapis.com/youtube/v3/videos".toHttpUrlOrNull()!!.newBuilder()
             .addQueryParameter("part", "snippet,statistics,contentDetails")
@@ -300,16 +292,16 @@ class YouTubeController(
             .build()
 
         val response = client.newCall(request).execute()
-        if (!response.isSuccessful) return null
+        if (!response.isSuccessful) return@withContext null
 
-        val body = response.body?.string() ?: return null
+        val body = response.body?.string() ?: return@withContext null
 
         val gson = Gson()
-        return gson.fromJson(body, VideoItemResponse::class.java)
+        return@withContext gson.fromJson(body, VideoItemResponse::class.java)
     }
 
-    fun getYouTubeVideoDetails(videoIds: List<String>): Array<VideoItemResponse?> {
-        return videoIds.map { videoId ->
+    suspend fun getYouTubeVideoDetails(videoIds: List<String>): Array<VideoItemResponse?> = withContext(Dispatchers.IO) {
+        videoIds.map { videoId ->
             getYouTubeVideoAnalytics(videoId)
         }.toTypedArray()
     }

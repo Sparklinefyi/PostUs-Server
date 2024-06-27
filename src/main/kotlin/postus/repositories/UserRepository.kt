@@ -1,141 +1,287 @@
 package postus.repositories
 import org.jetbrains.exposed.sql.*
-import postus.models.auth.Users
 import org.jetbrains.exposed.sql.transactions.transaction
-import postus.models.auth.User
-import postus.models.auth.UserInfo
+import postus.models.auth.UserModel
+
+import org.jetbrains.exposed.dao.*
+import org.jetbrains.exposed.dao.id.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.javatime.*
+import postus.models.auth.AccountInfoModel
+import java.time.LocalDateTime.now
 
 class UserRepository {
-    fun findByEmail(email: String): User? {
+
+    fun findById(id: Int): UserModel? {
         return transaction {
-            Users.selectAll().where { Users.email eq email }
-                .map { toUser(it) }
-                .singleOrNull()
+            User.find(UserTable.id eq id).firstOrNull()?.toUserModel()
         }
     }
-
-    fun findById(id: Int): User? {
+    fun update(updatedUser: UserModel) {
         return transaction {
-            Users.selectAll().where { Users.id eq id }
-                .map { toUser(it) }
-                .singleOrNull()
-        }
-    }
+            val user = User.findById(updatedUser.id) ?: throw IllegalArgumentException("User not found")
+            user.email = updatedUser.email
+            user.name = updatedUser.name
+            user.password = updatedUser.password
+            user.role = updatedUser.role
+            user.createdAt = updatedUser.createdAt
+            user.emailVerified = updatedUser.emailVerified
+            user.image = updatedUser.image
 
-    fun save(user: User): UserInfo {
-        val savedUser = transaction {
-            val existingUser = Users.selectAll().where { Users.email eq user.email }.singleOrNull()
-            if (existingUser != null) {
-                throw IllegalArgumentException("User with email ${user.email} already exists")
-            }
+            // Check if the updatedUser has accounts and update/save them
+            updatedUser.accounts?.forEach { updatedAccount ->
 
-            val id = Users.insertAndGetId {
-                it[email] = user.email
-                it[name] = user.name
-                it[passwordHash] = user.passwordHash
-                it[googleAccountId] = user.googleAccountId
-                it[googleAccessToken] = user.googleAccessToken
-                it[googleRefresh] = user.googleRefresh
-                it[googleAccountId] = user.googleAccountId
-                it[googleAccessToken] = user.googleAccessToken
-                it[facebookRefresh] = user.facebookRefresh
-                it[googleAccountId] = user.googleAccountId
-                it[googleAccessToken] = user.googleAccessToken
-                it[twitterRefresh] = user.twitterRefresh
-                it[googleAccountId] = user.googleAccountId
-                it[googleAccessToken] = user.googleAccessToken
-                it[instagramRefresh] = user.instagramRefresh
-            }
-            user.copy(id = id.value)
-        }
-
-        return UserInfo(savedUser.id, savedUser.email, savedUser.name, savedUser.role, savedUser.description)
-    }
-
-    fun update(user: User) {
-        transaction {
-            Users.update({ Users.id eq user.id }) {
-                it[email] = user.email
-                it[name] = user.name
-                it[passwordHash] = user.passwordHash
-                it[googleAccountId] = user.googleAccountId
-                it[googleAccessToken] = user.googleAccessToken
-                it[googleRefresh] = user.googleRefresh
-                it[facebookAccountId] = user.facebookAccountId
-                it[facebookAccessToken] = user.facebookAccessToken
-                it[facebookRefresh] = user.facebookRefresh
-                it[twitterAccountId] = user.twitterAccountId
-                it[twitterAccessToken] = user.twitterAccessToken
-                it[twitterRefresh] = user.twitterRefresh
-                it[instagramAccountId] = user.instagramAccountId
-                it[instagramAccessToken] = user.instagramAccessToken
-                it[instagramRefresh] = user.instagramRefresh
-                it[linkedinAccountId] = user.linkedinAccountId
-                it[linkedinAccessToken] = user.linkedinAccessToken
-                it[linkedinRefresh] = user.linkedinRefresh
-                it[tiktokAccountId] = user.tiktokAccountId
-                it[tiktokAccessToken] = user.tiktokAccessToken
-                it[tiktokRefresh] = user.tiktokRefresh
+                println( updatedAccount.accountId)
+                val account = Account.find { AccountTable.accountId eq updatedAccount.accountId }.singleOrNull() ?: Account.new {
+                    // If the account doesn't exist, create a new one
+                    this.userId = user
+                    this.type = updatedAccount.type
+                    this.provider = updatedAccount.provider
+                    this.accountId = updatedAccount.accountId
+                    this.refreshToken = updatedAccount.refreshToken
+                    this.accessToken = updatedAccount.accessToken
+                    this.expiresAt = updatedAccount.expiresAt
+                    this.tokenType = updatedAccount.tokenType
+                    this.scope = updatedAccount.scope
+                    this.idToken = updatedAccount.idToken
+                    this.sessionState = updatedAccount.sessionState
+                }
+                // If the account exists, update its fields
+                account.type = updatedAccount.type
+                account.provider = updatedAccount.provider
+                account.refreshToken = updatedAccount.refreshToken
+                account.accessToken = updatedAccount.accessToken
+                account.expiresAt = updatedAccount.expiresAt
+                account.tokenType = updatedAccount.tokenType
+                account.scope = updatedAccount.scope
+                account.idToken = updatedAccount.idToken
+                account.sessionState = updatedAccount.sessionState
             }
         }
     }
 
-    suspend fun updateUser(userId: Int, newDescription: String?, newPassword: String?) {
-        transaction {
-            Users.update({ Users.id eq userId }) {
-                it[description] = newDescription!!
-
-                if (newPassword!!.isNotEmpty())
-                    it[passwordHash] = newPassword
-
-            }
+    fun findByEmail(email: String): UserModel? {
+        return transaction {
+            User.find { UserTable.email eq email }.firstOrNull()?.toUserModel()
         }
     }
 
-    private fun toUser(row: ResultRow): User {
-        return User(
-            id = row[Users.id].value,
-            email = row[Users.email],
-            name = row[Users.name],
-            role = row[Users.role],
-            description = row[Users.description],
-            passwordHash = row[Users.passwordHash],
-            createdAt = row[Users.timeCreated].toString(),
-            updatedAt = row[Users.timeUpdated].toString(),
-            googleAccountId = row[Users.googleAccountId],
-            googleAccessToken = row[Users.googleAccessToken],
-            googleRefresh = row[Users.googleRefresh],
-            facebookAccountId = row[Users.facebookAccountId],
-            facebookAccessToken = row[Users.facebookAccessToken],
-            facebookRefresh = row[Users.facebookRefresh],
-            twitterAccountId = row[Users.twitterAccountId],
-            twitterAccessToken = row[Users.twitterAccessToken],
-            twitterRefresh = row[Users.twitterRefresh],
-            instagramAccountId = row[Users.instagramAccountId],
-            instagramAccessToken = row[Users.instagramAccessToken],
-            instagramRefresh = row[Users.instagramRefresh],
-            linkedinAccountId = row[Users.linkedinAccountId],
-            linkedinAccessToken = row[Users.linkedinAccessToken],
-            linkedinRefresh = row[Users.linkedinRefresh],
-            tiktokAccountId = row[Users.tiktokAccountId],
-            tiktokAccessToken = row[Users.tiktokAccessToken],
-            tiktokRefresh = row[Users.tiktokRefresh]
+    fun create(user: UserModel): Int {
+        return transaction {
+            User.new {
+                email = user.email
+                name = user.name
+                password = user.password
+                role = user.role
+                createdAt = user.createdAt
+                emailVerified = user.emailVerified
+                image = user.image
+            }.id.value
+        }
+    }
+}
+
+object UserTable : IntIdTable(
+    "\"User\""
+) {
+    val name = varchar("name", 255).nullable()
+    val email = varchar("email", 255).uniqueIndex().nullable()
+    val emailVerified = datetime("emailVerified").nullable()
+    val image = varchar("image", 255).nullable()
+    val password = varchar("password", 255).nullable()
+
+    val role = customEnumeration(
+        "role", "UserRole",
+        { value -> UserRole.valueOf(value as String) },
+        { it.name }
+    ).default(UserRole.USER)
+
+    val createdAt = varchar("createdAt", 255).default(now().toString())
+
+    init {
+        uniqueIndex(email)
+    }
+}
+
+object AccountTable : IntIdTable(
+    "\"Account\""
+) {
+
+    val userId = reference("userId", UserTable.id, onDelete = ReferenceOption.CASCADE)
+    val type = varchar("type", 255)
+    val provider = varchar("provider", 255)
+    val accountId = varchar("providerAccountId", 255)
+    val refreshToken = text("refresh_token").nullable()
+    val accessToken = text("access_token").nullable()
+    val expiresAt = integer("expires_at").nullable()
+    val tokenType = varchar("token_type", 255).nullable()
+    val scope = varchar("scope", 255).nullable()
+    val idToken = text("id_token").nullable()
+    val sessionState = varchar("session_state", 255).nullable()
+
+    init {
+        uniqueIndex(provider, accountId)
+    }
+}
+
+object VerificationTokenTable : IntIdTable(
+    "\"VerificationToken\""
+) {
+    val email = varchar("email", 255)
+    val token = varchar("token", 255).uniqueIndex()
+    val expires = datetime("expires")
+
+    init {
+        uniqueIndex(email, token)
+    }
+}
+
+object PasswordResetTokenTable : IntIdTable(
+    "\"PasswordResetToken\""
+) {
+    val email = varchar("email", 255)
+    val token = varchar("token", 255).uniqueIndex()
+    val expires = datetime("expires")
+
+    init {
+        uniqueIndex(email, token)
+    }
+}
+
+object UserSubscriptionTable : IntIdTable(
+    "\"UserSubscription\""
+) {
+    val userId = reference("userId", UserTable).uniqueIndex()
+    val stripeCustomerId = varchar("stripe_customer_id", 255).uniqueIndex().nullable()
+    val stripeSubscriptionId = varchar("stripe_subscription_id", 255).uniqueIndex().nullable()
+    val stripePriceId = varchar("stripe_price_id", 255).uniqueIndex().nullable()
+    val stripeCurrentPeriodEnd = datetime("stripe_current_period_end").uniqueIndex().nullable()
+}
+
+object PurchaseTable : IntIdTable(
+    "\"Purchase\""
+) {
+    val userId = reference("userId", UserTable)
+    val amount = float("amount")
+    val createdAt = datetime("createdAt").defaultExpression(CurrentDateTime)
+    val updatedAt = datetime("updatedAt").defaultExpression(CurrentDateTime)
+}
+
+object StripeCustomerTable : IntIdTable(
+    name = "StripeCustomer"
+) {
+    val userId = reference("userId", UserTable).uniqueIndex()
+    val stripeCustomerId = varchar("stripeCustomerId", 255).uniqueIndex()
+    val createdAt = datetime("createdAt").defaultExpression(CurrentDateTime)
+    val updatedAt = datetime("updatedAt").defaultExpression(CurrentDateTime)
+}
+
+// Enums
+enum class UserRole {
+    USER, ADMIN
+}
+
+// Entity classes
+class User(id: EntityID<Int>) : IntEntity(id) {
+    fun toUserModel(): UserModel {
+        return UserModel(
+            id.value,
+            email,
+            name,
+            password,
+            createdAt,
+            role,
+            emailVerified,
+            image,
+            accounts.map { it.toAccountInfoModel() }
         )
     }
 
-    fun toUserInfo(user: User?): UserInfo {
-        return UserInfo(
-            id = user!!.id,
-            email = user!!.email,
-            name = user!!.name,
-            role = user!!.role,
-            createdAt = user!!.createdAt,
-            description = user!!.description,
-            googleAccountId = user!!.googleAccountId?: "",
-            facebookAccountId = user!!.facebookAccountId?: "",
-            twitterAccountId = user!!.twitterAccountId?: "",
-            instagramAccountId = user!!.instagramAccountId?: "",
-            linkedInAccountId = user!!.linkedinAccountId?: "",
+    companion object : IntEntityClass<User>(UserTable)
+    var name by UserTable.name
+    var email by UserTable.email
+    var emailVerified by UserTable.emailVerified
+    var image by UserTable.image
+    var password by UserTable.password
+    var role by UserTable.role
+    var createdAt by UserTable.createdAt
+    val accounts by Account referrersOn AccountTable.userId
+    val subscriptions by UserSubscription referrersOn UserSubscriptionTable.userId
+    val purchases by Purchase referrersOn PurchaseTable.userId
+}
+
+class Account(id: EntityID<Int>) : IntEntity(id) {
+    fun toAccountInfoModel(): AccountInfoModel {
+        return AccountInfoModel(
+            id.value,
+            type,
+            provider,
+            accountId,
+            refreshToken,
+            accessToken,
+            expiresAt,
+            tokenType,
+            scope,
+            idToken,
+            sessionState
         )
     }
+
+    companion object : IntEntityClass<Account>(AccountTable)
+
+    var userId by User referencedOn AccountTable.userId
+    var type by AccountTable.type
+    var provider by AccountTable.provider
+    var accountId by AccountTable.accountId
+    var refreshToken by AccountTable.refreshToken
+    var accessToken by AccountTable.accessToken
+    var expiresAt by AccountTable.expiresAt
+    var tokenType by AccountTable.tokenType
+    var scope by AccountTable.scope
+    var idToken by AccountTable.idToken
+    var sessionState by AccountTable.sessionState
+}
+
+class VerificationToken(id: EntityID<Int>) : IntEntity(id) {
+    companion object : IntEntityClass<VerificationToken>(VerificationTokenTable)
+
+    var email by VerificationTokenTable.email
+    var token by VerificationTokenTable.token
+    var expires by VerificationTokenTable.expires
+}
+
+class PasswordResetToken(id: EntityID<Int>) : IntEntity(id) {
+    companion object : IntEntityClass<PasswordResetToken>(PasswordResetTokenTable)
+
+    var email by PasswordResetTokenTable.email
+    var token by PasswordResetTokenTable.token
+    var expires by PasswordResetTokenTable.expires
+}
+
+class UserSubscription(id: EntityID<Int>) : IntEntity(id) {
+    companion object : IntEntityClass<UserSubscription>(UserSubscriptionTable)
+
+    val userId by User referrersOn UserSubscriptionTable.userId
+    var stripeCustomerId by UserSubscriptionTable.stripeCustomerId
+    var stripeSubscriptionId by UserSubscriptionTable.stripeSubscriptionId
+    var stripePriceId by UserSubscriptionTable.stripePriceId
+    var stripeCurrentPeriodEnd by UserSubscriptionTable.stripeCurrentPeriodEnd
+}
+
+class Purchase(id: EntityID<Int>) : IntEntity(id) {
+    companion object : IntEntityClass<Purchase>(PurchaseTable)
+
+    var userId by User referencedOn PurchaseTable.userId
+    var amount by PurchaseTable.amount
+    var createdAt by PurchaseTable.createdAt
+    var updatedAt by PurchaseTable.updatedAt
+}
+
+class StripeCustomer(id: EntityID<Int>) : IntEntity(id) {
+    companion object : IntEntityClass<StripeCustomer>(StripeCustomerTable)
+
+    var userId by User referencedOn StripeCustomerTable.userId
+    var stripeCustomerId by StripeCustomerTable.stripeCustomerId
+    var createdAt by StripeCustomerTable.createdAt
+    var updatedAt by StripeCustomerTable.updatedAt
 }

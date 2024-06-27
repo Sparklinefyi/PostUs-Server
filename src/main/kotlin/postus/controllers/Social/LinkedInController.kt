@@ -1,5 +1,7 @@
-package postus.controllers
+package postus.controllers.Social
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import okhttp3.*
@@ -7,23 +9,20 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import postus.controllers.MediaController
+import postus.controllers.UserController
 import postus.models.linkedin.*
 import postus.repositories.UserRepository
 import java.io.IOException
 
 class LinkedInController(
-    client: OkHttpClient,
-    userRepository: UserRepository,
-    userController: UserController,
-    mediaController: MediaController
+    private val client: OkHttpClient,
+    private val userRepository: UserRepository,
+    private val userController: UserController,
+    private val mediaController: MediaController
 ) {
 
-    val client = client
-    val userRepository = userRepository
-    val userController = userController
-
-
-    fun fetchLinkedInAccessToken(userId: Int, authCode: String): Boolean? {
+    suspend fun fetchLinkedInAccessToken(userId: Int, authCode: String): Boolean? = withContext(Dispatchers.IO) {
         val clientId = System.getProperty("LINKEDIN_CLIENT_ID") ?: throw Exception("LinkedIn client ID not found")
         val clientSecret =
             System.getProperty("LINKEDIN_CLIENT_SECRET") ?: throw Exception("LinkedIn client secret not found")
@@ -45,12 +44,12 @@ class LinkedInController(
             .build()
 
         val response = client.newCall(request).execute()
-        val responseBody = response.body?.string() ?: return null
-        if (!response.isSuccessful) return null
+        val responseBody = response.body?.string() ?: return@withContext null
+        if (!response.isSuccessful) return@withContext null
 
         val linkedInOAuthResponse =
             Json { ignoreUnknownKeys = true }.decodeFromString<LinkedinOAuthResponse>(responseBody)
-        val accountId = linkedInAccountId(linkedInOAuthResponse.accessToken) ?: return null
+        val accountId = linkedInAccountId(linkedInOAuthResponse.accessToken) ?: return@withContext null
         userController.linkAccount(
             userId,
             "LINKEDIN",
@@ -58,45 +57,33 @@ class LinkedInController(
             linkedInOAuthResponse.accessToken,
             null
         )
-        return true
+        true
     }
 
-    /**
-     * Get LinkedIn account ID.
-     * Sample Call:
-     * `linkedInAccountId("accessToken")`
-     */
-    fun linkedInAccountId(accessToken: String): String? {
+    suspend fun linkedInAccountId(accessToken: String): String? = withContext(Dispatchers.IO) {
         val request = Request.Builder()
             .url("https://api.linkedin.com/v2/userinfo")
             .addHeader("Authorization", "Bearer $accessToken")
             .build()
 
         val response = client.newCall(request).execute()
-        val responseBody = response.body?.string() ?: return null
-        if (!response.isSuccessful) return null
+        val responseBody = response.body?.string() ?: return@withContext null
+        if (!response.isSuccessful) return@withContext null
 
         val json = Json { ignoreUnknownKeys = true }
         val profileData = json.decodeFromString<LinkedinUserInfo>(responseBody)
 
-        return profileData.sub
+        profileData.sub
     }
 
-    /**
-     * Post to LinkedIn.
-     * Sample Call:
-     * `postToLinkedIn(1, "Sample LinkedIn post content")`
-     */
-    fun postToLinkedIn(userId: Int, content: String, mediaUrls: List<String> = emptyList()): Boolean {
+    suspend fun postToLinkedIn(userId: Int, content: String, mediaUrls: List<String> = emptyList()): Boolean = withContext(Dispatchers.IO) {
         val user = userRepository.findById(userId)
-        val accessToken = user?.linkedinAccessToken ?: throw Exception("User not found")
-        val accountId = user.linkedinAccountId ?: throw Exception("LinkedIn account ID not found")
+        val accessToken = user?.accounts?.find { it.provider == "LINKEDIN" }?.accessToken
+        val accountId = user?.accounts?.find { it.provider == "LINKEDIN" }?.accountId
         val postUrl = System.getProperty("LINKEDIN_POST_URL") ?: throw Exception("LinkedIn post URL not found")
 
-        // Upload each media to LinkedIn and get the URNs
-        val mediaURNs = mediaUrls.map { uploadLinkedInMedia(accessToken, accountId, it) }
-
-        val postBody = createPostData(accountId, content, mediaURNs)
+        val mediaURNs = mediaUrls.map { uploadLinkedInMedia(accessToken!!, accountId!!, it) }
+        val postBody = createPostData(accountId!!, content, mediaURNs)
 
         val mediaTypeHeader = "application/json".toMediaTypeOrNull()
         val requestBody = RequestBody.create(mediaTypeHeader, postBody)
@@ -109,21 +96,14 @@ class LinkedInController(
             .build()
 
         val response = client.newCall(request).execute()
-        val responseBody = response.body?.string() ?: return false
-        if (!response.isSuccessful) return false
+        val responseBody = response.body?.string() ?: return@withContext false
+        if (!response.isSuccessful) return@withContext false
 
         println("Post successful: $responseBody")
-        return true
+        true
     }
 
-
-    /**
-     * Get LinkedIn post analytics.
-     * Sample Call:
-     * `getLinkedInPostAnalytics("accessToken", "postUrn")`
-     */
-    fun getLinkedInPostAnalytics(accessToken: String, postUrn: String): LinkedInAnalyticsResponse? {
-
+    suspend fun getLinkedInPostAnalytics(accessToken: String, postUrn: String): LinkedInAnalyticsResponse? = withContext(Dispatchers.IO) {
         val analyticsUrl =
             System.getProperty("LINKEDIN_ANALYTICS_URL") ?: throw Exception("LinkedIn analytics URL not found")
 
@@ -139,10 +119,10 @@ class LinkedInController(
             .build()
 
         val response = client.newCall(request).execute()
-        val responseBody = response.body?.string() ?: return null
-        if (!response.isSuccessful) return null
+        val responseBody = response.body?.string() ?: return@withContext null
+        if (!response.isSuccessful) return@withContext null
 
-        return Json { ignoreUnknownKeys = true }.decodeFromString<LinkedInAnalyticsResponse>(responseBody)
+        Json { ignoreUnknownKeys = true }.decodeFromString<LinkedInAnalyticsResponse>(responseBody)
     }
 
     fun createPostData(
@@ -180,7 +160,7 @@ class LinkedInController(
         return Json.encodeToString(postData)
     }
 
-    fun uploadLinkedInMedia(accessToken: String, accountId: String, mediaUrl: String): String {
+    suspend fun uploadLinkedInMedia(accessToken: String, accountId: String, mediaUrl: String): String = withContext(Dispatchers.IO) {
         val linkedInUploadUrl = "https://api.linkedin.com/v2/assets?action=registerUpload"
 
         val registrationRequestJson = """
@@ -213,7 +193,6 @@ class LinkedInController(
             .getJSONObject("com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest").getString("uploadUrl")
         val asset = jsonResponse.getJSONObject("value").getString("asset")
 
-        // Upload the media
         val mediaRequestBody = mediaUrl.toRequestBody("image/jpeg".toMediaTypeOrNull())
         val mediaRequest = Request.Builder()
             .url(uploadUrl)
@@ -225,10 +204,10 @@ class LinkedInController(
         val mediaResponse = client.newCall(mediaRequest).execute()
         if (!mediaResponse.isSuccessful) throw IOException("Failed to upload media")
 
-        return asset
+        asset
     }
 
-    fun getLinkedInPostDetails(accessToken: String, postId: String): String {
+    suspend fun getLinkedInPostDetails(accessToken: String, postId: String): String = withContext(Dispatchers.IO) {
         val postUrl = "https://api.linkedin.com/v2/ugcPosts/$postId"
 
         val request = Request.Builder()
@@ -238,11 +217,9 @@ class LinkedInController(
             .addHeader("Content-Type", "application/json")
             .build()
 
-        val client = OkHttpClient()
         val response = client.newCall(request).execute()
-
         if (!response.isSuccessful) throw IOException("Failed to fetch post details: ${response.message}")
 
-        return response.body?.string() ?: throw IOException("Empty response body")
+        response.body?.string() ?: throw IOException("Empty response body")
     }
 }

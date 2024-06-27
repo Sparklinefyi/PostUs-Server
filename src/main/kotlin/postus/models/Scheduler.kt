@@ -4,13 +4,13 @@ import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.dao.id.IntIdTable
 
 object Schedules : IntIdTable(
-    name = "scheduled_posts"
+    "\"ScheduledPosts\""
 ) {
-    val userId = integer("user_id")
-    val s3Path = varchar("s3_path", 255)
-    val postTime = varchar("post_time", 255)
-    val mediaType = varchar("media_type", 20)
-    val schedulePostRequest = text("schedule_post_request")
+    val userId = integer("userId")
+    val s3Path = varchar("s3Path", 255)
+    val postTime = varchar("postTime", 255)
+    val mediaType = varchar("mediaType", 20)
+    val schedulePostRequest = text("schedulePostRequest")
     val posted = bool("posted")
 }
 

@@ -42,10 +42,10 @@ dependencies {
     implementation("org.mindrot:jbcrypt:0.4")
     implementation("org.jetbrains.exposed:exposed-jdbc:0.50.1")
     implementation("org.jetbrains.exposed:exposed-core:0.50.1")
+    implementation("org.jetbrains.exposed:exposed-dao:0.50.1")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation("org.postgresql:postgresql:42.7.3")
     implementation("com.zaxxer:HikariCP:4.0.3")
-
     implementation("io.ktor:ktor-server-auth:$ktor_version")
     implementation("io.ktor:ktor-server-auth-jwt:$ktor_version")
     implementation("io.ktor:ktor-server-core-jvm:$ktor_version")
@@ -57,6 +57,8 @@ dependencies {
     implementation("io.ktor:ktor-server-sessions:$ktor_version")
     implementation("oauth.signpost:signpost-core:1.2.1.2")
     implementation("oauth.signpost:signpost-commonshttp4:1.2.1.2")
+    implementation("com.password4j:password4j:1.8.2")
+
 
     implementation("io.ktor:ktor-server-host-common:2.0.0")
     implementation("io.ktor:ktor-server-content-negotiation:$ktor_version")

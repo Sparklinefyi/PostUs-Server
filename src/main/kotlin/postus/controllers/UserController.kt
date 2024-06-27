@@ -2,11 +2,13 @@ package postus.controllers
 
 
 import com.auth0.jwt.interfaces.Claim
-import org.mindrot.jbcrypt.BCrypt
+import com.password4j.Password
+import postus.models.auth.AccountInfoModel
 import postus.models.auth.RegistrationRequest
-import postus.models.auth.User
+import postus.models.auth.UserModel
 import postus.models.auth.UserInfo
 import postus.repositories.UserRepository
+import postus.repositories.UserRole
 import postus.utils.JwtHandler
 import java.time.LocalDateTime.now
 
@@ -14,53 +16,34 @@ import java.time.LocalDateTime.now
 class UserController(
     private val userRepository: UserRepository,
 ) {
-    fun registerUser(request: RegistrationRequest) {
-        val hashedPassword = BCrypt.hashpw(request.password, BCrypt.gensalt())
-        val user = User(
+
+    fun registerUser(request: RegistrationRequest): UserInfo {
+        val hashedPassword = Password.hash(request.password).addRandomSalt(10).withBcrypt().result
+        val user = UserModel(
             id = 0,
             email = request.email,
             name = request.name,
-            role = "inactive",
-            description = "",
+            password = hashedPassword.toString(),
+            role = UserRole.USER,
             createdAt = now().toString(),
-            updatedAt = now().toString(),
-            passwordHash = hashedPassword,
-            googleAccountId = null,
-            googleAccessToken = null,
-            googleRefresh = null,
-            facebookAccountId = null,
-            facebookAccessToken = null,
-            facebookRefresh = null,
-            twitterAccountId = null,
-            twitterAccessToken = null,
-            twitterRefresh = null,
-            instagramAccountId = null,
-            instagramAccessToken = null,
-            instagramRefresh = null,
-            linkedinAccountId = null,
-            linkedinAccessToken = null,
-            linkedinRefresh = null,
-            tiktokAccountId = null,
-            tiktokAccessToken = null,
-            tiktokRefresh = null
+            emailVerified = now(),
+            image = null
         )
-        userRepository.save(user)
+
+        val userId = userRepository.create(user)
+        return user.toUserInfo()!!.copy(id = userId)
     }
 
-    suspend fun updateUser(userId: Int, description: String?, currentPassword: String?, newPassword: String?) {
-        val user = userRepository.findById(userId) ?: return
-        val encryptedPassword = if (currentPassword!!.isNotEmpty() && newPassword!!.isNotEmpty() && BCrypt.checkpw(currentPassword, user.passwordHash)) {
-            BCrypt.hashpw(newPassword, BCrypt.gensalt())
-        } else
-            ""
-
-        userRepository.updateUser(userId, description!!, encryptedPassword!!)
+    fun authenticateWithEmailPassword(email: String, password: String): UserModel? {
+        val user = userRepository.findByEmail(email) ?: return null
+        val test = Password.hash(password).withBcrypt().result
+        println(test)
+        return if (Password.check(password, user.password!!).withBcrypt()) user else null
     }
 
-    fun fetchUserDataByToken(token: String): UserInfo? {
+    fun fetchUserDataByToken(token: String): UserModel? {
         val userId = JwtHandler().validateTokenAndGetUserId(token) ?: return null
         return userRepository.findById(userId.toInt())
-            ?.let { userRepository.toUserInfo(it) }
     }
 
     fun fetchUserDataByTokenWithPlatform(token: String): Triple<String, UserInfo, String?> {
@@ -68,11 +51,11 @@ class UserController(
             val verifier = JwtHandler().makeJwtVerifier(System.getProperty("JWT_ISSUER")!!)
             val decodedJWT = verifier.verify(token)
 
-            val userClaim: Claim = decodedJWT.getClaim("user")
-            val user = if (!userClaim.isNull) {
-                userRepository.toUserInfo(userRepository.findById(userClaim.asInt()))
+            val userClaim: Claim = decodedJWT.getClaim("userId")
+            val userId = if (!userClaim.isNull) {
+                userClaim.asString().removeSurrounding("\"").toInt()
             } else {
-                return Triple("", UserInfo(0, "", "", "", "", ""), "")
+                0
             }
 
             // Safely access "platform" claim
@@ -80,7 +63,7 @@ class UserController(
             val platform = if (!platformClaim.isNull) {
                 platformClaim.asString().removeSurrounding("\"")
             } else {
-                return Triple("", user, "")
+                ""
             }
 
             // Access other claims as needed
@@ -88,43 +71,34 @@ class UserController(
             val codeVerifier = if (!codeVerifierClaim.isNull) {
                codeVerifierClaim.asString().removeSurrounding("\"")
             } else {
-                return Triple(platform, user, "")
+                ""
             }
 
+            val user = userRepository.findById(userId)!!.toUserInfo()
             return Triple(platform, user, codeVerifier)
         } catch (e: Exception) {
             println("Error verifying token: ${e.message}")
-            return Triple("", UserInfo(0, "", "", "", "", ""), "")
+            return Triple("", UserInfo(0, "", "", UserRole.USER, now().toString(), now(), ""), "")
         }
     }
 
-    fun authenticateWithEmailPassword(email: String, password: String): UserInfo? {
-        val user = userRepository.findByEmail(email) ?: return null
-        if (!BCrypt.checkpw(password, user.passwordHash)) return null
-        return userRepository.toUserInfo(user)
-    }
-
     fun linkAccount(userId: Int, provider: String, accountId: String?, accessToken: String?, refreshToken: String?) {
-        val user = userRepository.findById(userId) ?: throw IllegalArgumentException("User not found")
-        val updatedUser = user.copy(
-            googleAccountId = if (provider == "GOOGLE" && accountId != null) accountId else user.googleAccountId,
-            googleAccessToken = if (provider == "GOOGLE" && accessToken != null) accessToken else user.googleAccessToken,
-            googleRefresh = if (provider == "GOOGLE" && refreshToken != null) refreshToken else user.googleRefresh,
-            facebookAccountId = if (provider == "FACEBOOK" && accountId != null) accountId else user.facebookAccountId,
-            facebookAccessToken = if (provider == "FACEBOOK" && accessToken != null) accessToken else user.facebookAccessToken,
-            facebookRefresh = if (provider == "FACEBOOK" && refreshToken != null) refreshToken else user.facebookRefresh,
-            twitterAccountId = if (provider == "TWITTER" && accountId != null) accountId else user.twitterAccountId,
-            twitterAccessToken = if (provider == "TWITTER" && accessToken != null) accessToken else user.twitterAccessToken,
-            twitterRefresh = if (provider == "TWITTER" && refreshToken != null) refreshToken else user.twitterRefresh,
-            instagramAccountId = if (provider == "INSTAGRAM" && accountId != null) accountId else user.instagramAccountId,
-            instagramAccessToken = if (provider == "INSTAGRAM" && accessToken != null) accessToken else user.instagramAccessToken,
-            instagramRefresh = if (provider == "INSTAGRAM" && refreshToken != null) refreshToken else user.instagramRefresh,
-            linkedinAccountId = if (provider == "LINKEDIN" && accountId != null) accountId else user.linkedinAccountId,
-            linkedinAccessToken = if (provider == "LINKEDIN" && accessToken != null) accessToken else user.linkedinAccessToken,
-            linkedinRefresh = if (provider == "LINKEDIN" && refreshToken != null) refreshToken else user.linkedinRefresh,
-            tiktokAccountId = if (provider == "TIKTOK" && accountId != null) accountId else user.tiktokAccountId,
-            tiktokAccessToken = if (provider == "TIKTOK" && accessToken != null) accessToken else user.tiktokAccessToken,
-            tiktokRefresh = if (provider == "TIKTOK" && refreshToken != null) refreshToken else user.tiktokRefresh
+        val user = userRepository.findById(userId)
+        val currentAccount = user!!.accounts.find { it.provider == provider }
+        val updatedUser = user!!.copy(
+            accounts = user.accounts + AccountInfoModel(
+                userId = userId,
+                type = "oauth",
+                provider = provider,
+                accountId = accountId ?: currentAccount?.accountId ?: "",
+                refreshToken = refreshToken ?: currentAccount?.accountId ?: "",
+                accessToken = accessToken,
+                expiresAt = null,
+                tokenType = null,
+                scope = null,
+                idToken = null,
+                sessionState = null
+            )
         )
 
         if (updatedUser == user) {
@@ -132,5 +106,24 @@ class UserController(
         }
 
         userRepository.update(updatedUser)
+    }
+
+    fun updateUser(id: Int, description: String?, currentPassword: String?, newPassword: String?) {
+        val user = userRepository.findById(id) ?: throw IllegalArgumentException("User not found")
+        if (description != null) {
+            user.copy(name = description)
+        }
+
+        if (currentPassword != null && newPassword != null) {
+            if (Password.check(currentPassword, user.password!!).withBcrypt()) {
+                val hashedPassword = Password.hash(newPassword).addRandomSalt(10).withBcrypt().result
+                user.copy(password = hashedPassword.toString())
+            } else {
+                throw IllegalArgumentException("Invalid password")
+            }
+
+        }
+
+        userRepository.update(user)
     }
 }

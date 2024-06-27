@@ -1,7 +1,8 @@
 package postus.workers
 
 import ScheduleRepository
-import postus.controllers.SocialsController
+import kotlinx.coroutines.*
+import postus.controllers.Social.SocialsController
 import postus.models.ScheduledPost
 import java.time.Duration
 import java.time.Instant
@@ -16,7 +17,7 @@ class PostWorker(private val scheduledPost: ScheduledPost, private val socialCon
     private val scheduler = Executors.newScheduledThreadPool(1)
     private var future: ScheduledFuture<*>? = null
 
-    fun schedule() {
+    suspend fun schedule() = withContext(Dispatchers.IO) {
         val dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
         val postTimeLocalDateTime: LocalDateTime = LocalDateTime.parse(scheduledPost.postTime, dateTimeFormatter)
         val postTimeInstant: Instant = postTimeLocalDateTime.toInstant(ZoneOffset.UTC)
@@ -25,13 +26,15 @@ class PostWorker(private val scheduledPost: ScheduledPost, private val socialCon
         println("Current Instant: $currentInstant") // Debugging statement
         println("Post Time Instant: $postTimeInstant") // Debugging statement
 
-        val delay = Duration.between(currentInstant, postTimeInstant).toHours()
+        val delay = Duration.between(currentInstant, postTimeInstant).toMillis()
         future = scheduler.schedule({
-            post()
+            CoroutineScope(Dispatchers.IO).launch {
+                post()
+            }
         }, delay, TimeUnit.MILLISECONDS)
     }
 
-    private fun post() {
+    private suspend fun post() = withContext(Dispatchers.IO) {
         val userId = scheduledPost.userId
         val S3Path = scheduledPost.s3Path
         val mediaType = scheduledPost.mediaType
