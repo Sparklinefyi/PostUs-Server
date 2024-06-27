@@ -84,13 +84,14 @@ class UserController(
 
     fun linkAccount(userId: Int, provider: String, accountId: String?, accessToken: String?, refreshToken: String?) {
         val user = userRepository.findById(userId)
+        val currentAccount = user!!.accounts.find { it.provider == provider }
         val updatedUser = user!!.copy(
             accounts = user.accounts + AccountInfoModel(
                 userId = userId,
                 type = "oauth",
                 provider = provider,
-                accountId = accountId ?: "",
-                refreshToken = refreshToken,
+                accountId = accountId ?: currentAccount?.accountId ?: "",
+                refreshToken = refreshToken ?: currentAccount?.accountId ?: "",
                 accessToken = accessToken,
                 expiresAt = null,
                 tokenType = null,

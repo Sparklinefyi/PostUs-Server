@@ -3,6 +3,7 @@ package postus.utils
 import com.auth0.jwt.JWT
 import com.auth0.jwt.JWTVerifier
 import com.auth0.jwt.algorithms.Algorithm
+import com.auth0.jwt.interfaces.Claim
 import java.util.*
 
 class JwtHandler {
@@ -28,7 +29,12 @@ class JwtHandler {
             val verifier = makeJwtVerifier(System.getProperty("JWT_ISSUER")!!)
             val jwt = verifier.verify(token)
 
-            val userId = jwt.getClaim("userId").asString()
+            val userClaim: Claim = jwt.getClaim("userId")
+            val userId = if (!userClaim.isNull) {
+                userClaim.asString().removeSurrounding("\"")
+            } else {
+                null
+            }
             if (userId.isNullOrEmpty()) jwt.subject else userId
         } catch (e: Exception) {
             null

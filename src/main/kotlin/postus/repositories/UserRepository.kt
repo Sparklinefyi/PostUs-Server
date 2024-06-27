@@ -30,6 +30,8 @@ class UserRepository {
 
             // Check if the updatedUser has accounts and update/save them
             updatedUser.accounts?.forEach { updatedAccount ->
+
+                println( updatedAccount.accountId)
                 val account = Account.find { AccountTable.accountId eq updatedAccount.accountId }.singleOrNull() ?: Account.new {
                     // If the account doesn't exist, create a new one
                     this.userId = user
