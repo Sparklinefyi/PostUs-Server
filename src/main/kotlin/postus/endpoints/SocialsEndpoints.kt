@@ -173,15 +173,11 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
                 }
             }
             route("analyze") {
-                get("youtube/page") {
-                    val token = call.request.headers["Authorization"]
-                        ?.removePrefix("Bearer ")
+                post("youtube/page") {
+                    val token = call.receiveText()
                         ?.trim('"')
-                        ?: return@get call.respond(
-                            HttpStatusCode.BadRequest,
-                            "Missing or invalid Authorization header"
-                        )
-                    val userInfo = userService.fetchUserDataByToken(token) ?: return@get call.respond(
+
+                    val userInfo = userService.fetchUserDataByToken(token!!) ?: return@post call.respond(
                         HttpStatusCode.BadRequest,
                         "Invalid token"
                     )
@@ -200,15 +196,11 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
                         call.respond(HttpStatusCode.InternalServerError, e.message ?: "An error occurred")
                     }
                 }
-                get("youtube/post") {
-                    val token = call.request.headers["Authorization"]
-                        ?.removePrefix("Bearer ")
+                post("youtube/post") {
+                    val token = call.receiveText()
                         ?.trim('"')
-                        ?: return@get call.respond(
-                            HttpStatusCode.BadRequest,
-                            "Missing or invalid Authorization header"
-                        )
-                    val userInfo = userService.fetchUserDataByToken(token) ?: return@get call.respond(
+
+                    val userInfo = userService.fetchUserDataByToken(token!!) ?: return@post call.respond(
                         HttpStatusCode.BadRequest,
                         "Invalid token"
                     )
@@ -217,7 +209,7 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
                         val userId = userInfo.id.toString()
                         val videoIds = withContext(Dispatchers.IO) {
                             youtubeController.getLast50YoutubeVideos(userId)
-                        } ?: return@get call.respond(HttpStatusCode.InternalServerError, "Error fetching videos")
+                        } ?: return@post call.respond(HttpStatusCode.InternalServerError, "Error fetching videos")
 
                         val videoDetailsList = withContext(Dispatchers.IO) {
                             youtubeController.getYouTubeVideoDetails(videoIds)
@@ -232,15 +224,9 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
                     }
                 }
                 get("instagram/page") {
-                    val token = call.request.headers["Authorization"]
-                        ?.removePrefix("Bearer ")
+                    val token = call.receiveText()
                         ?.trim('"')
-                        ?: return@get call.respond(
-                            HttpStatusCode.BadRequest,
-                            "Missing or invalid Authorization header"
-                        )
-
-                    val userInfo = userService.fetchUserDataByToken(token)!!
+                    val userInfo = userService.fetchUserDataByToken(token!!)!!
                     val userId = userInfo.id.toString()
 
                     try {
@@ -299,11 +285,7 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
                         val analytics = withContext(Dispatchers.IO) {
                             tiktokController.getTikTokChannelAnalytics(userId.toInt())
                         }
-                        if (analytics == null) {
-                            call.respond(HttpStatusCode.InternalServerError, "Failed to retrieve TikTok Channel Analytics")
-                        } else {
-                            call.respond(HttpStatusCode.OK, analytics)
-                        }
+                        call.respond(HttpStatusCode.OK, analytics)
                     } catch (e: Exception) {
                         call.respond(HttpStatusCode.InternalServerError, e.message ?: "An error occurred")
                     }
@@ -327,11 +309,7 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
                         val analytics = withContext(Dispatchers.IO) {
                             tiktokController.getTikTokPostAnalytics(userId.toInt(), videoId)
                         }
-                        if (analytics == null) {
-                            call.respond(HttpStatusCode.InternalServerError, "Failed to retrieve TikTok Post Analytics")
-                        } else {
-                            call.respond(HttpStatusCode.OK, analytics)
-                        }
+                        call.respond(HttpStatusCode.OK, analytics)
                     } catch (e: Exception) {
                         call.respond(HttpStatusCode.InternalServerError, e.message ?: "An error occurred")
                     }

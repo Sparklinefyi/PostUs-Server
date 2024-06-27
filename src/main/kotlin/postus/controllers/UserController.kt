@@ -26,7 +26,7 @@ class UserController(
             password = hashedPassword.toString(),
             role = UserRole.USER,
             createdAt = now().toString(),
-            emailVerified = now(),
+            emailVerified = null,
             image = null
         )
 
@@ -36,8 +36,6 @@ class UserController(
 
     fun authenticateWithEmailPassword(email: String, password: String): UserModel? {
         val user = userRepository.findByEmail(email) ?: return null
-        val test = Password.hash(password).withBcrypt().result
-        println(test)
         return if (Password.check(password, user.password!!).withBcrypt()) user else null
     }
 
