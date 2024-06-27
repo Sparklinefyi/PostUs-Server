@@ -28,7 +28,7 @@ class JwtHandler {
             val verifier = makeJwtVerifier(System.getProperty("JWT_ISSUER")!!)
             val jwt = verifier.verify(token)
 
-            val userId = jwt.getClaim("token").asString() ?: jwt.getClaim("user").asString()
+            val userId = jwt.getClaim("userId").asString()
             if (userId.isNullOrEmpty()) jwt.subject else userId
         } catch (e: Exception) {
             null
