@@ -17,6 +17,7 @@ import postus.repositories.UserRepository
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.FormBody
 
 class TikTokController(
     client: OkHttpClient,
@@ -30,14 +31,24 @@ class TikTokController(
     val userController = userController
     val mediaController = mediaController
 
-    suspend fun exchangeAuthorizationCodeForTokens(userId: Int, clientId: String, clientSecret: String, code: String, redirectUri: String): Boolean {
-        val tokenUrl = "https://open-api.tiktok.com/oauth/access_token"
-        val authRequest = TiktokAuthRequest(client_key = clientId, client_secret = clientSecret, code = code, redirect_uri = redirectUri)
-        val requestBody = Json.encodeToString(authRequest)
+    suspend fun exchangeAuthorizationCodeForTokens(userId: Int, code: String): Boolean {
+        val clientId = System.getProperty("TIKTOK_CLIENT_ID") ?: throw Error("Missing TikTok client ID")
+        val clientSecret = System.getProperty("TIKTOK_CLIENT_SECRET") ?: throw Error("Missing TikTok client secret")
+        val redirectUri = System.getProperty("TIKTOK_REDIRECT_URI") ?: throw Error("Missing TikTok redirect URI")
+        val tokenUrl = "https://open.tiktokapis.com/v2/oauth/token/"
+        val formBody = FormBody.Builder()
+            .add("client_key", clientId)
+            .add("client_secret", clientSecret)
+            .add("code", code)
+            .add("grant_type", "authorization_code")
+            .add("redirect_uri", redirectUri)
+            .build()
 
         val request = Request.Builder()
             .url(tokenUrl)
-            .post(requestBody.toRequestBody("application/json".toMediaTypeOrNull()))
+            .addHeader("Content-Type", "application/x-www-form-urlencoded")
+            .addHeader("Cache-Control", "no-cache")
+            .post(formBody)
             .build()
 
         val response = withContext(Dispatchers.IO) { client.newCall(request).execute() }
@@ -51,7 +62,7 @@ class TikTokController(
         val jsonResponse = JSONObject(responseBody)
         val accessToken = jsonResponse.getString("access_token")
         val refreshToken = jsonResponse.getString("refresh_token")
-        val accountId = getTikTokAccountId(accessToken)
+        val accountId = jsonResponse.getString("open_id")
 
         userController.linkAccount(
             userId,
@@ -63,19 +74,6 @@ class TikTokController(
         return true
     }
 
-    suspend fun getTikTokAccountId(accessToken: String): String {
-        val url = "https://open-api.tiktok.com/oauth/userinfo/"
-
-        val request = Request.Builder()
-            .url(url)
-            .addHeader("Authorization", "Bearer $accessToken")
-            .build()
-
-        val response = withContext(Dispatchers.IO) { client.newCall(request).execute() }
-        val responseBody = response.body?.string() ?: throw IOException("Empty response body")
-
-        return JSONObject(responseBody).getJSONObject("data").getString("open_id")
-    }
 
     suspend fun postToTikTok(userId: Int, videoPath: String, description: String?): String {
         val user = userRepository.findById(userId)
@@ -136,14 +134,22 @@ class TikTokController(
         return response.body?.string() ?: throw IOException("Empty response body")
     }
 
-    suspend fun refreshAccessToken(userId: Int, clientId: String, clientSecret: String, refreshToken: String): Boolean {
+    suspend fun refreshAccessToken(userId: Int, refreshToken: String): Boolean {
+        val clientId = System.getProperty("TIKTOK_CLIENT_ID") ?: throw Error("Missing TikTok client ID")
+        val clientSecret = System.getProperty("TIKTOK_CLIENT_SECRET") ?: throw Error("Missing TikTok client secret")
         val tokenUrl = "https://open.tiktokapis.com/v2/oauth/token/"
-        val authRequest = TikTokRefreshTokenRequest(client_key = clientId, client_secret = clientSecret, refresh_token = refreshToken)
-        val requestBody = Json.encodeToString(authRequest)
+        val formBody = FormBody.Builder()
+            .add("client_key", clientId)
+            .add("client_secret", clientSecret)
+            .add("grant_type", "refresh_token")
+            .add("refresh_token", refreshToken)
+            .build()
 
         val request = Request.Builder()
             .url(tokenUrl)
-            .post(requestBody.toRequestBody("application/json".toMediaTypeOrNull()))
+            .addHeader("Content-Type", "application/x-www-form-urlencoded")
+            .addHeader("Cache-Control", "no-cache")
+            .post(formBody)
             .build()
 
         val response = withContext(Dispatchers.IO) { client.newCall(request).execute() }
