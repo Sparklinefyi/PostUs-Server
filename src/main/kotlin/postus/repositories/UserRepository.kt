@@ -12,12 +12,12 @@ import java.time.LocalDateTime.now
 
 class UserRepository {
 
-    fun findById(id: Int): UserModel? {
+    suspend fun findById(id: Int): UserModel? {
         return transaction {
             User.find(UserTable.id eq id).firstOrNull()?.toUserModel()
         }
     }
-    fun update(updatedUser: UserModel) {
+    suspend fun update(updatedUser: UserModel) {
         return transaction {
             val user = User.findById(updatedUser.id) ?: throw IllegalArgumentException("User not found")
             user.email = updatedUser.email
@@ -56,13 +56,13 @@ class UserRepository {
         }
     }
 
-    fun findByEmail(email: String): UserModel? {
+    suspend fun findByEmail(email: String): UserModel? {
         return transaction {
             User.find { UserTable.email eq email }.firstOrNull()?.toUserModel()
         }
     }
 
-    fun create(user: UserModel): Int {
+    suspend fun create(user: UserModel): Int {
         return transaction {
             User.new {
                 email = user.email

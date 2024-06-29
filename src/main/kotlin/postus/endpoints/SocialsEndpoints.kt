@@ -410,6 +410,23 @@ fun Application.configureSocialsRouting(userService: UserController, socialContr
                         )
                     }
                 }
+                get("tiktok") {
+                    try {
+                        val parameters = call.request.queryParameters
+                        val code = parameters["code"]
+
+                        val info = processRequest(call, userService) ?: return@get
+                        val validated = withContext(Dispatchers.IO) {
+                            tiktokController.exchangeAuthorizationCodeForTokens(info.second.id, code!!)
+                        }
+                        oAuthResponse(call, validated, info.first)
+                    } catch (e: Exception) {
+                        call.respond(
+                            HttpStatusCode.InternalServerError,
+                            "An error occurred while processing the request"
+                        )
+                    }
+                }
             }
             post("schedule") {
                 val gson: Gson = GsonBuilder().create()

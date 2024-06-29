@@ -34,17 +34,17 @@ class UserController(
         return user.toUserInfo()!!.copy(id = userId)
     }
 
-    fun authenticateWithEmailPassword(email: String, password: String): UserModel? {
+    suspend fun authenticateWithEmailPassword(email: String, password: String): UserModel? {
         val user = userRepository.findByEmail(email) ?: return null
         return if (Password.check(password, user.password!!).withBcrypt()) user else null
     }
 
-    fun fetchUserDataByToken(token: String): UserModel? {
+    suspend fun fetchUserDataByToken(token: String): UserModel? {
         val userId = JwtHandler().validateTokenAndGetUserId(token) ?: return null
         return userRepository.findById(userId.toInt())
     }
 
-    fun fetchUserDataByTokenWithPlatform(token: String): Triple<String, UserInfo, String?> {
+    suspend fun fetchUserDataByTokenWithPlatform(token: String): Triple<String, UserInfo, String?> {
         try {
             val verifier = JwtHandler().makeJwtVerifier(System.getProperty("JWT_ISSUER")!!)
             val decodedJWT = verifier.verify(token)
@@ -80,10 +80,10 @@ class UserController(
         }
     }
 
-    fun linkAccount(userId: Int, provider: String, accountId: String?, accessToken: String?, refreshToken: String?) {
+    suspend fun linkAccount(userId: Int, provider: String, accountId: String?, accessToken: String?, refreshToken: String?) {
         val user = userRepository.findById(userId)
         val currentAccount = user!!.accounts.find { it.provider == provider }
-        val updatedUser = user!!.copy(
+        val updatedUser = user.copy(
             accounts = user.accounts + AccountInfoModel(
                 userId = userId,
                 type = "oauth",
@@ -106,7 +106,7 @@ class UserController(
         userRepository.update(updatedUser)
     }
 
-    fun updateUser(id: Int, description: String?, currentPassword: String?, newPassword: String?) {
+    suspend fun updateUser(id: Int, description: String?, currentPassword: String?, newPassword: String?) {
         val user = userRepository.findById(id) ?: throw IllegalArgumentException("User not found")
         if (description != null) {
             user.copy(name = description)

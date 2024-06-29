@@ -101,7 +101,7 @@ class YouTubeController(
      * Sample Call:
      * `uploadYoutubeShort(uploadRequest, "1", "videoUrl")`
      */
-    suspend fun uploadYoutubeShort(uploadRequest: YoutubePostRequest, userId: Int, videoUrl: String): JSONObject? = withContext(Dispatchers.IO) {
+    suspend fun uploadYoutubeShort(uploadRequest: YoutubePostRequest, userId: Int, videoUrl: String): JSONObject = withContext(Dispatchers.IO) {
         refreshYouTubeAccessToken(userId)
         val signedUrl = mediaController.getPresignedUrlFromPath(videoUrl)
         val videoFile = mediaController.downloadVideo(signedUrl)
