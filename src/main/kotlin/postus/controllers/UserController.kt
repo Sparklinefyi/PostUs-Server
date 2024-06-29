@@ -17,7 +17,7 @@ class UserController(
     private val userRepository: UserRepository,
 ) {
 
-    fun registerUser(request: RegistrationRequest): UserInfo {
+    suspend fun registerUser(request: RegistrationRequest): UserInfo {
         val hashedPassword = Password.hash(request.password).withBcrypt().result
         val user = UserModel(
             id = 0,
