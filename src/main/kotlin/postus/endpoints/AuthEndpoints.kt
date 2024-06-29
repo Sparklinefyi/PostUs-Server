@@ -17,7 +17,7 @@ fun Application.configureAuthRouting(userService: UserController) {
                 val request = call.receive<RegistrationRequest>()
                 val user = userService.registerUser(request)
                 val verificationToken = generateVerificationToken(user.email!!)
-                EmailController().sendVerificationEmail("re_ETUfKnjr_8vjfqCfZo9ybix6Gk9LxCbM7", user.email, verificationToken.token)
+                EmailController().sendVerificationEmail("re_9wxtBML6_7JmF2EHdaZYn82B9RntH7Yb8", user.email, verificationToken.token)
                 call.respond(HttpStatusCode.OK, "User registered successfully, verification email sent)")
             }
 
@@ -30,12 +30,19 @@ fun Application.configureAuthRouting(userService: UserController) {
                         call.respond(HttpStatusCode.OK, response)
                     } else {
                         val verificationToken = generateVerificationToken(user.email!!)
-                        EmailController().sendVerificationEmail("re_ETUfKnjr_8vjfqCfZo9ybix6Gk9LxCbM7", user.email, verificationToken.token)
+                        EmailController().sendVerificationEmail("re_9wxtBML6_7JmF2EHdaZYn82B9RntH7Yb8", user.email, verificationToken.token)
                         call.respond(HttpStatusCode.OK, "Email not verified, resending confirmation email")
                     }
                 } else {
                     call.respond(HttpStatusCode.Unauthorized, "Invalid credentials")
                 }
+            }
+            post("/test-email") {
+
+                val request = call.receive<LoginRequest>()
+                val verificationToken = generateVerificationToken("iblooze2@gmail.com")
+                EmailController().sendVerificationEmail("re_9wxtBML6_7JmF2EHdaZYn82B9RntH7Yb8", "iblooze2@gmail.com", verificationToken.token)
+                call.respond(HttpStatusCode.OK, "Email not verified, resending confirmation email")
             }
 
             post("/signout") {

@@ -17,15 +17,15 @@ class UserController(
     private val userRepository: UserRepository,
 ) {
 
-    suspend fun registerUser(request: RegistrationRequest): UserInfo {
-        val hashedPassword = Password.hash(request.password).addRandomSalt(10).withBcrypt().result
+    fun registerUser(request: RegistrationRequest): UserInfo {
+        val hashedPassword = Password.hash(request.password).withBcrypt().result
         val user = UserModel(
             id = 0,
             email = request.email,
             name = request.name,
             password = hashedPassword.toString(),
-            role = UserRole.USER,
-            createdAt = now().toString(),
+            role = UserRole.USER.name,
+            createdAt = now(),
             emailVerified = null,
             image = null
         )
@@ -76,7 +76,7 @@ class UserController(
             return Triple(platform, user, codeVerifier)
         } catch (e: Exception) {
             println("Error verifying token: ${e.message}")
-            return Triple("", UserInfo(0, "", "", UserRole.USER, now().toString(), now(), ""), "")
+            return Triple("", UserInfo(0, "", "", UserRole.USER.name, now().toString(), now(), ""), "")
         }
     }
 
