@@ -23,15 +23,11 @@ class UserRepository {
             user.email = updatedUser.email
             user.name = updatedUser.name
             user.password = updatedUser.password
-            user.role = updatedUser.role
             user.createdAt = updatedUser.createdAt
             user.emailVerified = updatedUser.emailVerified
             user.image = updatedUser.image
 
-            // Check if the updatedUser has accounts and update/save them
             updatedUser.accounts?.forEach { updatedAccount ->
-
-                println( updatedAccount.accountId)
                 val account = Account.find { AccountTable.accountId eq updatedAccount.accountId }.singleOrNull() ?: Account.new {
                     // If the account doesn't exist, create a new one
                     this.userId = user
@@ -72,13 +68,26 @@ class UserRepository {
                 email = user.email
                 name = user.name
                 password = user.password
-                role = user.role
                 createdAt = user.createdAt
                 emailVerified = user.emailVerified
                 image = user.image
             }.id.value
         }
     }
+}
+
+
+fun <T : Enum<T>> Table.enum(name: String, enumClass: Class<T>): Column<T> {
+    return customEnumeration(
+        name,
+        "VARCHAR(255)",
+        { value -> enumClass.enumConstants.first { it.name == value } },
+        { it.name }
+    )
+}
+
+inline fun <reified T : Enum<T>> Table.enum(name: String): Column<T> {
+    return enum(name, T::class.java)
 }
 
 object UserTable : IntIdTable(
@@ -90,13 +99,9 @@ object UserTable : IntIdTable(
     val image = varchar("image", 255).nullable()
     val password = varchar("password", 255).nullable()
 
-    val role = customEnumeration(
-        "role", "UserRole",
-        { value -> UserRole.valueOf(value as String) },
-        { it.name }
-    ).default(UserRole.USER)
+    val role = varchar("role", 10).default(UserRole.USER.name)
 
-    val createdAt = varchar("createdAt", 255).default(now().toString())
+    val createdAt = datetime("createdAt").default(now())
 
     init {
         uniqueIndex(email)
@@ -176,12 +181,12 @@ object StripeCustomerTable : IntIdTable(
     val updatedAt = datetime("updatedAt").defaultExpression(CurrentDateTime)
 }
 
-// Enums
-enum class UserRole {
-    USER, ADMIN
-}
+    // Enums
+    enum class UserRole {
+        USER, ADMIN
+    }
 
-// Entity classes
+    // Entity classes
 class User(id: EntityID<Int>) : IntEntity(id) {
     fun toUserModel(): UserModel {
         return UserModel(

@@ -26,13 +26,25 @@ object LocalDateTimeSerializer : KSerializer<LocalDateTime> {
     }
 }
 
+object UserRoleSerializer : KSerializer<UserRole> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("UserRole", PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, value: UserRole) {
+        encoder.encodeString(value.name)
+    }
+
+    override fun deserialize(decoder: Decoder): UserRole {
+        return UserRole.valueOf(decoder.decodeString())
+    }
+}
 
 @Serializable
 data class UserInfo(
     val id: Int,
     val email: String?,
     val name: String?,
-    val role: UserRole,
+    val role: String,
     val createdAt: String,
     @Serializable(with = LocalDateTimeSerializer::class)
     val emailVerified: LocalDateTime? = null,
@@ -46,8 +58,9 @@ data class UserModel(
     val email: String?,
     val name: String?,
     val password: String?,
-    val createdAt: String,
-    val role: UserRole,
+    @Serializable(with = LocalDateTimeSerializer::class)
+    val createdAt: LocalDateTime,
+    val role: String,
     @Serializable(with = LocalDateTimeSerializer::class)
     val emailVerified: LocalDateTime? = null,
     val image: String? = null,
@@ -59,7 +72,7 @@ data class UserModel(
             email,
             name,
             role,
-            createdAt,
+            createdAt.toString(),
             emailVerified,
             image,
             accounts.map { it.provider }
